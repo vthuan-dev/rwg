@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { USER_API_BASE_URL, ADMIN_API_BASE_URL } from "@/lib/constants";
 
 import vi from "@/locales/vi.json";
 import en from "@/locales/en.json";
@@ -50,8 +51,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.getItem("rwg_token") || localStorage.getItem("rwg_admin_token");
     if (token) {
       const baseUrl = localStorage.getItem("rwg_admin_token")
-        ? "http://localhost:8081/api/v1"
-        : "http://localhost:8080/api/v1";
+        ? ADMIN_API_BASE_URL
+        : USER_API_BASE_URL;
 
       fetch(`${baseUrl}/users/me`, {
         headers: {
@@ -83,8 +84,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.getItem("rwg_token") || localStorage.getItem("rwg_admin_token");
     if (token) {
       const baseUrl = localStorage.getItem("rwg_admin_token")
-        ? "http://localhost:8081/api/v1"
-        : "http://localhost:8080/api/v1";
+        ? ADMIN_API_BASE_URL
+        : USER_API_BASE_URL;
 
       fetch(`${baseUrl}/users/me/locale`, {
         method: "PATCH",

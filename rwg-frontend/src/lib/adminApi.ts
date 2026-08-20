@@ -1,4 +1,4 @@
-export const ADMIN_API_BASE = "http://localhost:8081/api/v1";
+import { ADMIN_API_BASE_URL } from "./constants";
 
 export const getAdminToken = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -35,7 +35,7 @@ export async function adminFetch<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${ADMIN_API_BASE}${endpoint}`, {
+  const res = await fetch(`${ADMIN_API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
   });
@@ -59,7 +59,7 @@ export async function adminFetch<T = any>(
     throw new Error(errorMsg);
   }
 
-  if (res.status === 24 || res.status === 204) {
+  if (res.status === 204) {
     return {} as T;
   }
 

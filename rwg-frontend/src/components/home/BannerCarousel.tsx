@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { USER_API_BASE_URL, USER_BASE_URL } from "@/lib/constants";
 
 interface BannerItem {
   id: string;
@@ -33,14 +34,21 @@ export const BannerCarousel: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    // Try fetching active banners from backend
+    // Try fetching active banners from backend via env API URL
     const fetchBanners = async () => {
       try {
-        const res = await fetch("http://localhost:8080/api/v1/banners/active");
+        const res = await fetch(`${USER_API_BASE_URL}/banners/active`);
         if (res.ok) {
           const data: BannerItem[] = await res.json();
           if (data && data.length > 0) {
-            setBanners(data);
+            setBanners(
+              data.map((b) => ({
+                ...b,
+                mediaUrl: b.mediaUrl.startsWith("/uploads")
+                  ? `${USER_BASE_URL}${b.mediaUrl}`
+                  : b.mediaUrl,
+              }))
+            );
           }
         }
       } catch {

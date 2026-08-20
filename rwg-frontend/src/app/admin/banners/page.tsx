@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
+import { USER_BASE_URL } from "@/lib/constants";
 
 interface BannerItem {
   id: string;
@@ -182,13 +183,13 @@ export default function AdminBannersPage() {
               <div className="relative w-full aspect-[16/9] bg-slate-900 overflow-hidden flex items-center justify-center">
                 {banner.mediaType === "VIDEO" ? (
                   <video
-                    src={`http://localhost:8080${banner.mediaUrl}`}
+                    src={banner.mediaUrl.startsWith("/uploads") ? `${USER_BASE_URL}${banner.mediaUrl}` : banner.mediaUrl}
                     controls
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <img
-                    src={banner.mediaUrl.startsWith("/uploads") ? `http://localhost:8080${banner.mediaUrl}` : banner.mediaUrl}
+                    src={banner.mediaUrl.startsWith("/uploads") ? `${USER_BASE_URL}${banner.mediaUrl}` : banner.mediaUrl}
                     alt={banner.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
