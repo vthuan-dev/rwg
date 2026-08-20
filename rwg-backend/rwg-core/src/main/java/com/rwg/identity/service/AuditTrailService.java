@@ -43,6 +43,55 @@ public class AuditTrailService {
     public static final String BANK_ACCOUNT_ADDED = "BANK_ACCOUNT_ADDED";
     public static final String BANK_ACCOUNT_REMOVED = "BANK_ACCOUNT_REMOVED";
 
+    // Chặng 3: thao tác quản trị (admin backoffice). Tiền tố ADMIN_ để tra cứu
+    // nhật ký admin chỉ cần filter theo action LIKE 'ADMIN_%'.
+    public static final String ADMIN_USER_STATUS_CHANGED = "ADMIN_USER_STATUS_CHANGED";
+    public static final String ADMIN_USER_ROLE_CHANGED = "ADMIN_USER_ROLE_CHANGED";
+    public static final String ADMIN_KYC_UPDATED = "ADMIN_KYC_UPDATED";
+    public static final String ADMIN_WITHDRAWAL_PASSWORD_RESET = "ADMIN_WITHDRAWAL_PASSWORD_RESET";
+    public static final String ADMIN_WALLET_ADJUSTED = "ADMIN_WALLET_ADJUSTED";
+
+    // Chặng 3 Phase 2: giới thiệu & hoa hồng đại lý.
+    public static final String REFERRAL_ATTACHED = "REFERRAL_ATTACHED";
+    /** Mã giới thiệu bị bỏ qua (sai mã / tự giới thiệu / vòng lặp) — không chặn đăng ký. */
+    public static final String REFERRAL_SKIPPED = "REFERRAL_SKIPPED";
+    public static final String COMMISSION_PAID = "COMMISSION_PAID";
+    public static final String ADMIN_COMMISSION_RATE_CHANGED = "ADMIN_COMMISSION_RATE_CHANGED";
+    public static final String ADMIN_COMMISSION_RUN_TRIGGERED = "ADMIN_COMMISSION_RUN_TRIGGERED";
+
+    // Chặng 5: siết an toàn vận hành khu quản trị (quy trình 4 mắt).
+    /** Admin tạo đề nghị thao tác vượt hạn mức — CHƯA chuyển tiền. */
+    public static final String ADMIN_APPROVAL_REQUESTED = "ADMIN_APPROVAL_REQUESTED";
+    /** Admin thứ hai phê duyệt — thời điểm tiền THỰC SỰ chuyển. */
+    public static final String ADMIN_APPROVAL_APPROVED = "ADMIN_APPROVAL_APPROVED";
+    public static final String ADMIN_APPROVAL_REJECTED = "ADMIN_APPROVAL_REJECTED";
+    /**
+     * Admin bị chặn khi cố tự giao dịch (tự điều chỉnh ví mình / tự duyệt lệnh rút
+     * của mình). Ghi lại vì đây là dấu hiệu cần điều tra, không phải lỗi thao tác
+     * thông thường.
+     */
+    public static final String ADMIN_SELF_DEALING_BLOCKED = "ADMIN_SELF_DEALING_BLOCKED";
+
+    // Chặng 6: quản trị bàn chơi.
+    /**
+     * Admin bật/tắt bàn. Tắt bàn ảnh hưởng mọi người chơi đang ở bàn đó nên phải
+     * truy được ai tắt, khi nào và vì sao.
+     */
+    public static final String ADMIN_TABLE_STATUS_CHANGED = "ADMIN_TABLE_STATUS_CHANGED";
+    /** Admin đổi hạn mức cược của bàn — ảnh hưởng mức rủi ro tối đa mỗi lệnh cược. */
+    public static final String ADMIN_TABLE_LIMITS_CHANGED = "ADMIN_TABLE_LIMITS_CHANGED";
+
+    // Chặng 7: chống đa tài khoản.
+    /**
+     * Hệ thống dò ra hai tài khoản có khả năng cùng một người. Ghi lại để điều tra
+     * được vì đây là căn cứ GIỮ TIỀN hoa hồng — người bị nghi oan phải tra cứu được.
+     */
+    public static final String RISK_ACCOUNT_LINK_DETECTED = "RISK_ACCOUNT_LINK_DETECTED";
+    /** Người vận hành kết luận về một liên kết (xác nhận hoặc gỡ oan). */
+    public static final String RISK_ACCOUNT_LINK_REVIEWED = "RISK_ACCOUNT_LINK_REVIEWED";
+    /** Người vận hành tự nối hai tài khoản theo dấu hiệu máy không thấy. */
+    public static final String RISK_ACCOUNT_LINK_CREATED = "RISK_ACCOUNT_LINK_CREATED";
+
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 
     private final AuditLogRepository repository;

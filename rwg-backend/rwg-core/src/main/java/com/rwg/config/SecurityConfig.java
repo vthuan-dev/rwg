@@ -3,6 +3,7 @@ package com.rwg.config;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -20,8 +21,12 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Cấu hình bảo mật: JWT resource server (HS256) + phân quyền PLAYER/ADMIN.
+ * Cấu hình bảo mật: JWT resource server (HS256) + phân quyền theo vai trò.
  * Mật khẩu băm BCrypt strength 12 (DECISIONS.md / Bước 1).
+ *
+ * Vai trò: PLAYER / ADMIN / FINANCE / SUPPORT / RISK. Khu /api/v1/admin/** phân quyền
+ * THEO ROUTE (xem securityFilterChain) để tách quyền chạm tiền khỏi quyền xem —
+ * đây là điểm thực thi duy nhất, không rải @PreAuthorize ở controller.
  */
 @Configuration
 @EnableWebSecurity
@@ -82,8 +87,63 @@ public class SecurityConfig {
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
                         // theo providerTxnId; chặng sau thêm xác thực chữ ký provider.
                         .requestMatchers("/api/v1/payments/callback").permitAll()
-                        // Khu vực ADMIN: bắt buộc ROLE_ADMIN (điểm thực thi phân quyền).
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                        // ===== KHU ADMIN: phân quyền theo route (chặng 5) =====
+                        //
+                        // THỨ TỰ QUAN TRỌNG: Spring Security lấy matcher KHỚP ĐẦU TIÊN, nên
+                        // mọi matcher cụ thể PHẢI đứng trước /api/v1/admin/** ở cuối. Đặt sai
+                        // thứ tự thì matcher chung "ăn" hết và việc tách vai trò vô hiệu.
+                        //
+                        // Vì sao tách: trước đây mọi ADMIN đều vừa cộng được tiền vào ví vừa tự
+                        // duyệt được lệnh rút -> một người có thể chuyển tiền ra khỏi sàn.
+
+                        // Chỉ ADMIN (super) được phân quyền — nếu FINANCE tự nâng mình thành
+                        // ADMIN thì toàn bộ việc tách vai trò trở nên vô nghĩa.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/role").hasRole("ADMIN")
+                        // Đổi % hoa hồng ảnh hưởng tiền chi cho mọi đại lý -> chỉ ADMIN.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/affiliate/config").hasRole("ADMIN")
+                        // Hạn mức cược quyết định mức thiệt hại tối đa mỗi lệnh cược -> chỉ ADMIN.
+                        // Nâng maxBet lên rất cao là một đường rút tiền không cần chạm ví nào.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/limits").hasRole("ADMIN")
+
+                        // Bật/tắt bàn: thêm RISK — phát hiện bàn bất thường là việc của họ, và
+                        // tắt bàn không chuyển đồng nào nên không thuộc nhóm thao tác tiền.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/status")
+                            .hasAnyRole("ADMIN", "RISK")
+
+                        // Khu risk (chống đa tài khoản): ADMIN + RISK, gồm cả thao tác GHI.
+                        // Đây là lần đầu RISK được ghi dữ liệu — trước giờ chỉ đọc báo cáo.
+                        // Hợp lý vì đánh giá gian lận đúng là việc của họ, và các thao tác
+                        // này KHÔNG chuyển một đồng nào nên không cần quy trình 4 mắt.
+                        .requestMatchers("/api/v1/admin/risk/**").hasAnyRole("ADMIN", "RISK")
+
+                        // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK bị chặn ở đây.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/approvals/*/approve")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/approvals/*/reject")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/approve")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/reject")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/affiliate/commissions/run")
+                            .hasAnyRole("ADMIN", "FINANCE")
+
+                        // Thao tác quản lý user (không chạm tiền): thêm SUPPORT.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/status")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/kyc")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/reset")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+
+                        // Còn lại trong khu admin (chủ yếu GET tra cứu/báo cáo): mọi nhân sự
+                        // quản trị, gồm RISK chỉ đọc. Các POST/PATCH ghi đã bị chặn hẹp ở trên.
+                        .requestMatchers("/api/v1/admin/**")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "RISK")
+
                         // Health + docs công khai
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

@@ -21,6 +21,18 @@ public record RegisterRequest(
 
         @NotBlank(message = "{validation.register.password.not_blank}")
         @Size(min = 8, max = 72, message = "{validation.register.password.size}")
-        String password
+        String password,
+
+        /**
+         * Mã giới thiệu — TÙY CHỌN (null/rỗng đều hợp lệ).
+         *
+         * Mã sai KHÔNG làm đăng ký thất bại: người dùng không nên bị chặn tạo tài
+         * khoản vì gõ sai mã của người khác. Mọi lần bỏ qua đều được ghi audit
+         * (xem ReferralService.attachReferral).
+         */
+        @Size(max = 16, message = "{validation.register.referral_code.size}")
+        @Pattern(regexp = "^$|^[A-Za-z0-9]{4,16}$",
+                message = "{validation.register.referral_code.pattern}")
+        String referralCode
 ) {
 }
