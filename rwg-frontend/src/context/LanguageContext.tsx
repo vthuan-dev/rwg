@@ -37,17 +37,65 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [locale, setLocaleState] = useState<string>("vi");
 
+  // Fetch locale from API & sync with DB on mount
   useEffect(() => {
+    // 1. Initial fallback from localStorage
     const saved = localStorage.getItem("rwg_locale");
     if (saved && dictionaries[saved]) {
       setLocaleState(saved);
     }
+
+    // 2. Fetch from DB if user is logged in
+    const token =
+      localStorage.getItem("rwg_token") || localStorage.getItem("rwg_admin_token");
+    if (token) {
+      const baseUrl = localStorage.getItem("rwg_admin_token")
+        ? "http://localhost:8081/api/v1"
+        : "http://localhost:8080/api/v1";
+
+      fetch(`${baseUrl}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.locale && dictionaries[data.locale]) {
+            setLocaleState(data.locale);
+            localStorage.setItem("rwg_locale", data.locale);
+          }
+        })
+        .catch(() => {
+          // ignore network error
+        });
+    }
   }, []);
 
+  // Update locale in state, localStorage, and sync to DB
   const setLocale = (lang: string) => {
-    if (dictionaries[lang]) {
-      setLocaleState(lang);
-      localStorage.setItem("rwg_locale", lang);
+    if (!dictionaries[lang]) return;
+
+    setLocaleState(lang);
+    localStorage.setItem("rwg_locale", lang);
+
+    // Sync to DB via PATCH /api/v1/users/me/locale if logged in
+    const token =
+      localStorage.getItem("rwg_token") || localStorage.getItem("rwg_admin_token");
+    if (token) {
+      const baseUrl = localStorage.getItem("rwg_admin_token")
+        ? "http://localhost:8081/api/v1"
+        : "http://localhost:8080/api/v1";
+
+      fetch(`${baseUrl}/users/me/locale`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ locale: lang }),
+      }).catch(() => {
+        // ignore sync error
+      });
     }
   };
 
