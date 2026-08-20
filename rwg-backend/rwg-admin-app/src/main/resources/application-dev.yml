@@ -1,0 +1,35 @@
+# Profile "dev" cho rwg-admin-app - chạy LOCAL, dùng CHUNG MySQL với user-app.
+# ⚠ Mật khẩu/secret default CHỈ dành cho DEV LOCAL. Môi trường khác BẮT BUỘC set env.
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:rwg_dev}?rewriteBatchedStatements=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:1001}
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+rwg:
+  security:
+    jwt-secret: dev-only-rwg-jwt-secret-change-me-0123456789abcdef
+  crypto:
+    bank-enc-key: dev-only-rwg-bank-enc-key-CHANGE-ME-do-not-use-in-prod-0123456789
+  payment:
+    provider: stub
+    success-delay: PT1S
+    callback-secret: dev-only-rwg-payment-callback-secret-CHANGE-ME-0123456789
+  websocket:
+    allowed-origin-patterns:
+      - "*"
+  redis:
+    enabled: ${RWG_REDIS_ENABLED:false}
+
+management:
+  health:
+    redis:
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:false}
+
+logging:
+  level:
+    com.rwg: debug
+    org.flywaydb: info
