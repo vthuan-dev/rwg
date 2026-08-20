@@ -21,6 +21,11 @@ spring:
     hibernate:
       ddl-auto: none
     open-in-view: false
+    properties:
+      # UUID (java.util.UUID) BẮT BUỘC bind dạng CHAR(36) cho khớp schema (cột id/*_id = CHAR(36) utf8mb4).
+      # Mặc định Hibernate 6/7 bind UUID -> BINARY(16) => MySQL báo "Incorrect string value ... for column 'id'"
+      # (H2 MODE=MySQL dễ tính nên bug KHÔNG lộ khi test). Đặt ở base để áp dụng cho MỌI profile (dev/test/docker).
+      hibernate.type.preferred_uuid_jdbc_type: CHAR
   flyway:
     enabled: true
     locations: classpath:db/migration
