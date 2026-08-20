@@ -118,6 +118,12 @@ rwg:
     # KHÔNG có default ở base: thiếu RWG_BANK_ENC_KEY -> fail-fast khi khởi động.
     # Chỉ profile DEV được đặt default dev rõ ràng (xem application-dev.yml).
     bank-enc-key: ${RWG_BANK_ENC_KEY}
+  commission:
+    # Scheduler chốt hoa hồng CHỈ chạy ở app này (app admin KHÔNG bật cờ này) —
+    # hai instance cùng chi tiền là rủi ro thật, dù DB đã có UNIQUE chặn chi trùng.
+    scheduler-enabled: ${RWG_COMMISSION_SCHEDULER_ENABLED:true}
+    # 01:00 UTC mỗi ngày, chốt cho NGÀY UTC HÔM QUA (đủ trễ để vòng cuối ngày settle xong).
+    cron: ${RWG_COMMISSION_CRON:0 0 1 * * *}
 
 logging:
   level:

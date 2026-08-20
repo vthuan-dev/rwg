@@ -25,7 +25,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * AdminUserController (/api/v1/admin/users/**), AdminWalletController
  * (/api/v1/admin/users/{id}/wallet/**), AdminPaymentController (/api/v1/admin/deposits,
  * /api/v1/admin/withdrawals), AdminAuditController (/api/v1/admin/audit/**) và
- * AdminWithdrawalController (/api/v1/admin/withdrawals/{id}/approve|reject).
+ * AdminWithdrawalController (/api/v1/admin/withdrawals/{id}/approve|reject),
+ * AdminAffiliateController (/api/v1/admin/affiliate/**) và AdminDashboardController
+ * (/api/v1/admin/dashboard/**).
+ *
+ * Quét com.rwg.affiliate để phục vụ khu đại lý, NHƯNG CommissionScheduler KHÔNG được
+ * tạo ở app này: nó có @ConditionalOnProperty(rwg.commission.scheduler-enabled=true)
+ * và chỉ rwg-user-app bật cờ đó — hai instance cùng chi hoa hồng là rủi ro thật.
  * Quy ước bắt buộc: xem DECISIONS.md ở root repository.
  */
 @SpringBootConfiguration
@@ -41,7 +47,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.identity",
                 "com.rwg.payment",
                 "com.rwg.wallet",
-                "com.rwg.bank"
+                "com.rwg.bank",
+                "com.rwg.affiliate"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,

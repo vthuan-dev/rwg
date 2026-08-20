@@ -14,6 +14,8 @@ import com.rwg.identity.dto.TokenResponse;
 import com.rwg.identity.dto.UpdateLocaleRequest;
 import com.rwg.identity.dto.UserResponse;
 import com.rwg.identity.repository.UserRepository;
+import com.rwg.affiliate.service.ReferralService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,12 @@ public class AuthService {
     private final CaptchaVerifier captchaVerifier;
     private final CaptchaProperties captchaProperties;
     private final UserLocaleService userLocaleService;
+    /**
+     * Nghiệp vụ giới thiệu — TÙY CHỌN qua ObjectProvider: module identity KHÔNG phụ
+     * thuộc cứng vào affiliate, nên app nào không quét com.rwg.affiliate vẫn khởi
+     * động bình thường (đăng ký khi đó chỉ bỏ qua mã giới thiệu).
+     */
+    private final ObjectProvider<ReferralService> referralServiceProvider;
     /** Hash dummy để cân bằng thời gian BCrypt khi user không tồn tại. */
     private final String dummyPasswordHash;
 
@@ -63,7 +71,8 @@ public class AuthService {
                        SecurityProperties securityProperties,
                        CaptchaVerifier captchaVerifier,
                        CaptchaProperties captchaProperties,
-                       UserLocaleService userLocaleService) {
+                       UserLocaleService userLocaleService,
+                       ObjectProvider<ReferralService> referralServiceProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -74,6 +83,7 @@ public class AuthService {
         this.captchaVerifier = captchaVerifier;
         this.captchaProperties = captchaProperties;
         this.userLocaleService = userLocaleService;
+        this.referralServiceProvider = referralServiceProvider;
         // Tính 1 lần lúc khởi động (BCrypt strength 12 chậm — không tính mỗi request).
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing-balance");
     }
@@ -96,6 +106,14 @@ public class AuthService {
         User user = userRepository.save(new User(request.username(), request.email().toLowerCase(), hash));
         audit.record(user.getId(), user.getUsername(), AuditTrailService.USER_REGISTERED,
                 "USER", user.getId().toString(), Map.of("email", user.getEmail()), ip);
+
+        // Gắn quan hệ giới thiệu (nếu có mã). CỐ TÌNH không để lỗi ở đây làm hỏng
+        // việc đăng ký: mã sai/trùng/vòng lặp đều chỉ bị bỏ qua kèm audit, vì tạo
+        // được tài khoản quan trọng hơn việc ghi nhận người giới thiệu.
+        ReferralService referralService = referralServiceProvider.getIfAvailable();
+        if (referralService != null) {
+            referralService.attachReferral(user.getId(), request.referralCode(), ip);
+        }
         return toResponse(user);
     }
 

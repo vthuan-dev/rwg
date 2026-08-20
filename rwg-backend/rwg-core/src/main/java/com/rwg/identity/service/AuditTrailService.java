@@ -51,6 +51,15 @@ public class AuditTrailService {
     public static final String ADMIN_WITHDRAWAL_PASSWORD_RESET = "ADMIN_WITHDRAWAL_PASSWORD_RESET";
     public static final String ADMIN_WALLET_ADJUSTED = "ADMIN_WALLET_ADJUSTED";
 
+    // Chặng 3 Phase 2: giới thiệu & hoa hồng đại lý.
+    public static final String REFERRAL_ATTACHED = "REFERRAL_ATTACHED";
+    /** Mã giới thiệu bị bỏ qua (sai mã / tự giới thiệu / vòng lặp) — không chặn đăng ký. */
+    public static final String REFERRAL_SKIPPED = "REFERRAL_SKIPPED";
+    public static final String COMMISSION_PAID = "COMMISSION_PAID";
+    public static final String ADMIN_COMMISSION_RATE_CHANGED = "ADMIN_COMMISSION_RATE_CHANGED";
+    public static final String ADMIN_COMMISSION_RUN_TRIGGERED = "ADMIN_COMMISSION_RUN_TRIGGERED";
+
+
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 
     private final AuditLogRepository repository;

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,4 +39,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                               Pageable pageable);
 
     long countByStatus(UserStatus status);
+
+    /** Đếm user đăng ký trong khoảng nửa mở [from, to) — dashboard admin. */
+    @Query("select count(u) from User u where u.createdAt >= :from and u.createdAt < :to")
+    long countRegisteredBetween(@Param("from") Instant from, @Param("to") Instant to);
 }
