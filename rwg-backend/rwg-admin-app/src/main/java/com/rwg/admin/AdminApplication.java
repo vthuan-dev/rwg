@@ -72,7 +72,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.bank",
                 "com.rwg.affiliate",
                 "com.rwg.game",
-                "com.rwg.risk"
+                "com.rwg.risk",
+                "com.rwg.banner",
+                "com.rwg.media"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,

@@ -84,6 +84,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Endpoint auth công khai
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Xem banner & phát video/ảnh media công khai trên trang người chơi
+                        .requestMatchers("/api/v1/banners/active", "/uploads/media/**").permitAll()
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
                         // theo providerTxnId; chặng sau thêm xác thực chữ ký provider.
                         .requestMatchers("/api/v1/payments/callback").permitAll()
