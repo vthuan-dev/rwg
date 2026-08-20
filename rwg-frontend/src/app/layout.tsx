@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 const roboto = Roboto({
   weight: ["300", "400", "500", "700", "900"],
   subsets: ["latin", "vietnamese"],
+  variable: "--font-roboto",
   display: "swap",
 });
 
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={roboto.className}>
+    <html lang="vi" className={`${roboto.variable} ${roboto.className}`}>
       <body className={`${roboto.className} bg-[#070709] min-h-screen text-white antialiased`}>
         <LanguageProvider>{children}</LanguageProvider>
       </body>
