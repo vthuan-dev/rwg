@@ -34,4 +34,10 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     @Query("select t.walletId, coalesce(sum(t.credit), 0) - coalesce(sum(t.debit), 0) " +
             "from WalletTransaction t group by t.walletId")
     List<Object[]> sumNetByWallet();
+
+    /**
+     * Ledger của một ví, lọc theo loại tham chiếu — admin xem riêng các dòng
+     * ADJUSTMENT (điều chỉnh thủ công) hoặc COMMISSION (hoa hồng đại lý).
+     */
+    Page<WalletTransaction> findByWalletIdAndRefType(UUID walletId, WalletRefType refType, Pageable pageable);
 }

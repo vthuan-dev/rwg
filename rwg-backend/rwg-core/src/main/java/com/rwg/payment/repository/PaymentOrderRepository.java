@@ -4,6 +4,8 @@ import com.rwg.payment.domain.PaymentOrder;
 import com.rwg.payment.domain.PaymentOrderId;
 import com.rwg.payment.domain.PaymentStatus;
 import com.rwg.payment.domain.PaymentType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -50,4 +52,43 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
                          @Param("from") PaymentStatus from,
                          @Param("to") PaymentStatus to,
                          @Param("now") Instant now);
+
+    /**
+     * Tra soát lệnh nạp/rút cho khu quản trị. type BẮT BUỘC (tách rõ màn deposit và
+     * withdrawal); status/userId OPTIONAL (null = bỏ qua filter). Khoảng thời gian
+     * nửa mở [from, to) để không đếm trùng biên khi phân trang theo ngày.
+     */
+    @Query("select o from PaymentOrder o where "
+            + "o.type = :type and "
+            + "(:status is null or o.status = :status) and "
+            + "(:userId is null or o.userId = :userId) and "
+            + "o.createdAt >= :from and o.createdAt < :to")
+    Page<PaymentOrder> searchForAdmin(@Param("type") PaymentType type,
+                                      @Param("status") PaymentStatus status,
+                                      @Param("userId") UUID userId,
+                                      @Param("from") Instant from,
+                                      @Param("to") Instant to,
+                                      Pageable pageable);
+
+    /** Đếm lệnh theo loại + trạng thái (badge "chờ duyệt" trên dashboard admin). */
+    long countByTypeAndStatus(PaymentType type, PaymentStatus status);
+
+    /** Tổng tiền của MỘT user theo loại + trạng thái — dùng cho màn chi tiết user. */
+    @Query("select coalesce(sum(o.amount), 0) from PaymentOrder o "
+            + "where o.userId = :userId and o.type = :type and o.status = :status")
+    BigDecimal sumAmountByUserAndTypeAndStatus(@Param("userId") UUID userId,
+                                               @Param("type") PaymentType type,
+                                               @Param("status") PaymentStatus status);
+
+    /** Tổng tiền TOÀN HỆ THỐNG theo loại + trạng thái trong khoảng — dùng cho báo cáo. */
+    @Query("select coalesce(sum(o.amount), 0) from PaymentOrder o "
+            + "where o.type = :type and o.status = :status "
+            + "and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumAmountByTypeAndStatus(@Param("type") PaymentType type,
+                                        @Param("status") PaymentStatus status,
+                                        @Param("from") Instant from,
+                                        @Param("to") Instant to);
+
+    /** Đếm lệnh của MỘT user theo loại + trạng thái (vd lệnh rút đang chờ duyệt). */
+    long countByUserIdAndTypeAndStatus(UUID userId, PaymentType type, PaymentStatus status);
 }

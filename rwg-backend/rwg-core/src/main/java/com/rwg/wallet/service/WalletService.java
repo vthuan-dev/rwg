@@ -165,7 +165,11 @@ public class WalletService {
                 Money balanceAfter = Money.of(walletRepository.findBalanceById(wallet.getId()));
 
                 // 3) Dòng ledger CÙNG transaction với UPDATE số dư.
-                transactionRepository.save(WalletTransaction.debit(
+                //    saveAndFlush (KHÔNG phải save): phải đẩy INSERT xuống DB ngay. Nếu để
+                //    pending trong persistence context, mọi @Modifying(clearAutomatically = true)
+                //    mà caller gọi sau đó trong cùng transaction sẽ EntityManager.clear() và
+                //    LÀM MẤT dòng ledger này — số dư vẫn đổi (bulk UPDATE) nên lệch sổ im lặng.
+                transactionRepository.saveAndFlush(WalletTransaction.debit(
                         wallet.getId(), amount.amount(), balanceAfter.amount(), refType, refId, idempotencyKey));
 
                 audit.record(userId, null, AuditTrailService.WALLET_DEBIT, "WALLET", wallet.getId().toString(),
@@ -204,8 +208,9 @@ public class WalletService {
                 }
                 Money balanceAfter = Money.of(walletRepository.findBalanceById(wallet.getId()));
 
-                // 3) Dòng ledger CÙNG transaction với UPDATE số dư.
-                transactionRepository.save(WalletTransaction.credit(
+                // 3) Dòng ledger CÙNG transaction với UPDATE số dư — xem giải thích
+                //    saveAndFlush ở debit(): chống bị EntityManager.clear() huỷ INSERT.
+                transactionRepository.saveAndFlush(WalletTransaction.credit(
                         wallet.getId(), amount.amount(), balanceAfter.amount(), refType, refId, idempotencyKey));
 
                 audit.record(userId, null, AuditTrailService.WALLET_CREDIT, "WALLET", wallet.getId().toString(),

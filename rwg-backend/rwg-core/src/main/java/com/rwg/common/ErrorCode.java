@@ -18,6 +18,11 @@ public enum ErrorCode {
     BANK_ACCOUNT_REQUIRED(HttpStatus.BAD_REQUEST, "Cần có tài khoản ngân hàng mặc định"),
     WITHDRAWAL_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "Vượt hạn mức rút tiền"),
 
+    // 400 - admin backoffice (chặng 3)
+    ADMIN_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "Thao tác này bắt buộc có lý do"),
+    INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "Chuyển trạng thái không hợp lệ"),
+    CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "Không thể tự thay đổi tài khoản của chính mình"),
+
     // 400 / 404 - game (chặng 2 Phase c)
     GAME_TABLE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bàn chơi"),
     ROUND_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy vòng chơi"),

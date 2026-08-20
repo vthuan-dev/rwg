@@ -21,7 +21,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * KHÔNG quét package com.rwg.game -> tránh chạy trùng RoundScheduler / LedgerReconciliationJob /
  * GameEventBroadcaster / WebSocket trên cùng DB (các background job chỉ chạy ở rwg-user-app).
  * Loại thêm các controller player để app admin chỉ expose khu quản trị.
- * Chỉ giữ AdminController (/api/v1/admin/users) và AdminWithdrawalController (/api/v1/admin/withdrawals/**).
+ * Giữ các controller admin: AdminController (/api/v1/admin/health),
+ * AdminUserController (/api/v1/admin/users/**), AdminWalletController
+ * (/api/v1/admin/users/{id}/wallet/**), AdminPaymentController (/api/v1/admin/deposits,
+ * /api/v1/admin/withdrawals), AdminAuditController (/api/v1/admin/audit/**) và
+ * AdminWithdrawalController (/api/v1/admin/withdrawals/{id}/approve|reject).
  * Quy ước bắt buộc: xem DECISIONS.md ở root repository.
  */
 @SpringBootConfiguration

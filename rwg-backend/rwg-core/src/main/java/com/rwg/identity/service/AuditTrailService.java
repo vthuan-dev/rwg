@@ -43,6 +43,14 @@ public class AuditTrailService {
     public static final String BANK_ACCOUNT_ADDED = "BANK_ACCOUNT_ADDED";
     public static final String BANK_ACCOUNT_REMOVED = "BANK_ACCOUNT_REMOVED";
 
+    // Chặng 3: thao tác quản trị (admin backoffice). Tiền tố ADMIN_ để tra cứu
+    // nhật ký admin chỉ cần filter theo action LIKE 'ADMIN_%'.
+    public static final String ADMIN_USER_STATUS_CHANGED = "ADMIN_USER_STATUS_CHANGED";
+    public static final String ADMIN_USER_ROLE_CHANGED = "ADMIN_USER_ROLE_CHANGED";
+    public static final String ADMIN_KYC_UPDATED = "ADMIN_KYC_UPDATED";
+    public static final String ADMIN_WITHDRAWAL_PASSWORD_RESET = "ADMIN_WITHDRAWAL_PASSWORD_RESET";
+    public static final String ADMIN_WALLET_ADJUSTED = "ADMIN_WALLET_ADJUSTED";
+
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 
     private final AuditLogRepository repository;

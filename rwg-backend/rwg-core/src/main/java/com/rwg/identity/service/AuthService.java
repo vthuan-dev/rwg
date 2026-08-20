@@ -2,7 +2,6 @@ package com.rwg.identity.service;
 
 import com.rwg.common.ApiException;
 import com.rwg.common.ErrorCode;
-import com.rwg.common.PageResponse;
 import com.rwg.config.CaptchaProperties;
 import com.rwg.config.SecurityProperties;
 import com.rwg.identity.domain.User;
@@ -15,8 +14,6 @@ import com.rwg.identity.dto.TokenResponse;
 import com.rwg.identity.dto.UpdateLocaleRequest;
 import com.rwg.identity.dto.UserResponse;
 import com.rwg.identity.repository.UserRepository;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -273,16 +270,6 @@ public class AuthService {
         audit.record(user.getId(), user.getUsername(), AuditTrailService.USER_LOCALE_UPDATED,
                 "USER", user.getId().toString(), Map.of("locale", request.locale()), ip);
         return toResponse(user);
-    }
-
-    // ===== ADMIN (read-only) =====
-
-    /** Danh sách user phân trang — endpoint /api/v1/admin/** yêu cầu ROLE_ADMIN (SecurityConfig). */
-    @Transactional(readOnly = true)
-    public PageResponse<UserResponse> listUsers(int page, int size) {
-        return PageResponse.from(
-                userRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))),
-                AuthService::toResponse);
     }
 
     // ===== helpers =====
