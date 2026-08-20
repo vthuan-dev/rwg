@@ -77,7 +77,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative w-full min-h-[100dvh] bg-[#c8102e] flex flex-col items-center justify-center px-4 py-12 overflow-hidden font-sans antialiased">
+    <div className="relative w-full min-h-[100dvh] bg-[#0b5ed7] flex flex-col items-center justify-center px-4 py-12 overflow-hidden font-sans antialiased">
       {/* Oversized watermark mark */}
       <div
         aria-hidden="true"
@@ -95,10 +95,10 @@ export default function AdminLoginPage() {
           {/* Brand */}
           <div className="flex flex-col items-center gap-4">
             <ShieldCheck
-              className="h-11 w-11 text-[#c8102e]"
+              className="h-11 w-11 text-[#0b5ed7]"
               strokeWidth={2}
             />
-            <h1 className="text-center text-[15px] font-semibold uppercase tracking-[0.14em] text-[#c8102e]">
+            <h1 className="text-center text-[15px] font-semibold uppercase tracking-[0.14em] text-[#0b5ed7]">
               RWG Backoffice
             </h1>
           </div>
@@ -107,6 +107,7 @@ export default function AdminLoginPage() {
             <p
               role="alert"
               className="mt-8 text-center text-[12px] font-medium text-[#c8102e]"
+              data-error-tone="critical"
             >
               {error}
             </p>
@@ -123,7 +124,7 @@ export default function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
-              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#c8102e]"
+              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#0b5ed7]"
             />
 
             {/* Password */}
@@ -135,7 +136,7 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#c8102e]"
+              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#0b5ed7]"
             />
 
             {/* Verification code */}
@@ -149,7 +150,7 @@ export default function AdminLoginPage() {
                 value={captchaInput}
                 onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
                 placeholder="Verification code"
-                className="min-w-0 flex-1 border-b border-slate-300 bg-transparent pb-2 text-[13px] uppercase tracking-[0.14em] text-slate-800 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#c8102e]"
+                className="min-w-0 flex-1 border-b border-slate-300 bg-transparent pb-2 text-[13px] uppercase tracking-[0.14em] text-slate-800 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#0b5ed7]"
               />
 
               <span className="select-none font-mono text-[15px] font-semibold tracking-[0.2em] text-slate-800">
@@ -161,7 +162,7 @@ export default function AdminLoginPage() {
                 type="button"
                 onClick={generateCaptcha}
                 aria-label="Get a new verification code"
-                className="mb-0.5 text-slate-400 transition-colors hover:text-[#c8102e] cursor-pointer"
+                className="mb-0.5 text-slate-400 transition-colors hover:text-[#0b5ed7] cursor-pointer"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
@@ -172,7 +173,7 @@ export default function AdminLoginPage() {
               id="admin-login-submit"
               type="submit"
               disabled={loading}
-              className="mt-3 w-full bg-[#c8102e] py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#a60d26] disabled:opacity-60 cursor-pointer"
+              className="mt-3 w-full bg-[#0b5ed7] py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#0949a8] disabled:opacity-60 cursor-pointer"
             >
               {loading ? "Signing in" : "Login"}
             </button>
