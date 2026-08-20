@@ -77,14 +77,14 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="relative w-full min-h-[100dvh] bg-[#0b5ed7] flex flex-col items-center justify-center px-4 py-12 overflow-hidden font-sans antialiased">
+    <div className="relative w-full min-h-[100dvh] bg-[#6aa8f5] flex flex-col items-center justify-center px-4 py-12 overflow-hidden font-sans antialiased">
       {/* Oversized watermark mark */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none"
       >
         <ShieldCheck
-          className="h-[640px] w-[640px] text-white/[0.07]"
+          className="h-[640px] w-[640px] text-white/[0.13]"
           strokeWidth={1}
         />
       </div>
@@ -95,10 +95,10 @@ export default function AdminLoginPage() {
           {/* Brand */}
           <div className="flex flex-col items-center gap-4">
             <ShieldCheck
-              className="h-11 w-11 text-[#0b5ed7]"
+              className="h-11 w-11 text-[#1e5fc4]"
               strokeWidth={2}
             />
-            <h1 className="text-center text-[15px] font-semibold uppercase tracking-[0.14em] text-[#0b5ed7]">
+            <h1 className="text-center text-[15px] font-semibold uppercase tracking-[0.14em] text-[#1e5fc4]">
               RWG Backoffice
             </h1>
           </div>
@@ -124,7 +124,7 @@ export default function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
-              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#0b5ed7]"
+              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#1e5fc4]"
             />
 
             {/* Password */}
@@ -136,7 +136,7 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#0b5ed7]"
+              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#1e5fc4]"
             />
 
             {/* Verification code */}
@@ -150,7 +150,7 @@ export default function AdminLoginPage() {
                 value={captchaInput}
                 onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
                 placeholder="Verification code"
-                className="min-w-0 flex-1 border-b border-slate-300 bg-transparent pb-2 text-[13px] uppercase tracking-[0.14em] text-slate-800 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#0b5ed7]"
+                className="min-w-0 flex-1 border-b border-slate-300 bg-transparent pb-2 text-[13px] uppercase tracking-[0.14em] text-slate-800 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#1e5fc4]"
               />
 
               <span className="select-none font-mono text-[15px] font-semibold tracking-[0.2em] text-slate-800">
@@ -162,7 +162,7 @@ export default function AdminLoginPage() {
                 type="button"
                 onClick={generateCaptcha}
                 aria-label="Get a new verification code"
-                className="mb-0.5 text-slate-400 transition-colors hover:text-[#0b5ed7] cursor-pointer"
+                className="mb-0.5 text-slate-400 transition-colors hover:text-[#1e5fc4] cursor-pointer"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
@@ -173,7 +173,7 @@ export default function AdminLoginPage() {
               id="admin-login-submit"
               type="submit"
               disabled={loading}
-              className="mt-3 w-full bg-[#0b5ed7] py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#0949a8] disabled:opacity-60 cursor-pointer"
+              className="mt-3 w-full bg-[#1e5fc4] py-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#174a9c] disabled:opacity-60 cursor-pointer"
             >
               {loading ? "Signing in" : "Login"}
             </button>
@@ -181,7 +181,7 @@ export default function AdminLoginPage() {
         </section>
 
         {/* Footer */}
-        <footer className="mt-8 text-center text-[11px] leading-relaxed text-white/70">
+        <footer className="mt-8 text-center text-[11px] leading-relaxed text-white/85">
           <p>© Resorts World Genting 2026</p>
           <p className="mt-1">
             Authorized personnel only. All access attempts are logged.
