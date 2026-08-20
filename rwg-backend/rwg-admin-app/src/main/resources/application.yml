@@ -87,6 +87,12 @@ rwg:
     daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
   crypto:
     bank-enc-key: ${RWG_BANK_ENC_KEY}
+  admin:
+    # Hạn mức điều chỉnh ví. App NÀY là nơi thực sự xử lý các endpoint quản trị nên
+    # giá trị ở đây mới là giá trị có hiệu lực thực tế. Phải khớp với rwg-user-app
+    # để hành vi không khác nhau giữa hai app.
+    adjust-max-per-transaction: ${RWG_ADMIN_ADJUST_MAX:1000}
+    adjust-daily-max-per-admin: ${RWG_ADMIN_ADJUST_DAILY_MAX:10000}
 
 logging:
   level:

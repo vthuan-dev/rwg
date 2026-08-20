@@ -147,9 +147,14 @@ public class WithdrawalService {
     /**
      * Admin duyệt: chuyển PENDING -> SETTLED bằng 1 UPDATE điều kiện nguyên tử (fix C2).
      * KHÔNG động ví (tiền đã debit lúc tạo lệnh). Lệnh đã bị luồng khác chuyển -> 400.
+     *
+     * CHẮN TỰ DUYỆT (chặng 5): admin không được duyệt lệnh rút của chính mình. Thiếu
+     * chốt này thì một admin có thể tự cộng tiền vào ví rồi tự duyệt rút — chuyển tiền
+     * ra khỏi sàn mà không ai khác biết.
      */
     @Transactional
     public PaymentOrderResponse approve(UUID orderId, UUID adminId, String ip) {
+        requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_APPROVE", ip);
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.SETTLED, nowMicros());
         if (updated == 0) {
@@ -169,9 +174,13 @@ public class WithdrawalService {
      * Admin từ chối (fix C2): chuyển PENDING -> VOIDED NGUYÊN TỬ TRƯỚC, thắng rồi
      * mới hoàn tiền credit(REFUND) idempotent — CÙNG transaction; nếu credit lỗi
      * cả transaction rollback, lệnh trở về PENDING (không mất/không hoàn hụt tiền).
+     *
+     * Cũng chặn tự xử lý lệnh của chính mình: từ chối làm tiền quay lại ví nên vẫn
+     * là thao tác tài chính trên tài khoản của chính admin đó.
      */
     @Transactional
     public PaymentOrderResponse reject(UUID orderId, UUID adminId, String ip) {
+        requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_REJECT", ip);
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.VOIDED, nowMicros());
         if (updated == 0) {
@@ -194,6 +203,29 @@ public class WithdrawalService {
     }
 
     // ===== helpers =====
+
+    /**
+     * Admin KHÔNG được tự xử lý lệnh rút của chính mình.
+     *
+     * Kiểm TRƯỚC khi transition trạng thái — nếu kiểm sau, lệnh đã chuyển sang
+     * SETTLED/VOIDED rồi mới ném lỗi, và dù transaction rollback thì đây vẫn là thứ tự
+     * sai về ý định: đã biết không được phép thì không nên bắt đầu.
+     *
+     * Lệnh không tồn tại thì bỏ qua — để luồng chính trả 404 đúng ngữ nghĩa.
+     */
+    private void requireNotOwnOrder(UUID orderId, UUID adminId, String attempt, String ip) {
+        PaymentOrder order = orderRepository.findFirstById(orderId).orElse(null);
+        if (order == null || !order.getUserId().equals(adminId)) {
+            return;
+        }
+        audit.record(adminId, null, AuditTrailService.ADMIN_SELF_DEALING_BLOCKED,
+                "PAYMENT_ORDER", orderId.toString(),
+                Map.of("attempt", attempt,
+                        "amount", order.getAmount().toPlainString()), ip);
+        throw new ApiException(ErrorCode.CANNOT_APPROVE_OWN_REQUEST,
+                ErrorCode.CANNOT_APPROVE_OWN_REQUEST.defaultMessage(), null,
+                "error.admin.cannot_decide_own_withdrawal");
+    }
 
     /**
      * Lệnh KHÔNG chuyển được trạng thái: phân biệt KHÔNG TỒN TẠI (404) với

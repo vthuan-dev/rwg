@@ -59,6 +59,19 @@ public class AuditTrailService {
     public static final String ADMIN_COMMISSION_RATE_CHANGED = "ADMIN_COMMISSION_RATE_CHANGED";
     public static final String ADMIN_COMMISSION_RUN_TRIGGERED = "ADMIN_COMMISSION_RUN_TRIGGERED";
 
+    // Chặng 5: siết an toàn vận hành khu quản trị (quy trình 4 mắt).
+    /** Admin tạo đề nghị thao tác vượt hạn mức — CHƯA chuyển tiền. */
+    public static final String ADMIN_APPROVAL_REQUESTED = "ADMIN_APPROVAL_REQUESTED";
+    /** Admin thứ hai phê duyệt — thời điểm tiền THỰC SỰ chuyển. */
+    public static final String ADMIN_APPROVAL_APPROVED = "ADMIN_APPROVAL_APPROVED";
+    public static final String ADMIN_APPROVAL_REJECTED = "ADMIN_APPROVAL_REJECTED";
+    /**
+     * Admin bị chặn khi cố tự giao dịch (tự điều chỉnh ví mình / tự duyệt lệnh rút
+     * của mình). Ghi lại vì đây là dấu hiệu cần điều tra, không phải lỗi thao tác
+     * thông thường.
+     */
+    public static final String ADMIN_SELF_DEALING_BLOCKED = "ADMIN_SELF_DEALING_BLOCKED";
+
 
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 

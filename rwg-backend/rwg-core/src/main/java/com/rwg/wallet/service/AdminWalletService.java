@@ -4,7 +4,10 @@ import com.rwg.common.ApiException;
 import com.rwg.common.ErrorCode;
 import com.rwg.common.PageResponse;
 import com.rwg.common.money.Money;
+import com.rwg.config.AdminLimitProperties;
+import com.rwg.identity.dto.AdminApprovalResponse;
 import com.rwg.identity.repository.UserRepository;
+import com.rwg.identity.service.AdminApprovalService;
 import com.rwg.identity.service.AuditTrailService;
 import com.rwg.wallet.domain.Wallet;
 import com.rwg.wallet.domain.WalletRefType;
@@ -21,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +44,19 @@ import java.util.UUID;
  *
  * DEBIT vượt số dư tự trả INSUFFICIENT_BALANCE do WalletService dùng
  * {@code UPDATE ... WHERE balance >= amt} — không cần kiểm tra trước, không có race.
+ *
+ * ===== SIẾT AN TOÀN (chặng 5) =====
+ * Điều chỉnh ví là quyền TẠO TIỀN MỚI, nên có 3 lớp chặn xếp từng bước:
+ *
+ * 1. CHẮN TỰ GIAO DỊCH: admin không điều chỉnh được ví của chính mình. Trước đây
+ *    thiếu chốt này nên một admin có thể tự cộng tiền rồi tự duyệt rút.
+ * 2. TRẦN TỔNG MỖI NGÀY cho mỗi admin — giới hạn thiệt hại tối đa trong 24 giờ,
+ *    kể cả khi từng lần đều dưới ngưỡng và đã được phê duyệt.
+ * 3. QUY TRÌNH 4 MẮT: vượt trần mỗi lần thì KHÔNG thực thi ngay mà tạo đề nghị chờ
+ *    admin THỨ HAI phê duyệt (xem {@link AdminApprovalService}).
+ *
+ * Thứ tự kiểm: tự giao dịch -> trần ngày -> trần mỗi lần. Trần ngày kiểm TRƯỚC khi
+ * quyết định đi đường 4 mắt, để không tạo đề nghị mà chắc chắn sẽ bị chặn lúc thực thi.
  */
 @Service
 public class AdminWalletService {
@@ -51,17 +69,23 @@ public class AdminWalletService {
     private final WalletTransactionRepository transactionRepository;
     private final UserRepository userRepository;
     private final AuditTrailService audit;
+    private final AdminApprovalService approvalService;
+    private final AdminLimitProperties limits;
 
     public AdminWalletService(WalletService walletService,
                               WalletRepository walletRepository,
                               WalletTransactionRepository transactionRepository,
                               UserRepository userRepository,
-                              AuditTrailService audit) {
+                              AuditTrailService audit,
+                              AdminApprovalService approvalService,
+                              AdminLimitProperties limits) {
         this.walletService = walletService;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
         this.userRepository = userRepository;
         this.audit = audit;
+        this.approvalService = approvalService;
+        this.limits = limits;
     }
 
     // ===== ĐỌC =====
@@ -97,19 +121,43 @@ public class AdminWalletService {
     // ===== GHI =====
 
     /**
+     * Kết quả điều chỉnh ví: HOẬC đã thực thi ngay, HOẬC tạo đề nghị chờ duyệt.
+     *
+     * Dùng kiểu chung thay vì hai method riêng để controller không phải tự quyết định
+     * đường nào — việc đó phụ thuộc hạn mức, là nghiệp vụ của service.
+     * Đúng MỘT trong hai trường khác null.
+     */
+    public record AdjustOutcome(WalletAdjustmentResponse executed, AdminApprovalResponse pending) {
+        public boolean isPending() {
+            return pending != null;
+        }
+    }
+
+    /**
      * Cộng/trừ tiền thủ công. Sinh idempotencyKey MỚI mỗi lần gọi: hai lần điều chỉnh
      * giống nhau là hai nghiệp vụ khác nhau có chủ ý (khác với retry webhook), nên
      * KHÔNG gộp. Nếu cần chống double-submit từ UI, client phải tự truyền khóa riêng
      * — hiện chưa mở tham số đó để giữ API tối giản.
+     *
+     * Vượt trần mỗi lần -> KHÔNG chuyển tiền, trả đề nghị chờ admin thứ hai duyệt.
      */
     @Transactional
-    public WalletAdjustmentResponse adjust(UUID userId, AdjustWalletRequest request, UUID adminId, String ip) {
+    public AdjustOutcome adjust(UUID userId, AdjustWalletRequest request, UUID adminId, String ip) {
         requireUserExists(userId);
         if (request.reason() == null || request.reason().isBlank()) {
             throw new ApiException(ErrorCode.ADMIN_REASON_REQUIRED);
         }
         String direction = normalizeDirection(request.direction());
         Money amount = parseAmount(request.amount());
+
+        requireNotSelfDealing(userId, adminId, amount, ip);
+        requireWithinDailyLimit(adminId, amount);
+
+        // Vượt trần mỗi lần: chuyển sang quy trình 4 mắt, CHƯA chạm tiền.
+        if (amount.amount().compareTo(limits.adjustMaxPerTransaction()) > 0) {
+            return new AdjustOutcome(null, approvalService.createWalletAdjustment(
+                    userId, direction, amount.amount(), request.reason(), adminId, ip));
+        }
 
         Money balanceBefore = walletService.getBalance(userId);
         String idempotencyKey = "ADJUST:" + UUID.randomUUID();
@@ -127,12 +175,59 @@ public class AdminWalletService {
                         "balanceAfter", balanceAfter.amount().toPlainString(),
                         "idempotencyKey", idempotencyKey), ip);
 
-        return new WalletAdjustmentResponse(
+        return new AdjustOutcome(new WalletAdjustmentResponse(
                 userId.toString(), direction,
                 amount.amount().toPlainString(),
                 balanceBefore.amount().toPlainString(),
                 balanceAfter.amount().toPlainString(),
-                request.reason(), idempotencyKey, Instant.now());
+                request.reason(), idempotencyKey, Instant.now()), null);
+    }
+
+    // ===== các lớp chặn an toàn =====
+
+    /**
+     * Admin KHÔNG được điều chỉnh ví của chính mình.
+     *
+     * Ghi audit trước khi ném lỗi: đây là dấu hiệu cần điều tra chứ không phải lỗi
+     * thao tác thông thường. audit.record chạy REQUIRES_NEW nên vết vẫn còn dù giao
+     * dịch chính rollback vì ApiException.
+     */
+    private void requireNotSelfDealing(UUID userId, UUID adminId, Money amount, String ip) {
+        if (!userId.equals(adminId)) {
+            return;
+        }
+        audit.record(adminId, null, AuditTrailService.ADMIN_SELF_DEALING_BLOCKED,
+                "WALLET", userId.toString(),
+                Map.of("attempt", "WALLET_ADJUSTMENT",
+                        "amount", amount.amount().toPlainString()), ip);
+        throw new ApiException(ErrorCode.CANNOT_MODIFY_SELF,
+                ErrorCode.CANNOT_MODIFY_SELF.defaultMessage(), null,
+                "error.admin.cannot_adjust_own_wallet");
+    }
+
+    /**
+     * Trần TỔNG mỗi admin mỗi ngày UTC. Cộng dồn từ chính bảng ledger nên không thể
+     * lệch với số tiền thực sự đã chuyển.
+     *
+     * Dùng ngày UTC để nhất quán với hạn mức rút theo ngày và kỳ chốt hoa hồng.
+     */
+    private void requireWithinDailyLimit(UUID adminId, Money amount) {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Instant from = today.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant to = today.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        BigDecimal used = transactionRepository.sumAdjustmentsByAdmin(adminId.toString(), from, to);
+        if (used == null) {
+            used = BigDecimal.ZERO;
+        }
+        BigDecimal afterThis = used.add(amount.amount());
+        if (afterThis.compareTo(limits.adjustDailyMaxPerAdmin()) > 0) {
+            throw new ApiException(ErrorCode.ADMIN_LIMIT_EXCEEDED,
+                    ErrorCode.ADMIN_LIMIT_EXCEEDED.defaultMessage(),
+                    Map.of("used", used.toPlainString(),
+                            "limit", limits.adjustDailyMaxPerAdmin().toPlainString()),
+                    "error.admin.daily_limit_exceeded");
+        }
     }
 
     // ===== helpers =====

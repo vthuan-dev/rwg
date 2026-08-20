@@ -23,6 +23,14 @@ public enum ErrorCode {
     INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "Chuyển trạng thái không hợp lệ"),
     CANNOT_MODIFY_SELF(HttpStatus.BAD_REQUEST, "Không thể tự thay đổi tài khoản của chính mình"),
 
+    // 400 - siết an toàn vận hành khu quản trị (chặng 5)
+    /** Quy trình 4 mắt: người tạo đề nghị KHÔNG được tự phê duyệt. */
+    CANNOT_APPROVE_OWN_REQUEST(HttpStatus.BAD_REQUEST, "Không thể tự phê duyệt đề nghị của chính mình"),
+    /** Vượt trần số tiền mỗi lần hoặc trần tổng mỗi ngày của một admin. */
+    ADMIN_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "Vượt hạn mức thao tác của admin"),
+    /** Đề nghị đã được duyệt/từ chối trước đó (chống bấm hai lần). */
+    APPROVAL_ALREADY_DECIDED(HttpStatus.BAD_REQUEST, "Đề nghị đã được xử lý trước đó"),
+
     // 400 / 404 - game (chặng 2 Phase c)
     GAME_TABLE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bàn chơi"),
     ROUND_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy vòng chơi"),
