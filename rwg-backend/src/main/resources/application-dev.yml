@@ -1,0 +1,55 @@
+# =============================================================================
+# Profile "dev" - chạy LOCAL KHÔNG cần Docker:  mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Yêu cầu: MySQL 8.x local (xem docs/DEV-SETUP.md). Redis là OPTIONAL.
+#
+# ⚠ MẬT KHẨU DB: default "1001" bên dưới CHỈ dành cho DEV LOCAL của máy cá nhân.
+#   - Mọi môi trường khác (staging/production) BẮT BUỘC override qua biến môi
+#     trường DB_PASSWORD. KHÔNG bao giờ dùng mật khẩu này cho môi trường thật.
+#   - Nếu user MySQL local của bạn khác: đặt $env:DB_USER / $env:DB_PASSWORD
+#     trước khi chạy, hoặc sửa default tại đây (KHÔNG commit secret thật).
+# =============================================================================
+spring:
+  datasource:
+    # rewriteBatchedStatements=true (Phase c): gộp multi-row INSERT ledger / batch UPDATE bets
+    # của settlement thành 1 round-trip MySQL. Chỉ profile MySQL - KHÔNG đụng H2 của test.
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:rwg_dev}?rewriteBatchedStatements=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:1001}
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+rwg:
+  security:
+    # Default JWT secret CHỈ dành cho DEV (base không có default -> dev phải khai báo rõ ở đây).
+    # Môi trường khác bắt buộc set biến môi trường JWT_SECRET.
+    jwt-secret: dev-only-rwg-jwt-secret-change-me-0123456789abcdef
+  crypto:
+    # Default khóa mã hóa số TK ngân hàng CHỈ dành cho DEV — CẤM DÙNG CHO MÔI TRƯỜNG THẬT.
+    # Mọi môi trường khác bắt buộc set biến môi trường RWG_BANK_ENC_KEY.
+    bank-enc-key: dev-only-rwg-bank-enc-key-CHANGE-ME-do-not-use-in-prod-0123456789
+  payment:
+    provider: stub
+    success-delay: PT1S
+    # Default shared-secret callback CHỈ dành cho DEV — CẤM DÙNG CHO MÔI TRƯỜNG THẬT.
+    # Mọi môi trường khác bắt buộc set biến môi trường RWG_PAYMENT_CALLBACK_SECRET.
+    callback-secret: dev-only-rwg-payment-callback-secret-CHANGE-ME-0123456789
+  websocket:
+    # Dev cho phép mọi origin; các môi trường khác phải cấu hình danh sách cụ thể.
+    allowed-origin-patterns:
+      - "*"
+  redis:
+    # Redis OPTIONAL ở dev: chưa cài Redis thì giữ false -> app dùng fallback
+    # in-memory (refresh token + rate limit). Có Redis rồi thì set RWG_REDIS_ENABLED=true.
+    # HẠN CHẾ của fallback: state KHÔNG được chia sẻ giữa nhiều instance - chỉ dùng dev.
+    enabled: ${RWG_REDIS_ENABLED:false}
+
+management:
+  health:
+    redis:
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:false}
+
+logging:
+  level:
+    com.rwg: debug
+    org.flywaydb: info

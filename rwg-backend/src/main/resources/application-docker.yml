@@ -1,0 +1,21 @@
+# Profile "docker": chạy bên trong docker compose (service names làm hostname)
+spring:
+  datasource:
+    # Ưu tiên DB_URL từ .env.app; fallback về service names của compose.
+    # rewriteBatchedStatements=true (Phase c): gộp multi-row INSERT ledger / batch UPDATE bets
+    # của settlement thành 1 round-trip MySQL. Chỉ profile MySQL - KHÔNG đụng H2 của test.
+    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DB:rwg}?rewriteBatchedStatements=true}
+    # QUY ƯỚC: chỉ dùng DB_USER/DB_PASSWORD. User là tài khoản RIÊNG của app
+    # (vd rwg_app tạo bởi docker/mysql-init), KHÔNG chạy bằng root.
+    username: ${DB_USER:rwg_app}
+    # KHÔNG có default: thiếu DB_PASSWORD thì app fail-fast khi khởi động (đúng với staging/prod)
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      url: redis://${REDIS_HOST:redis}:${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+rwg:
+  security:
+    # KHÔNG có default: thiếu JWT_SECRET thì app fail-fast (đúng với staging/prod).
+    jwt-secret: ${JWT_SECRET}

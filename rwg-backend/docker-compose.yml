@@ -1,0 +1,78 @@
+# =========================================================
+# RWG Backend - docker compose (đã hardening theo code review)
+# Chạy:
+#   copy .env.example -> .env          (biến cho compose interpolation)
+#   copy .env.app.example -> .env.app  (biến CHỈ của app, nạp vào container app)
+#   sửa các secret rồi: docker compose up -d --build
+#
+# Hardening:
+#   - App chỉ nhận .env.app (KHÔNG bao giờ nhận MYSQL_ROOT_PASSWORD).
+#   - App chạy bằng user MySQL RIÊNG (rwg_app) tạo qua docker/mysql-init, không dùng root.
+#   - Redis KHÔNG publish port ra host (chỉ internal network) + requirepass.
+# =========================================================
+services:
+  app:
+    build: .
+    container_name: rwg-app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    # env_file RIÊNG cho app: chỉ chứa biến app cần (DB_USER/DB_PASSWORD/JWT_SECRET/
+    # REDIS_URL/REDIS_PASSWORD...). KHÔNG dùng .env chung để MYSQL_ROOT_PASSWORD
+    # không bao giờ lọt vào container app.
+    env_file:
+      - .env.app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    container_name: rwg-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      # Mật khẩu BẮT BUỘC lấy từ .env - KHÔNG hard-code secret vào file commit.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD trong .env}
+      MYSQL_DATABASE: ${MYSQL_DB:-rwg}
+      # Chỉ dùng cho init script tạo user riêng cho app (chạy 1 lần khi khởi tạo volume).
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD trong .env}
+    volumes:
+      - rwg-mysql-data:/var/lib/mysql
+      # Init script tạo user MySQL riêng cho app (app KHÔNG chạy bằng root).
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: rwg-redis
+    # requirepass qua env; appendonly để bền dữ liệu refresh-token/rate-limit.
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD trong .env}
+    volumes:
+      - rwg-redis-data:/data
+    # KHÔNG publish port ra host: Redis chỉ reachable trong internal compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  rwg-mysql-data:
+  rwg-redis-data:

@@ -1,0 +1,119 @@
+spring:
+  application:
+    name: rwg-backend
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    # MySQL 8.x bắt buộc (DECIMAL(20,8), JSON, CHECK constraints, InnoDB utf8mb4 - xem DECISIONS.md).
+    # QUY ƯỚC env: chỉ dùng DB_USER / DB_PASSWORD cho thông tin đăng nhập DB ở MỌI file.
+    # Base KHÔNG đặt default mật khẩu -> thiếu DB_PASSWORD thì fail-fast (chỉ profile dev mới có default).
+    url: ${DB_URL:jdbc:mysql://localhost:3306/${MYSQL_DB:rwg_dev}}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Pool 20 (Phase c): round scheduler single-writer + settlement async batch + reconciliation
+      # job chạy nền song song request thread; 10 connection không đủ headroom khi burst bet.
+      maximum-pool-size: 20
+  jpa:
+    # Flyway là nguồn duy nhất quản lý schema; Hibernate không sinh/validate DDL
+    # (cột JSON khác nhau giữa MySQL và H2 nên validate không ổn định).
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  messages:
+    # i18n (en/vi/zh/ja): default bundle messages.properties = en.
+    # fallback-to-system-locale=false -> locale không có bundle riêng sẽ dùng en.
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
+
+server:
+  port: ${APP_PORT:8080}
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Chỉ TIN X-Forwarded-For khi request đến từ proxy trong danh sách (regex).
+      # Mặc định dev: CHỈ loopback. Prod override TRUSTED_PROXIES = IP của load balancer.
+      internal-proxies: '${TRUSTED_PROXIES:127\.0\.0\.1|0:0:0:0:0:0:0:1}'
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    # Mặc định có Redis. Profile dev/test tắt Redis thì tắt luôn health indicator
+    # (xem application-dev.yml / application-test.yml).
+    redis:
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:true}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+
+rwg:
+  security:
+    # KHÔNG có default ở base: thiếu JWT_SECRET -> fail-fast khi khởi động.
+    # Chỉ profile DEV được phép đặt default dev rõ ràng (xem application-dev.yml).
+    jwt-secret: ${JWT_SECRET}
+    issuer: rwg-backend
+    access-token-ttl: PT15M
+    refresh-token-ttl: P30D
+  redis:
+    # false -> dùng fallback in-memory cho refresh-token store + rate-limit (chỉ dev 1 instance).
+    enabled: ${RWG_REDIS_ENABLED:true}
+  captcha:
+    # Enforce captcha phía server khi rate-limiter báo captchaRequired.
+    # provider=dev -> dùng stub (chấp nhận token khác rỗng); TODO: tích hợp provider thật ở bước sau.
+    enforced: ${RWG_CAPTCHA_ENFORCED:true}
+    provider: ${RWG_CAPTCHA_PROVIDER:dev}
+  websocket:
+    # KHÔNG hard-code "*" ở base: môi trường thật PHẢI cấu hình danh sách origin cụ thể.
+    # Profile dev đặt ["*"]; test đặt ["*"] để context khởi động được.
+    allowed-origin-patterns: []
+  rate-limit:
+    login-window: PT15M
+    # Bucket IP+identifier: capacity = lock-threshold; refill toàn bộ mỗi cửa sổ login-window.
+    captcha-threshold: 5
+    lock-threshold: 10
+    # Bucket thứ hai theo CHỈ identifier (khóa tài khoản toàn cục, bất kể IP).
+    account-lock-threshold: 20
+  payment:
+    # Cổng thanh toán: "stub" = gateway giả lập auto-success (provider thật ở chặng sau).
+    provider: ${RWG_PAYMENT_PROVIDER:stub}
+    # Độ trễ giả lập trước khi stub báo SUCCESS (test đặt PT0S).
+    success-delay: ${RWG_PAYMENT_SUCCESS_DELAY:PT1S}
+    # Shared-secret xác thực webhook callback (fix review M4).
+    # KHÔNG có default ở base: thiếu RWG_PAYMENT_CALLBACK_SECRET -> fail-fast khi khởi động.
+    # Chỉ profile DEV/TEST được đặt default rõ ràng (xem application-dev.yml).
+    callback-secret: ${RWG_PAYMENT_CALLBACK_SECRET}
+  withdrawal:
+    # Hạn mức rút tiền theo KE-HOACH-CHUC-NANG-CASINO: min $20, max $5,000/ngày (standard).
+    min-amount: ${RWG_WITHDRAWAL_MIN:20}
+    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
+  crypto:
+    # Khóa mã hóa số tài khoản ngân hàng (AES-256-GCM).
+    # KHÔNG có default ở base: thiếu RWG_BANK_ENC_KEY -> fail-fast khi khởi động.
+    # Chỉ profile DEV được đặt default dev rõ ràng (xem application-dev.yml).
+    bank-enc-key: ${RWG_BANK_ENC_KEY}
+
+logging:
+  level:
+    org.hibernate.SQL: warn
