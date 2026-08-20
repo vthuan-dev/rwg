@@ -129,8 +129,8 @@ export default function AdminUsersPage() {
       />
 
       <div className="p-6 flex flex-col gap-6">
-        {/* Filters & Search Bar */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+        {/* Filters & Search Bar Light */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 flex-1 max-w-md">
             <div className="relative flex items-center w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5" />
@@ -139,12 +139,12 @@ export default function AdminUsersPage() {
                 placeholder="Tìm username hoặc email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl py-2 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl py-2 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none font-medium"
               />
             </div>
             <button
               type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-xs"
             >
               Tìm
             </button>
@@ -156,12 +156,12 @@ export default function AdminUsersPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-transparent text-xs text-slate-700 outline-none cursor-pointer"
+                className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
               >
-                <option value="">Tất cả trạng thái</option>
-                <option value="ACTIVE">ACTIVE (Hoạt động)</option>
-                <option value="LOCKED">LOCKED (Tạm khóa)</option>
-                <option value="BANNED">BANNED (Khóa vĩnh viễn)</option>
+                <option value="" className="bg-white text-slate-900">Tất cả trạng thái</option>
+                <option value="ACTIVE" className="bg-white text-slate-900">ACTIVE (Hoạt động)</option>
+                <option value="LOCKED" className="bg-white text-slate-900">LOCKED (Tạm khóa)</option>
+                <option value="BANNED" className="bg-white text-slate-900">BANNED (Khóa vĩnh viễn)</option>
               </select>
             </div>
 
@@ -170,32 +170,32 @@ export default function AdminUsersPage() {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="bg-transparent text-xs text-slate-700 outline-none cursor-pointer"
+                className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
               >
-                <option value="">Tất cả vai trò</option>
-                <option value="PLAYER">PLAYER (Người chơi)</option>
-                <option value="SUPPORT">SUPPORT (Hỗ trợ)</option>
-                <option value="FINANCE">FINANCE (Tài chính)</option>
-                <option value="RISK">RISK (Rủi ro)</option>
-                <option value="ADMIN">ADMIN (Quản trị)</option>
+                <option value="" className="bg-white text-slate-900">Tất cả vai trò</option>
+                <option value="PLAYER" className="bg-white text-slate-900">PLAYER (Người chơi)</option>
+                <option value="SUPPORT" className="bg-white text-slate-900">SUPPORT (Hỗ trợ)</option>
+                <option value="FINANCE" className="bg-white text-slate-900">FINANCE (Tài chính)</option>
+                <option value="RISK" className="bg-white text-slate-900">RISK (Rủi ro)</option>
+                <option value="ADMIN" className="bg-white text-slate-900">ADMIN (Quản trị)</option>
               </select>
             </div>
 
             <button
               onClick={loadUsers}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-colors"
+              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-colors shadow-xs"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`} />
             </button>
           </div>
         </div>
 
-        {/* Datatable */}
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+        {/* Datatable Light */}
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
                   <th className="py-3.5 px-4">Tài khoản (Username)</th>
                   <th className="py-3.5 px-4">Email</th>
                   <th className="py-3.5 px-4">Vai trò</th>
@@ -208,42 +208,42 @@ export default function AdminUsersPage() {
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-700 font-bold text-xs">
+                      <div className="w-7 h-7 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-700 font-extrabold text-xs">
                         {u.username.substring(0, 1).toUpperCase()}
                       </div>
-                      <span>{u.username}</span>
+                      <span className="font-extrabold text-slate-900">{u.username}</span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-700">{u.email}</td>
+                    <td className="py-3.5 px-4 font-medium text-slate-700">{u.email}</td>
                     <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
                         {u.role}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {u.status === "ACTIVE" && (
                         <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit">
-                          <CheckCircle2 className="w-3 h-3" /> ACTIVE
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ACTIVE
                         </span>
                       )}
                       {u.status === "LOCKED" && (
                         <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 w-fit">
-                          <Lock className="w-3 h-3" /> LOCKED
+                          <Lock className="w-3 h-3 text-amber-600" /> LOCKED
                         </span>
                       )}
                       {u.status === "BANNED" && (
                         <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-red-50 text-red-700 border border-red-200 flex items-center gap-1 w-fit">
-                          <Ban className="w-3 h-3" /> BANNED
+                          <Ban className="w-3 h-3 text-red-600" /> BANNED
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500">
+                    <td className="py-3.5 px-4 text-slate-500 font-medium">
                       {new Date(u.createdAt).toLocaleDateString("vi-VN")}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setSelectedUser(u)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-semibold text-slate-800 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-colors"
                         >
                           Chi tiết
                         </button>
@@ -264,7 +264,7 @@ export default function AdminUsersPage() {
             </table>
           </div>
 
-          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 bg-white">
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600 font-medium bg-white">
             <span>Trang {page + 1} trên {totalPages}</span>
             <div className="flex items-center gap-2">
               <button
@@ -285,6 +285,50 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      {/* User Detail Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl relative">
+            <button
+              onClick={() => setSelectedUser(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-700 font-black text-base">
+                {selectedUser.username.substring(0, 1).toUpperCase()}
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-extrabold text-slate-900">{selectedUser.username}</h3>
+                <span className="text-xs text-slate-500 font-medium">{selectedUser.email}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <div className="flex flex-col">
+                <span className="text-slate-500 text-[10px] uppercase font-bold">Số dư ví (Balance)</span>
+                <span className="text-emerald-700 font-extrabold">${selectedUser.balance?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-slate-500 text-[10px] uppercase font-bold">Vai trò (Role)</span>
+                <span className="text-slate-900 font-bold">{selectedUser.role}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status Modal */}
       {statusModalUser && (
@@ -318,11 +362,11 @@ export default function AdminUsersPage() {
               <select
                 value={newStatus}
                 onChange={(e: any) => setNewStatus(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
               >
-                <option value="ACTIVE">ACTIVE - Hoạt động bình thường</option>
-                <option value="LOCKED">LOCKED - Tạm khóa tài khoản</option>
-                <option value="BANNED">BANNED - Khóa vĩnh viễn (Cấm hệ thống)</option>
+                <option value="ACTIVE" className="bg-white text-slate-900">ACTIVE - Hoạt động bình thường</option>
+                <option value="LOCKED" className="bg-white text-slate-900">LOCKED - Tạm khóa tài khoản</option>
+                <option value="BANNED" className="bg-white text-slate-900">BANNED - Khóa vĩnh viễn (Cấm hệ thống)</option>
               </select>
 
               <label className="text-xs font-bold text-slate-700 mt-1">
@@ -334,7 +378,7 @@ export default function AdminUsersPage() {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Nhập lý do chi tiết cho hành động này..."
-                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 outline-none"
+                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 outline-none font-medium"
               />
             </div>
 
