@@ -2,30 +2,33 @@
 
 import React from "react";
 import { CreditCard, Wallet, Receipt, Headphones } from "lucide-react";
+import { useTranslation } from "@/context/LanguageContext";
 
 export const QuickActions: React.FC = () => {
+  const { t } = useTranslation();
+
   const actions = [
     {
       id: "deposit",
-      title: "Nạp tiền",
+      titleKey: "quick_actions.deposit",
       icon: CreditCard,
       color: "text-red-500",
     },
     {
       id: "withdraw",
-      title: "Rút tiền",
+      titleKey: "quick_actions.withdraw",
       icon: Wallet,
       color: "text-red-500",
     },
     {
       id: "history",
-      title: "Lịch sử giao dịch",
+      titleKey: "quick_actions.history",
       icon: Receipt,
       color: "text-red-500",
     },
     {
       id: "support",
-      title: "Trò chuyện trực tiếp",
+      titleKey: "quick_actions.support",
       icon: Headphones,
       color: "text-red-500",
     },
@@ -45,7 +48,7 @@ export const QuickActions: React.FC = () => {
                 <Icon className={`w-5 h-5 ${action.color}`} />
               </div>
               <span className="text-xs font-semibold text-gray-200 tracking-tight">
-                {action.title}
+                {t(action.titleKey)}
               </span>
             </button>
           );

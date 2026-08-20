@@ -3,10 +3,11 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "@/context/LanguageContext";
 
 interface GameItem {
   id: string;
-  name: string;
+  nameKey: string;
   image: string;
   tableId?: string;
 }
@@ -14,36 +15,38 @@ interface GameItem {
 const GAMES: GameItem[] = [
   {
     id: "lucky28",
-    name: "Lucky 28",
+    nameKey: "games.lucky28",
     image: "/images/thumb_mbappe.jpg",
     tableId: "1",
   },
   {
     id: "british28",
-    name: "British Lucky 28",
+    nameKey: "games.british28",
     image: "/images/thumb_ronaldo.jpg",
     tableId: "2",
   },
   {
     id: "korean28",
-    name: "Korean Lucky 28",
+    nameKey: "games.korean28",
     image: "/images/thumb_neymar.jpg",
     tableId: "3",
   },
   {
     id: "taiwantimes",
-    name: "Taiwan Times",
+    nameKey: "games.taiwantimes",
     image: "/images/thumb_dealer.jpg",
     tableId: "4",
   },
 ];
 
 export const GameGrid: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="w-full px-4 my-2">
       {/* Title */}
       <h2 className="text-base font-bold text-white mb-3 tracking-wide flex items-center gap-2">
-        Trò chơi
+        {t("games.title")}
       </h2>
 
       {/* Grid 2 Columns */}
@@ -58,7 +61,7 @@ export const GameGrid: React.FC = () => {
             <div className="relative w-full aspect-[16/10] overflow-hidden bg-black">
               <Image
                 src={game.image}
-                alt={game.name}
+                alt={t(game.nameKey)}
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
               />
@@ -68,7 +71,7 @@ export const GameGrid: React.FC = () => {
             {/* Game Name Label */}
             <div className="p-2.5 bg-[#141417] text-center border-t border-[#222227]">
               <span className="text-xs font-bold text-gray-100 group-hover:text-red-400 transition-colors">
-                {game.name}
+                {t(game.nameKey)}
               </span>
             </div>
           </Link>

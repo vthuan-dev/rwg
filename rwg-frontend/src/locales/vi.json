@@ -1,0 +1,34 @@
+{
+  "header": {
+    "welcome_back": "Chào mừng quay trở lại"
+  },
+  "marquee": {
+    "notice": "Welcome to Resort World Genting! Trải nghiệm đẳng cấp sảnh Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
+  },
+  "quick_actions": {
+    "deposit": "Nạp tiền",
+    "withdraw": "Rút tiền",
+    "history": "Lịch sử giao dịch",
+    "support": "Trò chuyện trực tiếp"
+  },
+  "games": {
+    "title": "Trò chơi",
+    "lucky28": "Lucky 28",
+    "british28": "British Lucky 28",
+    "korean28": "Korean Lucky 28",
+    "taiwantimes": "Taiwan Times"
+  },
+  "footer": {
+    "partners": "Hợp tác",
+    "certifications": "Chứng nhận",
+    "online_payment": "Thanh toán trực tuyến",
+    "game_providers": "Trò chơi",
+    "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "games": "Trò chơi",
+    "history": "Lịch sử quay số",
+    "profile": "Hồ sơ"
+  }
+}

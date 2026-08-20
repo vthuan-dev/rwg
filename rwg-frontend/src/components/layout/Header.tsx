@@ -2,12 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
+import { useTranslation } from "@/context/LanguageContext";
 
 interface HeaderProps {
   username?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ username = "jinbao01" }) => {
+  const { t } = useTranslation();
+
   return (
     <header className="w-full bg-[#0d0d0f] px-4 pt-3 pb-2 flex flex-col gap-2 border-b border-[#1a1a1e]">
       {/* Top Logo Row */}
@@ -31,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ username = "jinbao01" }) => {
       {/* Greeting Banner Red Text */}
       <div className="mt-1">
         <p className="text-red-500 font-bold text-base sm:text-lg tracking-tight">
-          Chào mừng quay trở lại, {username}
+          {t("header.welcome_back")}, {username}
         </p>
       </div>
     </header>

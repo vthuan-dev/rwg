@@ -1,8 +1,11 @@
 "use client";
 
 import React from "react";
+import { useTranslation } from "@/context/LanguageContext";
 
 export const FooterInfo: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <footer className="w-full px-4 pt-4 pb-12 bg-[#0c0c0e] border-t border-[#1a1a1e] text-xs text-gray-400 flex flex-col gap-5">
       {/* Hợp tác & Chứng nhận */}
@@ -10,7 +13,7 @@ export const FooterInfo: React.FC = () => {
         {/* Hợp tác */}
         <div>
           <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
-            Hợp tác
+            {t("footer.partners")}
           </h4>
           <div className="flex items-center gap-2">
             <div className="bg-[#18181c] border border-[#26262c] rounded-lg p-2 flex items-center justify-center gap-1">
@@ -28,7 +31,7 @@ export const FooterInfo: React.FC = () => {
         {/* Chứng nhận */}
         <div>
           <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
-            Chứng nhận
+            {t("footer.certifications")}
           </h4>
           <div className="flex items-center gap-2">
             <div className="bg-[#18181c] border border-green-800/40 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
@@ -47,7 +50,7 @@ export const FooterInfo: React.FC = () => {
       {/* Thanh toán trực tuyến */}
       <div>
         <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
-          Thanh toán trực tuyến
+          {t("footer.online_payment")}
         </h4>
         <div className="flex flex-wrap items-center gap-2">
           {/* Crypto icons */}
@@ -72,7 +75,7 @@ export const FooterInfo: React.FC = () => {
       {/* Trò chơi Providers */}
       <div>
         <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
-          Trò chơi
+          {t("footer.game_providers")}
         </h4>
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-[#151518] border border-[#242429] rounded-lg p-2 flex items-center gap-2">
@@ -104,7 +107,7 @@ export const FooterInfo: React.FC = () => {
 
       {/* Copyright */}
       <div className="text-center text-[10px] text-gray-600 pt-2 border-t border-[#18181c]">
-        © 2026 Resorts World Genting. All Rights Reserved.
+        {t("footer.copyright")}
       </div>
     </footer>
   );

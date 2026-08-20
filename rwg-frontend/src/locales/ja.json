@@ -1,0 +1,34 @@
+{
+  "header": {
+    "welcome_back": "おかえりなさい"
+  },
+  "marquee": {
+    "notice": "リゾートワールドゲンティンへようこそ！ Lucky 28、British Lucky 28、Korean Lucky 28、Taiwan Times を24時間お楽しみください。"
+  },
+  "quick_actions": {
+    "deposit": "入金",
+    "withdraw": "出金",
+    "history": "取引履歴",
+    "support": "ライブチャット"
+  },
+  "games": {
+    "title": "ゲーム",
+    "lucky28": "Lucky 28",
+    "british28": "British Lucky 28",
+    "korean28": "Korean Lucky 28",
+    "taiwantimes": "Taiwan Times"
+  },
+  "footer": {
+    "partners": "パートナー",
+    "certifications": "ライセンス",
+    "online_payment": "オンライン決済",
+    "game_providers": "ゲームプロバイダー",
+    "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
+  },
+  "nav": {
+    "home": "ホーム",
+    "games": "ゲーム",
+    "history": "抽選履歴",
+    "profile": "プロフィール"
+  }
+}

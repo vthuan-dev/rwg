@@ -4,29 +4,31 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Gamepad2, FileText, User } from "lucide-react";
+import { useTranslation } from "@/context/LanguageContext";
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   const navItems = [
     {
       href: "/",
-      label: "Trang chủ",
+      labelKey: "nav.home",
       icon: Home,
     },
     {
       href: "/games",
-      label: "Trò chơi",
+      labelKey: "nav.games",
       icon: Gamepad2,
     },
     {
       href: "/history",
-      label: "Lịch sử quay số",
+      labelKey: "nav.history",
       icon: FileText,
     },
     {
       href: "/profile",
-      label: "Hồ sơ",
+      labelKey: "nav.profile",
       icon: User,
     },
   ];
@@ -53,7 +55,7 @@ export const BottomNav: React.FC = () => {
                 } transition-transform`}
               />
               <span className="text-[11px] tracking-tight leading-none">
-                {item.label}
+                {t(item.labelKey)}
               </span>
             </Link>
           );

@@ -1,0 +1,34 @@
+{
+  "header": {
+    "welcome_back": "Selamat kembali"
+  },
+  "marquee": {
+    "notice": "Selamat datang ke Resort World Genting! Nikmati Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
+  },
+  "quick_actions": {
+    "deposit": "Deposit",
+    "withdraw": "Pengeluaran",
+    "history": "Sejarah Transaksi",
+    "support": "Sembang Langsung"
+  },
+  "games": {
+    "title": "Permainan",
+    "lucky28": "Lucky 28",
+    "british28": "British Lucky 28",
+    "korean28": "Korean Lucky 28",
+    "taiwantimes": "Taiwan Times"
+  },
+  "footer": {
+    "partners": "Rakan Kongsi",
+    "certifications": "Pengesahan",
+    "online_payment": "Pembayaran Dalam Talian",
+    "game_providers": "Pembekal Permainan",
+    "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
+  },
+  "nav": {
+    "home": "Laman Utama",
+    "games": "Permainan",
+    "history": "Sejarah Cabutan",
+    "profile": "Profil"
+  }
+}

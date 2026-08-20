@@ -1,0 +1,34 @@
+{
+  "header": {
+    "welcome_back": "다시 오신 것을 환영합니다"
+  },
+  "marquee": {
+    "notice": "리조트 월드 겐팅에 오신 것을 환영합니다! 럭키 28, 브리티시 럭키 28, 코리안 럭키 28, 타이완 타임즈를 24시간 즐기세요."
+  },
+  "quick_actions": {
+    "deposit": "입금",
+    "withdraw": "출금",
+    "history": "거래 내역",
+    "support": "라이브 채팅"
+  },
+  "games": {
+    "title": "게임",
+    "lucky28": "Lucky 28",
+    "british28": "British Lucky 28",
+    "korean28": "Korean Lucky 28",
+    "taiwantimes": "Taiwan Times"
+  },
+  "footer": {
+    "partners": "파트너",
+    "certifications": "라이선스 인증",
+    "online_payment": "온라인 결제",
+    "game_providers": "게임 제공업체",
+    "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
+  },
+  "nav": {
+    "home": "홈",
+    "games": "게임",
+    "history": "추첨 내역",
+    "profile": "프로필"
+  }
+}

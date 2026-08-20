@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import { useTranslation } from "@/context/LanguageContext";
 
 const LANGUAGES = [
   { code: "vi", name: "Tiếng Việt" },
@@ -12,7 +13,7 @@ const LANGUAGES = [
 ];
 
 export const LanguageBar: React.FC = () => {
-  const [activeLang, setActiveLang] = useState("vi");
+  const { locale, setLocale } = useTranslation();
 
   return (
     <div className="w-full my-4 px-4">
@@ -20,9 +21,9 @@ export const LanguageBar: React.FC = () => {
         {LANGUAGES.map((lang, idx) => (
           <React.Fragment key={lang.code}>
             <button
-              onClick={() => setActiveLang(lang.code)}
+              onClick={() => setLocale(lang.code)}
               className={`transition-colors hover:text-white ${
-                activeLang === lang.code
+                locale === lang.code
                   ? "text-red-500 font-bold"
                   : "text-gray-400"
               }`}
