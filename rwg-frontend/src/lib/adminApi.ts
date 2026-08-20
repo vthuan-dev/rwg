@@ -1,4 +1,4 @@
-import { ADMIN_API_BASE_URL } from "./constants";
+import { ADMIN_API_BASE_URL, ADMIN_URL_PREFIX } from "./constants";
 
 export const getAdminToken = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -42,14 +42,15 @@ export async function adminFetch<T = any>(
 
   if (res.status === 401) {
     removeAdminToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
-      window.location.href = "/admin/login";
+    const loginUrl = `${ADMIN_URL_PREFIX}/login`;
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith(loginUrl)) {
+      window.location.href = loginUrl;
     }
-    throw new Error("Phiên làm việc admin đã hết hạn, vui lòng đăng nhập lại.");
+    throw new Error("Admin session expired. Please log in again.");
   }
 
   if (!res.ok) {
-    let errorMsg = `Lỗi hệ thống (${res.status})`;
+    let errorMsg = `System Error (${res.status})`;
     try {
       const errorData = await res.json();
       errorMsg = errorData.message || errorData.detail || errorMsg;

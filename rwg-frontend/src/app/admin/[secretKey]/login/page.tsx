@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { setAdminToken, adminFetch } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
+import { ADMIN_URL_PREFIX } from "@/lib/constants";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -74,7 +75,7 @@ export default function AdminLoginPage() {
 
       if (data && data.token) {
         setAdminToken(data.token);
-        router.push("/admin");
+        router.push(ADMIN_URL_PREFIX);
       } else {
         setError("Login failed. Invalid response token from server.");
         generateCaptcha();

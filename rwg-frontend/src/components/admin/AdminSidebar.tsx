@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { removeAdminToken } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
+import { ADMIN_URL_PREFIX } from "@/lib/constants";
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
@@ -23,37 +24,37 @@ export const AdminSidebar: React.FC = () => {
 
   const navItems = [
     {
-      href: "/admin",
+      href: `${ADMIN_URL_PREFIX}`,
       label: t("admin.nav.dashboard"),
       icon: LayoutDashboard,
     },
     {
-      href: "/admin/users",
+      href: `${ADMIN_URL_PREFIX}/users`,
       label: t("admin.nav.users"),
       icon: Users,
     },
     {
-      href: "/admin/payments",
+      href: `${ADMIN_URL_PREFIX}/payments`,
       label: t("admin.nav.payments"),
       icon: CreditCard,
     },
     {
-      href: "/admin/games",
+      href: `${ADMIN_URL_PREFIX}/games`,
       label: t("admin.nav.games"),
       icon: Gamepad2,
     },
     {
-      href: "/admin/risk",
+      href: `${ADMIN_URL_PREFIX}/risk`,
       label: t("admin.nav.risk"),
       icon: ShieldAlert,
     },
     {
-      href: "/admin/affiliates",
+      href: `${ADMIN_URL_PREFIX}/affiliates`,
       label: t("admin.nav.affiliates"),
       icon: Network,
     },
     {
-      href: "/admin/banners",
+      href: `${ADMIN_URL_PREFIX}/banners`,
       label: t("admin.nav.banners"),
       icon: ImageIcon,
     },
@@ -61,7 +62,7 @@ export const AdminSidebar: React.FC = () => {
 
   const handleLogout = () => {
     removeAdminToken();
-    window.location.href = "/admin/login";
+    window.location.href = `${ADMIN_URL_PREFIX}/login`;
   };
 
   return (
@@ -87,8 +88,8 @@ export const AdminSidebar: React.FC = () => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
-              item.href === "/admin"
-                ? pathname === "/admin"
+              item.href === ADMIN_URL_PREFIX
+                ? pathname === ADMIN_URL_PREFIX
                 : pathname.startsWith(item.href);
 
             return (
@@ -117,7 +118,7 @@ export const AdminSidebar: React.FC = () => {
       <div className="pt-4 border-t border-slate-200">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 cursor-pointer"
         >
           <LogOut className="w-4 h-4 text-red-600" />
           <span>{t("admin.logout")}</span>

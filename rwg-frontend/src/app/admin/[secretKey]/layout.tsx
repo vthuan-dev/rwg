@@ -1,16 +1,26 @@
 "use client";
 
-import React from "react";
-import { usePathname } from "next/navigation";
+import React, { use } from "react";
+import { usePathname, notFound } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { ADMIN_SECRET_PATH, ADMIN_URL_PREFIX } from "@/lib/constants";
 
-export default function AdminLayout({
+export default function AdminSecretLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ secretKey: string }>;
 }) {
+  const resolvedParams = use(params);
   const pathname = usePathname();
-  const isLoginPage = pathname === "/admin/login";
+
+  // If secret path does not match env NEXT_PUBLIC_ADMIN_SECRET_PATH (default "2026"), return 404!
+  if (resolvedParams.secretKey !== ADMIN_SECRET_PATH) {
+    notFound();
+  }
+
+  const isLoginPage = pathname === `${ADMIN_URL_PREFIX}/login`;
 
   if (isLoginPage) {
     return (
