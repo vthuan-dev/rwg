@@ -30,5 +30,103 @@
     "games": "ゲーム",
     "history": "抽選履歴",
     "profile": "プロフィール"
+  },
+  "admin": {
+    "title": "RWG Admin",
+    "subtitle": "BACKOFFICE SUITE",
+    "super_admin": "SUPER ADMIN",
+    "api_online": "API 8081 Online",
+    "logout": "Đăng xuất Admin",
+    "nav": {
+      "dashboard": "Tổng quan",
+      "users": "Quản lý Người dùng",
+      "payments": "Duyệt Nạp & Rút tiền",
+      "games": "Quản lý Bàn chơi",
+      "risk": "Chống Gian lận (Risk)",
+      "affiliates": "Đại lý & Hoa hồng",
+      "banners": "Banner & Media"
+    },
+    "dashboard": {
+      "title": "Tổng quan Backoffice Admin",
+      "subtitle": "Báo cáo số liệu thực tế hệ thống RWG Casino",
+      "server_status": "Trạng thái máy chủ 8081: Đang hoạt động bình thường",
+      "reload": "Tải lại số liệu",
+      "total_users": "TỔNG NGƯỜI DÙNG",
+      "pending_approvals": "LỆNH RÚT CHỜ DUYỆT (4 MẮT)",
+      "active_tables": "BÀN CHƠI ĐANG CHẠY",
+      "risk_signals": "TÍN HIỆU RISK & GIAN LẬN",
+      "action_users": "Quản lý tài khoản",
+      "action_approvals": "Vào hàng chờ duyệt",
+      "action_tables": "Cấu hình bàn chơi",
+      "action_risk": "Xử lý liên kết gian lận",
+      "compliance_title": "Quy trình An toàn Vận hành (System Compliance)",
+      "compliance_4eye_title": "Quy trình 4 Mắt Phê Duyệt",
+      "compliance_4eye_desc": "Chặn người tạo đề nghị rút tiền tự duyệt lệnh của chính mình.",
+      "compliance_self_title": "Chặn Tự Giao Dịch Nạp/Rút",
+      "compliance_self_desc": "Hạ quyền cộng tiền ví cho chính tài khoản Admin đang vận hành.",
+      "compliance_fraud_title": "Chống Gian Lận Hoa Hồng",
+      "compliance_fraud_desc": "Dò chùm IP/Device giữ tiền hoa hồng tuyến dưới đa tài khoản."
+    },
+    "users": {
+      "title": "Quản lý Người dùng",
+      "subtitle": "Tra cứu tài khoản, cập nhật trạng thái khoá/ban, phân lại vai trò",
+      "search_placeholder": "Tìm username hoặc email...",
+      "search": "Tìm",
+      "all_status": "Tất cả trạng thái",
+      "all_roles": "Tất cả vai trò",
+      "table_username": "TÀI KHOẢN (USERNAME)",
+      "table_email": "EMAIL",
+      "table_role": "VAI TRÒ",
+      "table_status": "TRẠNG THÁI",
+      "table_created": "NGÀY TẠO",
+      "table_action": "THAO TÁC",
+      "btn_detail": "Chi tiết",
+      "btn_change_status": "Đổi Status"
+    },
+    "payments": {
+      "title": "Duyệt Nạp & Rút tiền 4 Mắt",
+      "subtitle": "Hàng chờ phê duyệt lệnh rút tiền, tuân thủ nguyên tắc người đề xuất không được tự duyệt",
+      "compliance_alert": "Chính sách An toàn Tài chính: Hệ thống kiểm soát 4 mắt (4-Eye Compliance). Tài khoản đề xuất lệnh rút không thể tự phê duyệt chính lệnh đó.",
+      "queue_title": "Hàng đợi Đang Chờ Phê Duyệt",
+      "approve": "Duyệt",
+      "reject": "Từ chối"
+    },
+    "games": {
+      "title": "Quản lý Bàn chơi Casino",
+      "subtitle": "Cấu hình sảnh Lucky 28, bật/tắt bàn khẩn cấp và chỉnh hạn mức cược",
+      "table_list": "Danh sách Tất cả Bàn chơi",
+      "table_on": "Bàn đang BẬT",
+      "table_off": "Bàn đã TẮT",
+      "min_bet": "CƯỢC TỐI THIỂU (MIN)",
+      "max_bet": "CƯỢC TỐI ĐA (MAX)",
+      "edit_limits": "Sửa Hạn mức Cược"
+    },
+    "risk": {
+      "title": "Quản lý Rủi ro & Gian lận (Risk)",
+      "subtitle": "Dò chùm IP/Device đa tài khoản, kết luận giữ tiền hoa hồng",
+      "queue_title": "Hàng đợi Tín hiệu Gian lận",
+      "manual_link": "Nối Liên kết Thủ công",
+      "conclude": "Ghi Kết luận"
+    },
+    "affiliates": {
+      "title": "Quản lý Đại lý & Hoa hồng",
+      "subtitle": "Cây quan hệ tuyến dưới đại lý, lịch sử đợt chạy job chi trả hoa hồng",
+      "tab_tree": "Cây Đại lý & Tuyến dưới",
+      "tab_runs": "Lịch sử Đợt Chi Trả Hoa hồng"
+    },
+    "banners": {
+      "title": "Quản lý Banner Video & Media Quảng cáo",
+      "subtitle": "Upload video MP4/ảnh khuyến mãi trang chủ, quản lý thứ tự hiển thị",
+      "list_title": "Danh sách Banners Trang chủ",
+      "upload_btn": "Upload Banner Video / Ảnh Mới",
+      "delete_btn": "Xoá Banner"
+    },
+    "login": {
+      "title": "RWG Admin Suite",
+      "subtitle": "Hệ thống Quản trị Backoffice Casino Trực tuyến",
+      "username": "Tên đăng nhập Admin",
+      "password": "Mật khẩu",
+      "submit": "Đăng Nhập Quản Trị"
+    }
   }
 }

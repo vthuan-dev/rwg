@@ -3,11 +3,11 @@
     "welcome_back": "Welcome back"
   },
   "marquee": {
-    "notice": "Welcome to Resort World Genting! Enjoy world-class Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
+    "notice": "Welcome to Resort World Genting! Experience Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
   },
   "quick_actions": {
     "deposit": "Deposit",
-    "withdraw": "Withdrawal",
+    "withdraw": "Withdraw",
     "history": "Transaction History",
     "support": "Live Chat"
   },
@@ -21,7 +21,7 @@
   "footer": {
     "partners": "Partners",
     "certifications": "Certifications",
-    "online_payment": "Online Payments",
+    "online_payment": "Online Payment",
     "game_providers": "Game Providers",
     "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
   },
@@ -30,5 +30,103 @@
     "games": "Games",
     "history": "Draw History",
     "profile": "Profile"
+  },
+  "admin": {
+    "title": "RWG Admin",
+    "subtitle": "BACKOFFICE SUITE",
+    "super_admin": "SUPER ADMIN",
+    "api_online": "API 8081 Online",
+    "logout": "Admin Logout",
+    "nav": {
+      "dashboard": "Dashboard Overview",
+      "users": "User Management",
+      "payments": "4-Eye Approvals",
+      "games": "Game Tables",
+      "risk": "Risk & Anti-Fraud",
+      "affiliates": "Affiliates & Commissions",
+      "banners": "Banner & Media"
+    },
+    "dashboard": {
+      "title": "Admin Backoffice Overview",
+      "subtitle": "Real-time metrics report for RWG Casino System",
+      "server_status": "Server 8081 Status: Operating Normally",
+      "reload": "Reload Metrics",
+      "total_users": "TOTAL USERS",
+      "pending_approvals": "PENDING APPROVALS (4-EYE)",
+      "active_tables": "RUNNING GAME TABLES",
+      "risk_signals": "RISK & FRAUD SIGNALS",
+      "action_users": "Manage accounts",
+      "action_approvals": "View approval queue",
+      "action_tables": "Configure game tables",
+      "action_risk": "Process fraud links",
+      "compliance_title": "System Compliance & Operational Safety",
+      "compliance_4eye_title": "4-Eye Approval Flow",
+      "compliance_4eye_desc": "Prevents withdrawal requesters from self-approving their requests.",
+      "compliance_self_title": "Block Self-Dealing",
+      "compliance_self_desc": "Revokes self-deposit privileges for operational admin accounts.",
+      "compliance_fraud_title": "Anti Commission Fraud",
+      "compliance_fraud_desc": "Detects IP/Device clusters to withhold multi-account commissions."
+    },
+    "users": {
+      "title": "User Management",
+      "subtitle": "Search accounts, update status lock/ban, reassign roles",
+      "search_placeholder": "Search username or email...",
+      "search": "Search",
+      "all_status": "All Statuses",
+      "all_roles": "All Roles",
+      "table_username": "USERNAME",
+      "table_email": "EMAIL",
+      "table_role": "ROLE",
+      "table_status": "STATUS",
+      "table_created": "CREATED AT",
+      "table_action": "ACTIONS",
+      "btn_detail": "Details",
+      "btn_change_status": "Change Status"
+    },
+    "payments": {
+      "title": "4-Eye Payment Approvals",
+      "subtitle": "Withdrawal approval queue, complying with 4-eye non-self-approval policy",
+      "compliance_alert": "Financial Security Policy: 4-Eye Compliance enforced. Requesters cannot self-approve their withdrawals.",
+      "queue_title": "Pending Approvals Queue",
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "games": {
+      "title": "Casino Table Management",
+      "subtitle": "Configure Lucky 28 tables, toggle emergency status and bet limits",
+      "table_list": "All Game Tables",
+      "table_on": "Table ACTIVE",
+      "table_off": "Table OFF",
+      "min_bet": "MIN BET",
+      "max_bet": "MAX BET",
+      "edit_limits": "Edit Bet Limits"
+    },
+    "risk": {
+      "title": "Risk & Fraud Management",
+      "subtitle": "Detect IP/Device multi-account clusters, conclude commission holds",
+      "queue_title": "Fraud Signals Queue",
+      "manual_link": "Manual Link",
+      "conclude": "Conclude Risk"
+    },
+    "affiliates": {
+      "title": "Affiliate & Commission Management",
+      "subtitle": "Agent referral trees and commission payout runs history",
+      "tab_tree": "Agent Referral Tree",
+      "tab_runs": "Commission Run History"
+    },
+    "banners": {
+      "title": "Video & Promo Banner Management",
+      "subtitle": "Upload MP4 videos/promo images, manage display order",
+      "list_title": "Homepage Banners List",
+      "upload_btn": "Upload New Video/Image Banner",
+      "delete_btn": "Delete Banner"
+    },
+    "login": {
+      "title": "RWG Admin Suite",
+      "subtitle": "Online Casino Backoffice Management System",
+      "username": "Admin Username",
+      "password": "Password",
+      "submit": "Admin Login"
+    }
   }
 }

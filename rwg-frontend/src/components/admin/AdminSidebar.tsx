@@ -15,44 +15,46 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { removeAdminToken } from "@/lib/adminApi";
+import { useTranslation } from "@/context/LanguageContext";
 
 export const AdminSidebar: React.FC = () => {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   const navItems = [
     {
       href: "/admin",
-      label: "Tổng quan",
+      label: t("admin.nav.dashboard"),
       icon: LayoutDashboard,
     },
     {
       href: "/admin/users",
-      label: "Quản lý Người dùng",
+      label: t("admin.nav.users"),
       icon: Users,
     },
     {
       href: "/admin/payments",
-      label: "Duyệt Nạp & Rút tiền",
+      label: t("admin.nav.payments"),
       icon: CreditCard,
     },
     {
       href: "/admin/games",
-      label: "Quản lý Bàn chơi",
+      label: t("admin.nav.games"),
       icon: Gamepad2,
     },
     {
       href: "/admin/risk",
-      label: "Chống Gian lận (Risk)",
+      label: t("admin.nav.risk"),
       icon: ShieldAlert,
     },
     {
       href: "/admin/affiliates",
-      label: "Đại lý & Hoa hồng",
+      label: t("admin.nav.affiliates"),
       icon: Network,
     },
     {
       href: "/admin/banners",
-      label: "Banner & Media",
+      label: t("admin.nav.banners"),
       icon: ImageIcon,
     },
   ];
@@ -63,7 +65,7 @@ export const AdminSidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 min-h-screen flex flex-col justify-between p-4 sticky top-0 h-screen select-none shadow-sm">
+    <aside className="w-64 bg-white border-r border-slate-200 min-h-screen flex flex-col justify-between p-4 sticky top-0 h-screen select-none shadow-xs">
       {/* Top Logo & Title */}
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-3 px-2 py-1">
@@ -72,10 +74,10 @@ export const AdminSidebar: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="text-slate-900 font-extrabold text-base tracking-tight leading-tight">
-              RWG Admin
+              {t("admin.title")}
             </span>
             <span className="text-red-600 font-bold text-[10px] uppercase tracking-widest leading-none">
-              Backoffice Suite
+              {t("admin.subtitle")}
             </span>
           </div>
         </div>
@@ -95,7 +97,7 @@ export const AdminSidebar: React.FC = () => {
                 href={item.href}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-red-50 border border-red-200 text-red-700 shadow-sm"
+                    ? "bg-red-50 border border-red-200 text-red-700 shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 }`}
               >
@@ -118,7 +120,7 @@ export const AdminSidebar: React.FC = () => {
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
         >
           <LogOut className="w-4 h-4 text-red-600" />
-          <span>Đăng xuất Admin</span>
+          <span>{t("admin.logout")}</span>
         </button>
       </div>
     </aside>

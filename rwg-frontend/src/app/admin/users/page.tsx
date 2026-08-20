@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
+import { useTranslation } from "@/context/LanguageContext";
 
 interface UserItem {
   id: string;
@@ -30,6 +31,7 @@ interface UserItem {
 }
 
 export default function AdminUsersPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -124,8 +126,8 @@ export default function AdminUsersPage() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
-        title="Quản lý Người dùng"
-        subtitle="Tra cứu tài khoản, cập nhật trạng thái khoá/ban, phân lại vai trò"
+        title={t("admin.users.title")}
+        subtitle={t("admin.users.subtitle")}
       />
 
       <div className="p-6 flex flex-col gap-6">
@@ -136,7 +138,7 @@ export default function AdminUsersPage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5" />
               <input
                 type="text"
-                placeholder="Tìm username hoặc email..."
+                placeholder={t("admin.users.search_placeholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl py-2 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none font-medium"
@@ -146,7 +148,7 @@ export default function AdminUsersPage() {
               type="submit"
               className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-xs"
             >
-              Tìm
+              {t("admin.users.search")}
             </button>
           </form>
 
@@ -158,10 +160,10 @@ export default function AdminUsersPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
               >
-                <option value="" className="bg-white text-slate-900">Tất cả trạng thái</option>
-                <option value="ACTIVE" className="bg-white text-slate-900">ACTIVE (Hoạt động)</option>
-                <option value="LOCKED" className="bg-white text-slate-900">LOCKED (Tạm khóa)</option>
-                <option value="BANNED" className="bg-white text-slate-900">BANNED (Khóa vĩnh viễn)</option>
+                <option value="" className="bg-white text-slate-900">{t("admin.users.all_status")}</option>
+                <option value="ACTIVE" className="bg-white text-slate-900">ACTIVE</option>
+                <option value="LOCKED" className="bg-white text-slate-900">LOCKED</option>
+                <option value="BANNED" className="bg-white text-slate-900">BANNED</option>
               </select>
             </div>
 
@@ -172,12 +174,12 @@ export default function AdminUsersPage() {
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
               >
-                <option value="" className="bg-white text-slate-900">Tất cả vai trò</option>
-                <option value="PLAYER" className="bg-white text-slate-900">PLAYER (Người chơi)</option>
-                <option value="SUPPORT" className="bg-white text-slate-900">SUPPORT (Hỗ trợ)</option>
-                <option value="FINANCE" className="bg-white text-slate-900">FINANCE (Tài chính)</option>
-                <option value="RISK" className="bg-white text-slate-900">RISK (Rủi ro)</option>
-                <option value="ADMIN" className="bg-white text-slate-900">ADMIN (Quản trị)</option>
+                <option value="" className="bg-white text-slate-900">{t("admin.users.all_roles")}</option>
+                <option value="PLAYER" className="bg-white text-slate-900">PLAYER</option>
+                <option value="SUPPORT" className="bg-white text-slate-900">SUPPORT</option>
+                <option value="FINANCE" className="bg-white text-slate-900">FINANCE</option>
+                <option value="RISK" className="bg-white text-slate-900">RISK</option>
+                <option value="ADMIN" className="bg-white text-slate-900">ADMIN</option>
               </select>
             </div>
 
@@ -196,12 +198,12 @@ export default function AdminUsersPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Tài khoản (Username)</th>
-                  <th className="py-3.5 px-4">Email</th>
-                  <th className="py-3.5 px-4">Vai trò</th>
-                  <th className="py-3.5 px-4">Trạng thái</th>
-                  <th className="py-3.5 px-4">Ngày tạo</th>
-                  <th className="py-3.5 px-4 text-right">Thao tác</th>
+                  <th className="py-3.5 px-4">{t("admin.users.table_username")}</th>
+                  <th className="py-3.5 px-4">{t("admin.users.table_email")}</th>
+                  <th className="py-3.5 px-4">{t("admin.users.table_role")}</th>
+                  <th className="py-3.5 px-4">{t("admin.users.table_status")}</th>
+                  <th className="py-3.5 px-4">{t("admin.users.table_created")}</th>
+                  <th className="py-3.5 px-4 text-right">{t("admin.users.table_action")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -245,7 +247,7 @@ export default function AdminUsersPage() {
                           onClick={() => setSelectedUser(u)}
                           className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-colors"
                         >
-                          Chi tiết
+                          {t("admin.users.btn_detail")}
                         </button>
                         <button
                           onClick={() => {
@@ -254,7 +256,7 @@ export default function AdminUsersPage() {
                           }}
                           className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-700 transition-colors"
                         >
-                          Đổi Status
+                          {t("admin.users.btn_change_status")}
                         </button>
                       </div>
                     </td>

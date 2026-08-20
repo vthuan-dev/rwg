@@ -15,8 +15,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
+import { useTranslation } from "@/context/LanguageContext";
 
 export default function AdminDashboardPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -56,8 +58,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
-        title="Tổng quan Backoffice Admin"
-        subtitle="Báo cáo số liệu thực tế hệ thống RWG Casino"
+        title={t("admin.dashboard.title")}
+        subtitle={t("admin.dashboard.subtitle")}
       />
 
       <div className="p-6 flex flex-col gap-6">
@@ -66,7 +68,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-emerald-600" />
             <span className="text-xs font-semibold text-slate-700">
-              Trạng thái máy chủ 8081: Đang hoạt động bình thường
+              {t("admin.dashboard.server_status")}
             </span>
           </div>
           <button
@@ -75,7 +77,7 @@ export default function AdminDashboardPage() {
             className="bg-white hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-semibold flex items-center gap-2 transition-all shadow-xs active:scale-95"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-red-600" : ""}`} />
-            <span>Tải lại số liệu</span>
+            <span>{t("admin.dashboard.reload")}</span>
           </button>
         </div>
 
@@ -84,7 +86,7 @@ export default function AdminDashboardPage() {
           {/* Total Users */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Tổng Người dùng</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t("admin.dashboard.total_users")}</span>
               <div className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-600">
                 <Users className="w-4 h-4" />
               </div>
@@ -99,7 +101,7 @@ export default function AdminDashboardPage() {
               href="/admin/users"
               className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-1"
             >
-              <span>Quản lý tài khoản</span>
+              <span>{t("admin.dashboard.action_users")}</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
@@ -107,20 +109,20 @@ export default function AdminDashboardPage() {
           {/* Pending Approvals */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Lệnh Rút chờ duyệt (4 mắt)</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t("admin.dashboard.pending_approvals")}</span>
               <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
                 <CreditCard className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-slate-900">{stats.pendingApprovals}</span>
-              <span className="text-xs font-bold text-amber-600">Yêu cầu xử lý</span>
+              <span className="text-xs font-bold text-amber-600">Active</span>
             </div>
             <Link
               href="/admin/payments"
               className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 mt-1"
             >
-              <span>Vào hàng chờ duyệt</span>
+              <span>{t("admin.dashboard.action_approvals")}</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
@@ -128,20 +130,20 @@ export default function AdminDashboardPage() {
           {/* Active Tables */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bàn chơi đang chạy</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t("admin.dashboard.active_tables")}</span>
               <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600">
                 <Gamepad2 className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-slate-900">{stats.activeTables} / 6</span>
-              <span className="text-xs font-bold text-emerald-600">Bàn Active</span>
+              <span className="text-xs font-bold text-emerald-600">Active</span>
             </div>
             <Link
               href="/admin/games"
               className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 mt-1"
             >
-              <span>Cấu hình bàn chơi</span>
+              <span>{t("admin.dashboard.action_tables")}</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
@@ -149,20 +151,20 @@ export default function AdminDashboardPage() {
           {/* Risk Flagged */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Tín hiệu Risk & Gian lận</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t("admin.dashboard.risk_signals")}</span>
               <div className="p-2 rounded-xl bg-red-50 border border-red-200 text-red-600">
                 <ShieldAlert className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-slate-900">{stats.riskLinks}</span>
-              <span className="text-xs font-bold text-red-600">Cần kết luận</span>
+              <span className="text-xs font-bold text-red-600">Pending</span>
             </div>
             <Link
               href="/admin/risk"
               className="text-[11px] font-bold text-red-600 hover:text-red-700 flex items-center gap-1 mt-1"
             >
-              <span>Xử lý liên kết gian lận</span>
+              <span>{t("admin.dashboard.action_risk")}</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
@@ -171,15 +173,15 @@ export default function AdminDashboardPage() {
         {/* System Highlights */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-xs">
           <h3 className="text-sm font-extrabold text-slate-900 tracking-wide">
-            Quy trình An toàn Vận hành (System Compliance)
+            {t("admin.dashboard.compliance_title")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-bold text-slate-900">Quy trình 4 Mắt Phê Duyệt</span>
+                <span className="text-xs font-bold text-slate-900">{t("admin.dashboard.compliance_4eye_title")}</span>
                 <span className="text-[11px] text-slate-600 leading-normal">
-                  Chặn người tạo đề nghị rút tiền tự duyệt lệnh của chính mình.
+                  {t("admin.dashboard.compliance_4eye_desc")}
                 </span>
               </div>
             </div>
@@ -187,9 +189,9 @@ export default function AdminDashboardPage() {
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-bold text-slate-900">Chặn Tự Giao Dịch Nạp/Rút</span>
+                <span className="text-xs font-bold text-slate-900">{t("admin.dashboard.compliance_self_title")}</span>
                 <span className="text-[11px] text-slate-600 leading-normal">
-                  Hạ quyền cộng tiền ví cho chính tài khoản Admin đang vận hành.
+                  {t("admin.dashboard.compliance_self_desc")}
                 </span>
               </div>
             </div>
@@ -197,9 +199,9 @@ export default function AdminDashboardPage() {
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-bold text-slate-900">Chống Gian Lận Hoa Hồng</span>
+                <span className="text-xs font-bold text-slate-900">{t("admin.dashboard.compliance_fraud_title")}</span>
                 <span className="text-[11px] text-slate-600 leading-normal">
-                  Dò chùm IP/Device giữ tiền hoa hồng tuyến dưới đa tài khoản.
+                  {t("admin.dashboard.compliance_fraud_desc")}
                 </span>
               </div>
             </div>

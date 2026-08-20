@@ -3,16 +3,16 @@
     "welcome_back": "欢迎回来"
   },
   "marquee": {
-    "notice": "欢迎来到名胜世界! 全天候体验 Lucky 28、British Lucky 28、Korean Lucky 28 和 Taiwan Times。"
+    "notice": "欢迎来到云顶名胜世界！24/7体验 Lucky 28、British Lucky 28、Korean Lucky 28 与 Taiwan Times。"
   },
   "quick_actions": {
     "deposit": "充值",
     "withdraw": "提现",
-    "history": "交易记录",
+    "history": "交易历史",
     "support": "在线客服"
   },
   "games": {
-    "title": "游戏",
+    "title": "游戏大厅",
     "lucky28": "Lucky 28",
     "british28": "British Lucky 28",
     "korean28": "Korean Lucky 28",
@@ -23,12 +23,110 @@
     "certifications": "权威认证",
     "online_payment": "在线支付",
     "game_providers": "游戏供应商",
-    "copyright": "© 2026 Resorts World Genting. All Rights Reserved."
+    "copyright": "© 2026 Resorts World Genting. 版权所有。"
   },
   "nav": {
     "home": "首页",
     "games": "游戏",
-    "history": "开奖记录",
+    "history": "开奖历史",
     "profile": "个人中心"
+  },
+  "admin": {
+    "title": "RWG 管理后台",
+    "subtitle": "BACKOFFICE SUITE",
+    "super_admin": "超级管理员",
+    "api_online": "API 8081 在线",
+    "logout": "退出登录",
+    "nav": {
+      "dashboard": "控制台总览",
+      "users": "用户管理",
+      "payments": "四眼提现审核",
+      "games": "游戏桌台管理",
+      "risk": "风控防刷管理",
+      "affiliates": "代理与佣金",
+      "banners": "横幅媒体管理"
+    },
+    "dashboard": {
+      "title": "管理后台控制台总览",
+      "subtitle": "RWG Casino 系统实时数据统计报告",
+      "server_status": "8081 服务器状态：正常运行中",
+      "reload": "刷新数据",
+      "total_users": "总用户数",
+      "pending_approvals": "待审核提现 (四眼流程)",
+      "active_tables": "运行中游戏桌",
+      "risk_signals": "风控欺诈预警",
+      "action_users": "管理账号",
+      "action_approvals": "进入审核队列",
+      "action_tables": "配置游戏桌",
+      "action_risk": "处理关联欺诈",
+      "compliance_title": "系统合规与安全运营流程",
+      "compliance_4eye_title": "四眼双人审核机制",
+      "compliance_4eye_desc": "禁止提现申请发起人自行审核自己的提现单。",
+      "compliance_self_title": "禁止自我交易",
+      "compliance_self_desc": "剥夺运营管理员账号自我上分/充值权限。",
+      "compliance_fraud_title": "防止代理佣金套现",
+      "compliance_fraud_desc": "检测多账号 IP/设备集群并暂扣下线佣金。"
+    },
+    "users": {
+      "title": "用户管理",
+      "subtitle": "查询账号、更新锁定/封禁状态、分配角色",
+      "search_placeholder": "搜索用户名或邮箱...",
+      "search": "搜索",
+      "all_status": "所有状态",
+      "all_roles": "所有角色",
+      "table_username": "用户名",
+      "table_email": "邮箱",
+      "table_role": "角色",
+      "table_status": "状态",
+      "table_created": "创建时间",
+      "table_action": "操作",
+      "btn_detail": "详情",
+      "btn_change_status": "修改状态"
+    },
+    "payments": {
+      "title": "四眼提现审核",
+      "subtitle": "提现审核队列，严禁发起人自我审核",
+      "compliance_alert": "资金安全政策：严格执行四眼审核。申请人不可审核自己的提现申请。",
+      "queue_title": "待审核队列",
+      "approve": "批准",
+      "reject": "拒绝"
+    },
+    "games": {
+      "title": "游戏桌台管理",
+      "subtitle": "配置 Lucky 28 桌台，紧急开关及下注限额调整",
+      "table_list": "所有游戏桌台",
+      "table_on": "桌台开启",
+      "table_off": "桌台关闭",
+      "min_bet": "最小下注 (MIN)",
+      "max_bet": "最大下注 (MAX)",
+      "edit_limits": "修改限额"
+    },
+    "risk": {
+      "title": "风控与防刷管理",
+      "subtitle": "检测多账号 IP/设备集群，决定佣金暂扣与解冻",
+      "queue_title": "欺诈预警队列",
+      "manual_link": "手动关联账号",
+      "conclude": "提交风控结论"
+    },
+    "affiliates": {
+      "title": "代理与佣金管理",
+      "subtitle": "下线代理树状图及佣金派发历史",
+      "tab_tree": "代理下线树",
+      "tab_runs": "佣金结算记录"
+    },
+    "banners": {
+      "title": "视频与宣传横幅管理",
+      "subtitle": "上传 MP4 视频/宣传图片，管理展示顺序",
+      "list_title": "首页横幅列表",
+      "upload_btn": "上传新视频/图片",
+      "delete_btn": "删除横幅"
+    },
+    "login": {
+      "title": "RWG 管理后台",
+      "subtitle": "在线赌场 Backoffice 管理系统",
+      "username": "管理员账号",
+      "password": "密码",
+      "submit": "管理员登录"
+    }
   }
 }
