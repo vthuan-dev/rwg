@@ -102,6 +102,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/role").hasRole("ADMIN")
                         // Đổi % hoa hồng ảnh hưởng tiền chi cho mọi đại lý -> chỉ ADMIN.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/affiliate/config").hasRole("ADMIN")
+                        // Hạn mức cược quyết định mức thiệt hại tối đa mỗi lệnh cược -> chỉ ADMIN.
+                        // Nâng maxBet lên rất cao là một đường rút tiền không cần chạm ví nào.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/limits").hasRole("ADMIN")
+
+                        // Bật/tắt bàn: thêm RISK — phát hiện bàn bất thường là việc của họ, và
+                        // tắt bàn không chuyển đồng nào nên không thuộc nhóm thao tác tiền.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/status")
+                            .hasAnyRole("ADMIN", "RISK")
 
                         // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK bị chặn ở đây.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")

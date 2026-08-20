@@ -74,6 +74,30 @@ public class GameTable {
         if (id == null) id = UUID.randomUUID();
     }
 
+    /**
+     * Bật/tắt bàn. Tắt bàn KHÔNG dừng ngay vòng đang chạy: tiến trình sở hữu vòng
+     * lặp (app player) tự phát hiện thay đổi và hủy + hoàn tiền vòng hiện tại.
+     */
+    public void changeStatus(GameTableStatus newStatus) {
+        this.status = newStatus;
+    }
+
+    /**
+     * Đổi hạn mức cược. Kiểm tra bất biến ngay TẠI ĐÂY thay vì chỉ ở tầng service:
+     * min > max sẽ khiến mọi lệnh cược bị từ chối mà không rõ nguyên nhân, nên chặn
+     * ở domain để không đường gọi nào bỏ sót được.
+     */
+    public void updateLimits(BigDecimal newMinBet, BigDecimal newMaxBet) {
+        if (newMinBet.signum() <= 0) {
+            throw new IllegalArgumentException("minBet phải lớn hơn 0");
+        }
+        if (newMinBet.compareTo(newMaxBet) > 0) {
+            throw new IllegalArgumentException("minBet không được lớn hơn maxBet");
+        }
+        this.minBet = newMinBet;
+        this.maxBet = newMaxBet;
+    }
+
     public UUID getId() { return id; }
     public String getGameType() { return gameType; }
     public String getNameI18n() { return nameI18n; }

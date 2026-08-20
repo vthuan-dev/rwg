@@ -72,6 +72,14 @@ public class AuditTrailService {
      */
     public static final String ADMIN_SELF_DEALING_BLOCKED = "ADMIN_SELF_DEALING_BLOCKED";
 
+    // Chặng 6: quản trị bàn chơi.
+    /**
+     * Admin bật/tắt bàn. Tắt bàn ảnh hưởng mọi người chơi đang ở bàn đó nên phải
+     * truy được ai tắt, khi nào và vì sao.
+     */
+    public static final String ADMIN_TABLE_STATUS_CHANGED = "ADMIN_TABLE_STATUS_CHANGED";
+    /** Admin đổi hạn mức cược của bàn — ảnh hưởng mức rủi ro tối đa mỗi lệnh cược. */
+    public static final String ADMIN_TABLE_LIMITS_CHANGED = "ADMIN_TABLE_LIMITS_CHANGED";
 
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 

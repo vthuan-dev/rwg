@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -42,6 +43,16 @@ import java.util.concurrent.TimeoutException;
  * Khởi động: VOID + REFUND mọi round OPEN "mồ côi" (app chết giữa round) rồi mới
  * chạy vòng lặp mới. Hủy vòng chủ động: {@link #voidCurrentRound(UUID)} interrupt
  * thread của bàn -> round hiện tại được VOID + REFUND ngay tại biên phase gần nhất.
+ *
+ * ===== PHẢN ỨNG VỚI LỆNH BẬT/TẮT BÀN TỪ APP ADMIN =====
+ * Scheduler này CHỈ chạy ở app player, còn API bật/tắt bàn nằm ở app admin — hai
+ * TIẾN TRÌNH KHÁC NHAU, không gọi hàm nhau được. Nên trạng thái bàn được ĐỌC LẠI
+ * ở đầu mỗi vòng, và một supervisor định kỳ khởi động vòng lặp cho bàn vừa được
+ * bật lại. Trước đây danh sách bàn chỉ đọc MỘT LẦN lúc khởi động, nên nếu chỉ thêm
+ * API mà không sửa chỗ này thì API tắt bàn sẽ là NÚT GIẢ: bàn vẫn tự quay.
+ *
+ * Dừng ở BIÊN VÒNG (không cắt giữa round đang chạy) để không phải hoàn tiền hàng
+ * loạt mỗi lần admin tắt bàn. Muốn dừng ngay và hoàn tiền thì dùng voidCurrentRound.
  */
 @Component
 public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent> {
@@ -96,6 +107,29 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
         log.info("round scheduler started for {} active table(s)", tables.size());
     }
 
+    /**
+     * Supervisor: đồng bộ tập vòng lặp đang chạy với danh sách bàn ACTIVE trong DB.
+     *
+     * Cần thiết vì lệnh bật bàn đến từ TIẾN TRÌNH KHÁC (app admin): bàn được bật lại
+     * sẽ không có ai khởi động vòng lặp cho nó nếu không có vòng quét này. Chiều
+     * ngược lại (tắt bàn) do chính vòng lặp tự phát hiện và thoát.
+     */
+    @Scheduled(fixedDelayString = "${rwg.game.table-sync-interval:PT10S}")
+    void syncActiveTables() {
+        if (!running) {
+            return;
+        }
+        for (GameTable table : tableRepository.findByStatus(GameTableStatus.ACTIVE)) {
+            // Kiểm tableExecutors (không phải loopThreads): entry ở đây được ghi NGAY
+            // khi submit, còn loopThreads chỉ có sau khi thread thực sự bắt đầu chạy —
+            // dùng loopThreads sẽ tạo khe sinh vòng lặp thứ hai, vi phạm single-writer.
+            if (!tableExecutors.containsKey(table.getId())) {
+                log.info("table {} vua duoc bat lai -> khoi dong vong lap", table.getId());
+                startTable(table);
+            }
+        }
+    }
+
     /** Bàn ACTIVE có vòng lặp single-writer riêng. */
     private void startTable(GameTable table) {
         ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -109,22 +143,41 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
 
     private void loop(GameTable table) {
         loopThreads.put(table.getId(), Thread.currentThread());
-        while (running) {
-            try {
-                runRound(table);
-            } catch (Exception unexpected) {
-                log.error("round loop error tableId={}", table.getId(), unexpected);
+        try {
+            while (running) {
+                // ĐỌC LẠI trạng thái ở ĐẦU MỖI VÒNG: admin tắt bàn ở tiến trình khác nên
+                // đây là cách duy nhất biết được. Dừng ở biên vòng, không cắt giữa round
+                // đang chạy -> không phát sinh hoàn tiền hàng loạt.
+                GameTable current = tableRepository.findById(table.getId()).orElse(null);
+                if (current == null || current.getStatus() != GameTableStatus.ACTIVE) {
+                    log.info("table {} da bi tat -> dung vong lap", table.getId());
+                    break;
+                }
                 try {
-                    Thread.sleep(250);
-                } catch (InterruptedException e) {
-                    // Cờ interrupt được dọn ở sleep kế tiếp của vòng mới; dừng nếu shutdown.
-                    if (!running) {
-                        break;
+                    // Dùng bản VỪA ĐỌC: hạn mức min/max có thể đã được admin sửa.
+                    runRound(current);
+                } catch (Exception unexpected) {
+                    log.error("round loop error tableId={}", table.getId(), unexpected);
+                    try {
+                        Thread.sleep(250);
+                    } catch (InterruptedException e) {
+                        // Cờ interrupt được dọn ở sleep kế tiếp của vòng mới; dừng nếu shutdown.
+                        if (!running) {
+                            break;
+                        }
                     }
                 }
             }
+        } finally {
+            // Dọn CẢ HAI map trong finally: nếu chỉ dọn loopThreads thì tableExecutors còn
+            // sót entry, khiến supervisor tưởng bàn vẫn đang chạy và không bao giờ khởi
+            // động lại được bàn đó sau khi admin bật lại.
+            loopThreads.remove(table.getId());
+            ExecutorService finished = tableExecutors.remove(table.getId());
+            if (finished != null) {
+                finished.shutdown();
+            }
         }
-        loopThreads.remove(table.getId());
     }
 
     /** Một vòng đời đầy đủ: BETTING_OPEN -> BETTING_CLOSED -> SPINNING -> RESULT -> SETTLE. */

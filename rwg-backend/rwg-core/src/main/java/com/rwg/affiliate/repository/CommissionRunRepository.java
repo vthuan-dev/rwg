@@ -35,4 +35,12 @@ public interface CommissionRunRepository extends JpaRepository<CommissionRun, UU
     @Query("select coalesce(sum(c.amount), 0) from CommissionRun c "
             + "where c.periodDate >= :from and c.periodDate <= :to")
     BigDecimal sumAmountBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * Tổng hoa hồng một đại lý đã nhận TỪ ĐẦU — trang tổng quan của chính người chơi.
+     * Không giới hạn khoảng ngày vì đây là con số luỹ kế trọn đời, và mỗi đại lý chỉ
+     * có tối đa 2 chứng từ mỗi ngày (một cấp một dòng) nên phạm vi quét rất nhỏ.
+     */
+    @Query("select coalesce(sum(c.amount), 0) from CommissionRun c where c.agentId = :agentId")
+    BigDecimal sumAmountByAgent(@Param("agentId") UUID agentId);
 }

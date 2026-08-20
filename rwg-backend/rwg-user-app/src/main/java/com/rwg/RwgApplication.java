@@ -2,6 +2,7 @@ package com.rwg;
 
 import com.rwg.affiliate.api.AdminAffiliateController;
 import com.rwg.affiliate.api.AdminDashboardController;
+import com.rwg.game.api.AdminGameController;
 import com.rwg.identity.api.AdminApprovalController;
 import com.rwg.identity.api.AdminAuditController;
 import com.rwg.identity.api.AdminController;
@@ -44,7 +45,8 @@ import org.springframework.context.annotation.FilterType;
                         AdminAuditController.class,
                         AdminAffiliateController.class,
                         AdminDashboardController.class,
-                        AdminApprovalController.class
+                        AdminApprovalController.class,
+                        AdminGameController.class
                 }))
 public class RwgApplication {
 
