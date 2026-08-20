@@ -39,7 +39,6 @@ export default function AdminAffiliatesPage() {
         setRunsList(Array.isArray(data) ? data : []);
       }
     } catch {
-      // Demo fallback
       if (activeTab === "tree") {
         setTreeList([
           {
@@ -72,22 +71,22 @@ export default function AdminAffiliatesPage() {
   }, [activeTab]);
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
+    <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
         title="Quản lý Đại lý & Hoa hồng"
-        subtitle="Cây quan hệ tuyến dưới đại lý, lịch sử đợt chạy job tính hoa hồng"
+        subtitle="Cây quan hệ tuyến dưới đại lý, lịch sử đợt chạy job chi trả hoa hồng"
       />
 
       <div className="p-6 flex flex-col gap-6">
         {/* Navigation Tabs & Refresh */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 bg-[#121216] p-1.5 rounded-2xl border border-[#1e1e26]">
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs">
             <button
               onClick={() => setActiveTab("tree")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeTab === "tree"
-                  ? "bg-red-600 text-white shadow-lg shadow-red-950/40"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Network className="w-4 h-4" /> Cây Đại lý & Tuyến dưới
@@ -96,8 +95,8 @@ export default function AdminAffiliatesPage() {
               onClick={() => setActiveTab("runs")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeTab === "runs"
-                  ? "bg-red-600 text-white shadow-lg shadow-red-950/40"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Layers className="w-4 h-4" /> Lịch sử Đợt Chi Trả Hoa hồng
@@ -106,19 +105,19 @@ export default function AdminAffiliatesPage() {
 
           <button
             onClick={loadData}
-            className="p-2 rounded-xl bg-[#121216] border border-[#1e1e26] text-gray-400 hover:text-white"
+            className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 shadow-xs"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-500" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`} />
           </button>
         </div>
 
         {/* Tree Table */}
         {activeTab === "tree" && (
-          <div className="bg-[#121216] border border-[#1e1e26] rounded-2xl overflow-hidden shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#17171e] border-b border-[#23232c] text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3.5 px-4">Mã Đại lý (Agent ID)</th>
                     <th className="py-3.5 px-4">Tài khoản</th>
                     <th className="py-3.5 px-4">Mã Giới thiệu</th>
@@ -126,27 +125,27 @@ export default function AdminAffiliatesPage() {
                     <th className="py-3.5 px-4">Tổng Hoa hồng Đã nhận (USD)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1c1c24] text-xs">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {treeList.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-500">
+                      <td colSpan={5} className="py-8 text-center text-slate-500 font-medium">
                         Chưa có dữ liệu đại lý trong hệ thống.
                       </td>
                     </tr>
                   ) : (
                     treeList.map((item) => (
-                      <tr key={item.agentId} className="hover:bg-[#16161d] transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-white">{item.agentId}</td>
-                        <td className="py-3.5 px-4 font-bold text-red-400">{item.agentUsername}</td>
+                      <tr key={item.agentId} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{item.agentId}</td>
+                        <td className="py-3.5 px-4 font-bold text-red-700">{item.agentUsername}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-md font-mono font-bold text-xs bg-red-950/40 text-red-400 border border-red-900/40">
+                          <span className="px-2.5 py-1 rounded-md font-mono font-bold text-xs bg-red-50 text-red-700 border border-red-200">
                             {item.referralCode}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-white">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
                           {item.directSubordinatesCount} người
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-emerald-400 flex items-center">
+                        <td className="py-3.5 px-4 font-black text-emerald-600 flex items-center">
                           <DollarSign className="w-3.5 h-3.5 mr-0.5" />
                           {item.totalCommissionsEarned.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </td>
@@ -161,11 +160,11 @@ export default function AdminAffiliatesPage() {
 
         {/* Runs Table */}
         {activeTab === "runs" && (
-          <div className="bg-[#121216] border border-[#1e1e26] rounded-2xl overflow-hidden shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#17171e] border-b border-[#23232c] text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3.5 px-4">Mã Đợt (Run ID)</th>
                     <th className="py-3.5 px-4">Ngày Tính toán</th>
                     <th className="py-3.5 px-4">Số Đại lý Được Chi Trả</th>
@@ -173,22 +172,22 @@ export default function AdminAffiliatesPage() {
                     <th className="py-3.5 px-4">Trạng thái</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1c1c24] text-xs">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {runsList.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-500">
+                      <td colSpan={5} className="py-8 text-center text-slate-500 font-medium">
                         Chưa có lịch sử đợt chi trả hoa hồng.
                       </td>
                     </tr>
                   ) : (
                     runsList.map((run) => (
-                      <tr key={run.id} className="hover:bg-[#16161d] transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-white">{run.id}</td>
-                        <td className="py-3.5 px-4 text-gray-300 font-semibold">{run.runDate}</td>
-                        <td className="py-3.5 px-4 font-bold text-white">{run.totalAgentsProcessed} đại lý</td>
-                        <td className="py-3.5 px-4 font-bold text-emerald-400">${run.totalAmountPaid.toLocaleString()}</td>
+                      <tr key={run.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{run.id}</td>
+                        <td className="py-3.5 px-4 text-slate-700 font-semibold">{run.runDate}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">{run.totalAgentsProcessed} đại lý</td>
+                        <td className="py-3.5 px-4 font-black text-emerald-600">${run.totalAmountPaid.toLocaleString()}</td>
                         <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                          <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
                             {run.status}
                           </span>
                         </td>

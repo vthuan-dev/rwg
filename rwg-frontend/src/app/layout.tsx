@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
@@ -16,13 +15,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className="bg-[#070709] min-h-screen flex justify-center text-white antialiased">
-        <LanguageProvider>
-          <div className="w-full max-w-[500px] bg-[#0d0d0f] min-h-screen flex flex-col relative shadow-2xl pb-20 border-x border-[#1a1a1e]">
-            {children}
-            <BottomNav />
-          </div>
-        </LanguageProvider>
+      <body className="bg-[#070709] min-h-screen text-white antialiased">
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

@@ -2,15 +2,15 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Lock, User, AlertCircle, ArrowRight } from "lucide-react";
-import { setAdminToken } from "@/lib/adminApi";
+import { ShieldCheck, Lock, User, AlertCircle } from "lucide-react";
+import { setAdminToken, adminFetch } from "@/lib/adminApi";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("banneradmin");
-  const [password, setPassword] = useState("Pass123!@#");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,109 +18,93 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Connect to Player/Auth backend on 8080 or 8081 for login
-      const res = await fetch("http://localhost:8080/api/v1/auth/login", {
+      const data = await adminFetch("/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Sai tài khoản hoặc mật khẩu admin");
-      }
-
-      if (data.accessToken) {
-        setAdminToken(data.accessToken);
+      if (data.token) {
+        setAdminToken(data.token);
         router.push("/admin");
       } else {
-        throw new Error("Không nhận được token xác thực");
+        setError("Đăng nhập thất bại: Không nhận được token");
       }
     } catch (err: any) {
-      setError(err.message || "Đăng nhập thất bại, vui lòng thử lại");
+      setError(err.message || "Đăng nhập không thành công. Kiểm tra lại tài khoản");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-md p-6 bg-[#0f0f13] border border-[#22222a] rounded-2xl shadow-2xl flex flex-col gap-6">
-      {/* Header Logo */}
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-950 border border-red-500/50 flex items-center justify-center text-white shadow-xl shadow-red-950/60">
-          <ShieldCheck className="w-8 h-8 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <h2 className="text-xl font-extrabold text-white tracking-tight">
-            RWG Backoffice Portal
-          </h2>
-          <p className="text-xs text-gray-400 font-medium">
-            Đăng nhập khu vực quản trị sàn Casino
+    <div className="w-full min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-xl flex flex-col gap-6">
+        {/* Header Branding */}
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-700 border border-red-500/40 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-200 mb-2">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            RWG Admin Suite
+          </h1>
+          <p className="text-xs text-slate-500 font-medium">
+            Hệ thống Quản trị Backoffice Casino Trực tuyến
           </p>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Tên đăng nhập Admin</label>
+            <div className="relative flex items-center">
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5" />
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Nhập username admin..."
+                className="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl py-2.5 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Mật khẩu</label>
+            <div className="relative flex items-center">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl py-2.5 pl-10 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none font-semibold"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-extrabold text-xs transition-all shadow-md shadow-red-200 active:scale-98 disabled:opacity-50 mt-2"
+          >
+            {loading ? "Đang xác thực..." : "Đăng Nhập Quản Trị"}
+          </button>
+        </form>
+
+        <div className="text-center text-[11px] text-slate-400 font-medium">
+          Phiên làm việc bảo mật cao JWT • Quản lý RWG Backoffice 2026
+        </div>
       </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-950/60 border border-red-800/80 rounded-xl p-3 flex items-center gap-3 text-xs text-red-300">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleLogin} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-gray-300">
-            Tài khoản Admin
-          </label>
-          <div className="relative flex items-center">
-            <User className="w-4 h-4 text-gray-500 absolute left-3.5" />
-            <input
-              type="text"
-              required
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Username hoặc Email Admin"
-              className="w-full bg-[#16161c] border border-[#272730] focus:border-red-500 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white placeholder-gray-500 outline-none transition-colors"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-gray-300">
-            Mật khẩu
-          </label>
-          <div className="relative flex items-center">
-            <Lock className="w-4 h-4 text-gray-500 absolute left-3.5" />
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nhập mật khẩu admin"
-              className="w-full bg-[#16161c] border border-[#272730] focus:border-red-500 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white placeholder-gray-500 outline-none transition-colors"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-red-950/50 disabled:opacity-50"
-        >
-          {loading ? (
-            <span>Đang xác thực...</span>
-          ) : (
-            <>
-              <span>Đăng nhập Quản trị</span>
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </button>
-      </form>
     </div>
   );
 }

@@ -63,25 +63,25 @@ export const AdminSidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-[#0d0d10] border-r border-[#1a1a1f] min-h-screen flex flex-col justify-between p-4 sticky top-0 h-screen select-none">
+    <aside className="w-64 bg-white border-r border-slate-200 min-h-screen flex flex-col justify-between p-4 sticky top-0 h-screen select-none shadow-sm">
       {/* Top Logo & Title */}
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-3 px-2 py-1">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-red-900 border border-red-500/40 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-red-950/50">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-red-700 border border-red-500/40 flex items-center justify-center text-white font-black text-sm shadow-md shadow-red-200">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="text-white font-extrabold text-base tracking-tight leading-tight">
+            <span className="text-slate-900 font-extrabold text-base tracking-tight leading-tight">
               RWG Admin
             </span>
-            <span className="text-red-500 font-bold text-[10px] uppercase tracking-widest leading-none">
+            <span className="text-red-600 font-bold text-[10px] uppercase tracking-widest leading-none">
               Backoffice Suite
             </span>
           </div>
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex flex-col gap-1.5">
+        <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -95,13 +95,13 @@ export const AdminSidebar: React.FC = () => {
                 href={item.href}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-red-950/50 border border-red-600/40 text-red-400 shadow-md shadow-red-950/20"
-                    : "text-gray-400 hover:text-white hover:bg-[#16161b]"
+                    ? "bg-red-50 border border-red-200 text-red-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 }`}
               >
                 <Icon
                   className={`w-4 h-4 ${
-                    isActive ? "text-red-500" : "text-gray-400"
+                    isActive ? "text-red-600" : "text-slate-500"
                   }`}
                 />
                 <span>{item.label}</span>
@@ -112,12 +112,12 @@ export const AdminSidebar: React.FC = () => {
       </div>
 
       {/* Logout Button */}
-      <div className="pt-4 border-t border-[#1a1a1f]">
+      <div className="pt-4 border-t border-slate-200">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-400 hover:text-red-400 hover:bg-red-950/30 transition-all border border-transparent hover:border-red-900/40"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
         >
-          <LogOut className="w-4 h-4 text-red-500" />
+          <LogOut className="w-4 h-4 text-red-600" />
           <span>Đăng xuất Admin</span>
         </button>
       </div>

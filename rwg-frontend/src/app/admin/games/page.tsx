@@ -42,7 +42,6 @@ export default function AdminGamesPage() {
         setTables(data);
       }
     } catch {
-      // Demo fallback
       setTables([
         {
           id: "11111111-1111-1111-1111-111111111111",
@@ -122,7 +121,7 @@ export default function AdminGamesPage() {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
+    <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
         title="Quản lý Bàn chơi Casino"
         subtitle="Cấu hình sảnh Lucky 28, bật/tắt bàn khẩn cấp và chỉnh hạn mức cược"
@@ -132,14 +131,14 @@ export default function AdminGamesPage() {
         {/* Action Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Gamepad2 className="w-5 h-5 text-red-500" />
-            <span className="text-sm font-bold text-white">Danh sách Tất cả Bàn chơi ({tables.length})</span>
+            <Gamepad2 className="w-5 h-5 text-red-600" />
+            <span className="text-sm font-extrabold text-slate-900">Danh sách Tất cả Bàn chơi ({tables.length})</span>
           </div>
           <button
             onClick={loadTables}
-            className="p-2 rounded-xl bg-[#121216] border border-[#1e1e26] text-gray-400 hover:text-white"
+            className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 shadow-xs"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-500" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`} />
           </button>
         </div>
 
@@ -148,19 +147,19 @@ export default function AdminGamesPage() {
           {tables.map((table) => (
             <div
               key={table.id}
-              className={`bg-[#121216] border rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all ${
-                table.active ? "border-[#22222a]" : "border-red-950/80 bg-red-950/10"
+              className={`bg-white border rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all shadow-xs hover:shadow-md ${
+                table.active ? "border-slate-200" : "border-red-300 bg-red-50/30"
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-white">{table.name}</span>
-                    <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-gray-800 text-gray-300">
+                    <span className="text-base font-extrabold text-slate-900">{table.name}</span>
+                    <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
                       {table.engineType}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono text-gray-500">{table.id}</span>
+                  <span className="text-[11px] font-mono text-slate-400">{table.id}</span>
                 </div>
 
                 {/* Status Toggle Badge */}
@@ -168,8 +167,8 @@ export default function AdminGamesPage() {
                   onClick={() => handleToggleStatus(table)}
                   className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     table.active
-                      ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/60"
-                      : "bg-red-950/60 text-red-400 border border-red-800/60 hover:bg-red-900/60"
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                      : "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
                   }`}
                 >
                   {table.active ? (
@@ -185,28 +184,28 @@ export default function AdminGamesPage() {
               </div>
 
               {/* Limits Information */}
-              <div className="grid grid-cols-2 gap-3 p-3 bg-[#17171e] border border-[#23232c] rounded-xl text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
                 <div className="flex flex-col">
-                  <span className="text-gray-400 text-[10px] uppercase font-bold">Cược tối thiểu (Min)</span>
-                  <span className="text-white font-bold">${table.minBet.toLocaleString()}</span>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold">Cược tối thiểu (Min)</span>
+                  <span className="text-slate-900 font-bold">${table.minBet.toLocaleString()}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-gray-400 text-[10px] uppercase font-bold">Cược tối đa (Max)</span>
-                  <span className="text-amber-400 font-bold">${table.maxBet.toLocaleString()}</span>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold">Cược tối đa (Max)</span>
+                  <span className="text-amber-700 font-bold">${table.maxBet.toLocaleString()}</span>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1c1c24]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   onClick={() => {
                     setEditTable(table);
                     setMinBet(String(table.minBet));
                     setMaxBet(String(table.maxBet));
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#1a1a22] hover:bg-[#252530] border border-[#282834] text-xs font-semibold text-gray-200 flex items-center gap-1.5 transition-colors"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1.5 transition-colors"
                 >
-                  <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                  <Sliders className="w-3.5 h-3.5 text-amber-600" />
                   <span>Sửa Hạn mức Cược</span>
                 </button>
               </div>
@@ -217,50 +216,50 @@ export default function AdminGamesPage() {
 
       {/* Modal Edit Limits */}
       {editTable && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121216] border border-[#22222c] rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl relative">
             <button
               onClick={() => setEditTable(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-950/50 border border-amber-800/50 text-amber-400">
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
                 <Sliders className="w-5 h-5" />
               </div>
               <div className="flex flex-col">
-                <h3 className="text-base font-bold text-white">Chỉnh Hạn mức Bàn chơi</h3>
-                <span className="text-xs text-gray-400">{editTable.name}</span>
+                <h3 className="text-base font-extrabold text-slate-900">Chỉnh Hạn mức Bàn chơi</h3>
+                <span className="text-xs text-slate-500 font-medium">{editTable.name}</span>
               </div>
             </div>
 
             {actionError && (
-              <div className="bg-red-950/60 border border-red-800/60 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                 <span>{actionError}</span>
               </div>
             )}
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-300">Min Bet (USD)</label>
+                <label className="text-xs font-bold text-slate-700">Min Bet (USD)</label>
                 <input
                   type="number"
                   value={minBet}
                   onChange={(e) => setMinBet(e.target.value)}
-                  className="bg-[#17171e] border border-[#262632] focus:border-red-500 rounded-xl p-2.5 text-xs text-white outline-none"
+                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-300">Max Bet (USD)</label>
+                <label className="text-xs font-bold text-slate-700">Max Bet (USD)</label>
                 <input
                   type="number"
                   value={maxBet}
                   onChange={(e) => setMaxBet(e.target.value)}
-                  className="bg-[#17171e] border border-[#262632] focus:border-red-500 rounded-xl p-2.5 text-xs text-white outline-none"
+                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
                 />
               </div>
             </div>
@@ -268,7 +267,7 @@ export default function AdminGamesPage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setEditTable(null)}
-                className="px-4 py-2 rounded-xl bg-[#1a1a22] text-xs font-semibold text-gray-300 hover:bg-[#252530]"
+                className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
               >
                 Hủy
               </button>
