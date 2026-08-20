@@ -1,5 +1,6 @@
 package com.rwg.game.api;
 
+import com.rwg.common.PageResponse;
 import com.rwg.game.dto.BetRequest;
 import com.rwg.game.dto.BetResponse;
 import com.rwg.game.dto.GameTableResponse;
@@ -11,7 +12,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -75,7 +75,7 @@ public class GameController {
 
     @GetMapping("/tables/{id}/rounds")
     @Operation(summary = "Lịch sử quay số có phân trang cho bàn cụ thể")
-    public Page<RoundResponse> roundsHistory(@PathVariable("id") UUID tableId,
+    public PageResponse<RoundResponse> roundsHistory(@PathVariable("id") UUID tableId,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "10") int size) {
         return gameQueryService.listRoundsHistory(tableId, page, size);
@@ -83,7 +83,7 @@ public class GameController {
 
     @GetMapping("/me/bets/history")
     @Operation(summary = "Lịch sử cược của tôi có phân trang")
-    public Page<PlayerBetResponse> myBetsHistory(@AuthenticationPrincipal Jwt jwt,
+    public PageResponse<PlayerBetResponse> myBetsHistory(@AuthenticationPrincipal Jwt jwt,
                                                 @RequestParam(required = false) UUID tableId,
                                                 @RequestParam(defaultValue = "0") int page,
                                                 @RequestParam(defaultValue = "10") int size) {

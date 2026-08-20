@@ -2,6 +2,7 @@ package com.rwg.game.service;
 
 import com.rwg.common.ApiException;
 import com.rwg.common.ErrorCode;
+import com.rwg.common.PageResponse;
 import com.rwg.game.domain.Bet;
 import com.rwg.game.domain.GameRound;
 import com.rwg.game.domain.GameTable;
@@ -92,7 +93,7 @@ public class GameQueryService {
     }
 
     /** Lịch sử quay số có phân trang cho bàn chơi cụ thể. */
-    public Page<RoundResponse> listRoundsHistory(UUID tableId, int page, int size) {
+    public PageResponse<RoundResponse> listRoundsHistory(UUID tableId, int page, int size) {
         requireActiveTable(tableId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "roundSeq"));
         Page<GameRound> rounds = roundRepository.findByTableIdAndStatusIn(
@@ -100,7 +101,7 @@ public class GameQueryService {
                 List.of(RoundStatus.SETTLED, RoundStatus.VOIDED),
                 pageable
         );
-        return rounds.map(round -> new RoundResponse(
+        return PageResponse.from(rounds.map(round -> new RoundResponse(
                 round.getId().toString(),
                 round.getTableId().toString(),
                 round.getRoundSeq(),
@@ -117,11 +118,11 @@ public class GameQueryService {
                 round.getKl28Numbers(),
                 round.getKl28Sum(),
                 Instant.now()
-        ));
+        )));
     }
 
     /** Lịch sử cược có phân trang của người dùng. */
-    public Page<PlayerBetResponse> myBetsHistory(UUID userId, UUID tableId, int page, int size) {
+    public PageResponse<PlayerBetResponse> myBetsHistory(UUID userId, UUID tableId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Bet> bets;
         if (tableId != null) {
@@ -129,7 +130,7 @@ public class GameQueryService {
         } else {
             bets = betRepository.findByUserId(userId, pageable);
         }
-        return bets.map(bet -> new PlayerBetResponse(
+        return PageResponse.from(bets.map(bet -> new PlayerBetResponse(
                 bet.getId().toString(),
                 bet.getRoundId().toString(),
                 bet.getTableId().toString(),
@@ -139,7 +140,7 @@ public class GameQueryService {
                 bet.getStatus().name(),
                 bet.getPayout().toPlainString(),
                 bet.getCreatedAt()
-        ));
+        )));
     }
 
     GameTable requireActiveTable(UUID tableId) {
