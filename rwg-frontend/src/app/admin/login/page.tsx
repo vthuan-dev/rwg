@@ -193,43 +193,51 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Captcha Security Code Verification Block */}
+            {/* Google reCAPTCHA / Security Code Verification Widget */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center justify-between">
-                <span>Verification Code (Captcha)</span>
-                <span className="text-[10px] text-slate-400 font-medium">Bot Protection</span>
+              <label className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Security Verification
               </label>
               
-              <div className="grid grid-cols-12 gap-2.5 items-center">
-                {/* Captcha Input */}
-                <div className="col-span-7 p-1 rounded-2xl bg-slate-50 border border-slate-200 focus-within:border-red-500 transition-all shadow-xs">
-                  <div className="relative flex items-center bg-white rounded-[calc(1rem-0.25rem)]">
-                    <ShieldQuestion className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+              {/* reCAPTCHA Styled Widget Box */}
+              <div className="p-3 bg-[#f9f9f9] border border-[#d3d3d3] rounded-2xl shadow-xs flex items-center justify-between gap-3">
+                {/* Left: Input & Captcha Code Display Badge */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {/* Captcha Input */}
+                  <div className="relative flex items-center bg-white border border-[#c1c1c1] focus-within:border-blue-600 rounded-xl px-2.5 py-1.5 shadow-inner flex-1 min-w-0">
+                    <ShieldQuestion className="w-4 h-4 text-slate-400 shrink-0 mr-1.5 pointer-events-none" />
                     <input
                       type="text"
                       required
                       maxLength={4}
                       value={captchaInput}
                       onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                      placeholder="4-character code"
-                      className="w-full bg-transparent py-2.5 pl-10 pr-3 text-xs font-black tracking-widest uppercase text-slate-900 placeholder-slate-400 outline-none"
+                      placeholder="Code..."
+                      className="w-full bg-transparent text-xs font-black tracking-widest uppercase text-slate-900 placeholder-slate-400 outline-none"
                     />
+                  </div>
+
+                  {/* Captcha Code Visual Box */}
+                  <div className="bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-center font-mono font-black text-sm tracking-[0.2em] text-red-600 shadow-inner select-none relative flex items-center gap-1 shrink-0">
+                    <span className="line-through decoration-slate-400/80 italic">{captchaCode}</span>
+                    <button
+                      type="button"
+                      onClick={generateCaptcha}
+                      title="Refresh Captcha"
+                      className="p-1 hover:bg-slate-100 rounded-md text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Captcha Display Preview Box */}
-                <div className="col-span-5 flex items-center gap-1.5 bg-gradient-to-r from-red-950 to-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-xs relative overflow-hidden">
-                  <div className="flex-1 bg-black/60 rounded-xl py-2 px-3 text-center tracking-[0.25em] font-mono font-black text-sm text-red-400 select-none border border-red-900/40 relative">
-                    <span className="line-through decoration-red-600/50">{captchaCode}</span>
+                {/* Right: reCAPTCHA Brand Logo Badge */}
+                <div className="flex flex-col items-center justify-center shrink-0 border-l border-slate-200 pl-3 select-none">
+                  <div className="w-6 h-6 rounded-full bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-600 mb-0.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={generateCaptcha}
-                    title="Refresh code"
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all active:scale-95"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
+                  <span className="text-[9px] font-black text-slate-700 tracking-tight">reCAPTCHA</span>
+                  <span className="text-[7px] text-slate-400 font-medium leading-none">Privacy - Terms</span>
                 </div>
               </div>
             </div>
