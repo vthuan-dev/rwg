@@ -15,6 +15,7 @@ import com.rwg.identity.dto.UpdateLocaleRequest;
 import com.rwg.identity.dto.UserResponse;
 import com.rwg.identity.repository.UserRepository;
 import com.rwg.affiliate.service.ReferralService;
+import com.rwg.risk.service.AccountLinkDetector;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,12 @@ public class AuthService {
      * động bình thường (đăng ký khi đó chỉ bỏ qua mã giới thiệu).
      */
     private final ObjectProvider<ReferralService> referralServiceProvider;
+    /**
+     * Dò đa tài khoản — TÙY CHỌN qua ObjectProvider, cùng lý do như referralService:
+     * module identity không phụ thuộc cứng vào risk. App nào không quét com.rwg.risk
+     * vẫn đăng ký bình thường (chỉ không ghi dấu vết).
+     */
+    private final ObjectProvider<AccountLinkDetector> accountLinkDetectorProvider;
     /** Hash dummy để cân bằng thời gian BCrypt khi user không tồn tại. */
     private final String dummyPasswordHash;
 
@@ -72,7 +79,8 @@ public class AuthService {
                        CaptchaVerifier captchaVerifier,
                        CaptchaProperties captchaProperties,
                        UserLocaleService userLocaleService,
-                       ObjectProvider<ReferralService> referralServiceProvider) {
+                       ObjectProvider<ReferralService> referralServiceProvider,
+                       ObjectProvider<AccountLinkDetector> accountLinkDetectorProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -84,6 +92,7 @@ public class AuthService {
         this.captchaProperties = captchaProperties;
         this.userLocaleService = userLocaleService;
         this.referralServiceProvider = referralServiceProvider;
+        this.accountLinkDetectorProvider = accountLinkDetectorProvider;
         // Tính 1 lần lúc khởi động (BCrypt strength 12 chậm — không tính mỗi request).
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing-balance");
     }
@@ -92,6 +101,20 @@ public class AuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request, String ip) {
+        return register(request, ip, null, null);
+    }
+
+    /**
+     * Đăng ký kèm dấu vết kỹ thuật để dò đa tài khoản (chặng 7).
+     *
+     * @param deviceId header X-Device-Id, CÓ THỂ NULL — cứ yêu cầu bắt buộc thì client
+     *        cũ và người tắt JavaScript sẽ không đăng ký được, trong khi kẻ farm biết
+     *        kỹ thuật vẫn tự sinh được giá trị hợp lệ — mất người thật mà không chặn
+     *        được ai.
+     */
+    @Transactional
+    public UserResponse register(RegisterRequest request, String ip,
+                                String deviceId, String userAgent) {
         validatePasswordBytes(request.password());
         // Gộp 2 kiểm tra trùng thành 1 lỗi CHUNG — không tiết lộ trường nào đã tồn tại
         // (chống dò tài khoản đã đăng ký qua thông báo lỗi).
@@ -106,6 +129,14 @@ public class AuthService {
         User user = userRepository.save(new User(request.username(), request.email().toLowerCase(), hash));
         audit.record(user.getId(), user.getUsername(), AuditTrailService.USER_REGISTERED,
                 "USER", user.getId().toString(), Map.of("email", user.getEmail()), ip);
+
+        // Ghi dấu vết + dò đa tài khoản. Phải đặt TRƯỚC attachReferral để liên kết
+        // được tạo trước khi quan hệ đại lý hình thành — kỳ hoa hồng đầu tiên đã chặn
+        // được, không để lọt một kỳ. Detector tự bắt mọi lỗi nên không cần try ở đây.
+        AccountLinkDetector detector = accountLinkDetectorProvider.getIfAvailable();
+        if (detector != null) {
+            detector.recordAndDetect(user.getId(), ip, deviceId, userAgent);
+        }
 
         // Gắn quan hệ giới thiệu (nếu có mã). CỐ TÌNH không để lỗi ở đây làm hỏng
         // việc đăng ký: mã sai/trùng/vòng lặp đều chỉ bị bỏ qua kèm audit, vì tạo

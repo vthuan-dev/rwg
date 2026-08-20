@@ -9,6 +9,7 @@ import com.rwg.identity.api.AdminController;
 import com.rwg.identity.api.AdminUserController;
 import com.rwg.payment.api.AdminPaymentController;
 import com.rwg.payment.api.AdminWithdrawalController;
+import com.rwg.risk.api.AdminRiskController;
 import com.rwg.wallet.api.AdminWalletController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
@@ -46,7 +47,8 @@ import org.springframework.context.annotation.FilterType;
                         AdminAffiliateController.class,
                         AdminDashboardController.class,
                         AdminApprovalController.class,
-                        AdminGameController.class
+                        AdminGameController.class,
+                        AdminRiskController.class
                 }))
 public class RwgApplication {
 

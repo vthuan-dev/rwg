@@ -111,6 +111,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/status")
                             .hasAnyRole("ADMIN", "RISK")
 
+                        // Khu risk (chống đa tài khoản): ADMIN + RISK, gồm cả thao tác GHI.
+                        // Đây là lần đầu RISK được ghi dữ liệu — trước giờ chỉ đọc báo cáo.
+                        // Hợp lý vì đánh giá gian lận đúng là việc của họ, và các thao tác
+                        // này KHÔNG chuyển một đồng nào nên không cần quy trình 4 mắt.
+                        .requestMatchers("/api/v1/admin/risk/**").hasAnyRole("ADMIN", "RISK")
+
                         // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK bị chặn ở đây.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")
                             .hasAnyRole("ADMIN", "FINANCE")

@@ -9,10 +9,12 @@ import com.rwg.affiliate.repository.UserRelationRepository;
 import com.rwg.common.money.Money;
 import com.rwg.game.repository.BetRepository;
 import com.rwg.identity.service.AuditTrailService;
+import com.rwg.risk.service.CommissionRiskGuard;
 import com.rwg.wallet.domain.WalletRefType;
 import com.rwg.wallet.service.WalletService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -46,6 +48,11 @@ import java.util.UUID;
  * transaction, một lỗi nhỏ sẽ rollback toàn bộ đợt chi và ngày đó không ai nhận.
  *
  * Turnover CHỈ tính cược SETTLED (xem BetRepository.sumSettledTurnoverByUsers).
+ *
+ * ===== CHẶN ĐA TÀI KHOẢN (chặng 7) =====
+ * Tuyến dưới bị xác định là CHÍNH đại lý sẽ bị loại khỏi cơ sở tính hoa hồng.
+ * Turnover của họ là cược thật, nhưng trả hoa hồng cho nó là trả tiền cho chính
+ * người đã cược — thiệt hại thuần, không phải chi phí marketing.
  */
 @Service
 public class CommissionJob {
@@ -58,19 +65,27 @@ public class CommissionJob {
     private final BetRepository betRepository;
     private final WalletService walletService;
     private final AuditTrailService audit;
+    /**
+     * Cổng chặn đa tài khoản — TÙY CHỌN qua ObjectProvider: module affiliate KHÔNG
+     * phụ thuộc cứng vào risk (cùng tiền lệ AuthService dùng ObjectProvider cho
+     * ReferralService). App nào không quét com.rwg.risk thì job chạy như cũ.
+     */
+    private final ObjectProvider<CommissionRiskGuard> riskGuardProvider;
 
     public CommissionJob(UserRelationRepository relationRepository,
                          CommissionRunRepository runRepository,
                          CommissionSettingsRepository settingsRepository,
                          BetRepository betRepository,
                          WalletService walletService,
-                         AuditTrailService audit) {
+                         AuditTrailService audit,
+                         ObjectProvider<CommissionRiskGuard> riskGuardProvider) {
         this.relationRepository = relationRepository;
         this.runRepository = runRepository;
         this.settingsRepository = settingsRepository;
         this.betRepository = betRepository;
         this.walletService = walletService;
         this.audit = audit;
+        this.riskGuardProvider = riskGuardProvider;
     }
 
     /** Kết quả một đợt chi — trả về cho API admin và để log/kiểm thử. */
@@ -101,6 +116,17 @@ public class CommissionJob {
                 List<UUID> descendants = relationRepository.findDescendantIds(agentId, (short) level);
                 if (descendants.isEmpty()) {
                     continue;
+                }
+                // Loại tuyến dưới bị xác định là CHÍNH đại lý. Phải lọc Ở ĐÂY, trước khi
+                // cộng turnover — nếu chỉ trừ tiền ở bước cuối thì chứng từ vẫn ghi
+                // turnover gồm cả phần bị loại, khiến người đối soát sau không hiểu
+                // vì sao amount không bằng turnover * rate.
+                CommissionRiskGuard riskGuard = riskGuardProvider.getIfAvailable();
+                if (riskGuard != null) {
+                    descendants = riskGuard.excludeLinked(agentId, descendants);
+                    if (descendants.isEmpty()) {
+                        continue;
+                    }
                 }
                 BigDecimal turnover = totalTurnover(descendants, from, to);
                 CommissionCalculator.Result result =

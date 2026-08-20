@@ -81,6 +81,17 @@ public class AuditTrailService {
     /** Admin đổi hạn mức cược của bàn — ảnh hưởng mức rủi ro tối đa mỗi lệnh cược. */
     public static final String ADMIN_TABLE_LIMITS_CHANGED = "ADMIN_TABLE_LIMITS_CHANGED";
 
+    // Chặng 7: chống đa tài khoản.
+    /**
+     * Hệ thống dò ra hai tài khoản có khả năng cùng một người. Ghi lại để điều tra
+     * được vì đây là căn cứ GIỮ TIỀN hoa hồng — người bị nghi oan phải tra cứu được.
+     */
+    public static final String RISK_ACCOUNT_LINK_DETECTED = "RISK_ACCOUNT_LINK_DETECTED";
+    /** Người vận hành kết luận về một liên kết (xác nhận hoặc gỡ oan). */
+    public static final String RISK_ACCOUNT_LINK_REVIEWED = "RISK_ACCOUNT_LINK_REVIEWED";
+    /** Người vận hành tự nối hai tài khoản theo dấu hiệu máy không thấy. */
+    public static final String RISK_ACCOUNT_LINK_CREATED = "RISK_ACCOUNT_LINK_CREATED";
+
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 
     private final AuditLogRepository repository;

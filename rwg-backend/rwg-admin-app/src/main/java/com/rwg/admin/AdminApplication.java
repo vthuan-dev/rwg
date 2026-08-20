@@ -46,8 +46,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * /api/v1/admin/withdrawals), AdminAuditController (/api/v1/admin/audit/**),
  * AdminWithdrawalController (/api/v1/admin/withdrawals/{id}/approve|reject),
  * AdminAffiliateController (/api/v1/admin/affiliate/**), AdminDashboardController
- * (/api/v1/admin/dashboard/**), AdminApprovalController (/api/v1/admin/approvals/**)
- * và AdminGameController (/api/v1/admin/games/**).
+ * (/api/v1/admin/dashboard/**), AdminApprovalController (/api/v1/admin/approvals/**),
+ * AdminGameController (/api/v1/admin/games/**) và AdminRiskController
+ * (/api/v1/admin/risk/**).
  *
  * Quét com.rwg.affiliate để phục vụ khu đại lý, NHƯNG CommissionScheduler KHÔNG được
  * tạo ở app này: nó có @ConditionalOnProperty(rwg.commission.scheduler-enabled=true)
@@ -70,7 +71,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.wallet",
                 "com.rwg.bank",
                 "com.rwg.affiliate",
-                "com.rwg.game"
+                "com.rwg.game",
+                "com.rwg.risk"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,

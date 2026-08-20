@@ -130,6 +130,20 @@ rwg:
     # (admin thứ hai phê duyệt). Trần ngày là giới hạn cứng, kể cả đã được phê duyệt.
     adjust-max-per-transaction: ${RWG_ADMIN_ADJUST_MAX:1000}
     adjust-daily-max-per-admin: ${RWG_ADMIN_ADJUST_DAILY_MAX:10000}
+  risk:
+    # Dò đa tài khoản. Điểm chặn là HOA HỒNG, không phải tài khoản: người bị nghi
+    # vẫn chơi/nạp/cược bình thường, chỉ dòng hoa hồng tự trả bị giữ.
+    detection-enabled: ${RWG_RISK_DETECTION_ENABLED:true}
+    # Số tài khoản trên cùng IP thì mới coi là đáng nghi. Để 3 vì gia đình 2-4 người
+    # mở tài khoản rải rác không được vào hàng đợi — trùng IP là kịch bản giới thiệu
+    # hợp pháp phổ biến nhất (cùng wifi nhà).
+    same-ip-account-threshold: ${RWG_RISK_IP_THRESHOLD:3}
+    # PHẢI có cửa sổ: đếm toàn bộ lịch sử thì một IP quán net dùng suốt hai năm sẽ
+    # tích đủ tài khoản để mọi người đăng ký sau đó đều bị nghi oan.
+    same-ip-window: ${RWG_RISK_IP_WINDOW:P7D}
+    # Chặn trên: chùm quá lớn là NAT nhà mạng/quán net chứ không phải một người, và
+    # nối cặp trong chùm tăng theo O(n^2).
+    same-ip-cluster-cap: ${RWG_RISK_IP_CLUSTER_CAP:20}
 
 logging:
   level:

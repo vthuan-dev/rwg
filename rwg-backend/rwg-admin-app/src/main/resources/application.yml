@@ -93,6 +93,15 @@ rwg:
     # để hành vi không khác nhau giữa hai app.
     adjust-max-per-transaction: ${RWG_ADMIN_ADJUST_MAX:1000}
     adjust-daily-max-per-admin: ${RWG_ADMIN_ADJUST_DAILY_MAX:10000}
+  risk:
+    # Dò đa tài khoản. App này KHÔNG đăng ký AuthController nên không tự dò được lúc
+    # đăng ký, nhưng vẫn cần cấu hình để khu quản trị risk khởi động và để ngưỡng
+    # hiển thị/giải thích khớp với app player — hai app lệch ngưỡng sẽ khiến người
+    # vận hành hiểu sai vì sao một chùm bị nối.
+    detection-enabled: ${RWG_RISK_DETECTION_ENABLED:true}
+    same-ip-account-threshold: ${RWG_RISK_IP_THRESHOLD:3}
+    same-ip-window: ${RWG_RISK_IP_WINDOW:P7D}
+    same-ip-cluster-cap: ${RWG_RISK_IP_CLUSTER_CAP:20}
 
 logging:
   level:

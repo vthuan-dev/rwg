@@ -37,7 +37,13 @@ public class AuthController {
     @Operation(summary = "Đăng ký tài khoản PLAYER mới")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request,
                                                  HttpServletRequest httpRequest) {
-        UserResponse user = authService.register(request, ClientAddresses.clientIp(httpRequest));
+        // X-Device-Id KHÔNG bắt buộc: client cũ và người tắt JavaScript vẫn phải đăng
+        // ký được. Kẻ farm biết kỹ thuật tự sinh được giá trị hợp lệ nên bắt buộc chỉ
+        // làm mất người thật mà không chặn được ai.
+        UserResponse user = authService.register(request,
+                ClientAddresses.clientIp(httpRequest),
+                httpRequest.getHeader("X-Device-Id"),
+                httpRequest.getHeader("User-Agent"));
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
