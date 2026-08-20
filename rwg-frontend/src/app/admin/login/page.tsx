@@ -8,7 +8,6 @@ import {
   User,
   Eye,
   EyeOff,
-  Globe,
   LockKeyhole,
   ArrowRight,
   ShieldAlert,
@@ -20,7 +19,7 @@ import { useTranslation } from "@/context/LanguageContext";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { locale, setLocale, t } = useTranslation();
+  const { setLocale, t } = useTranslation();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -31,11 +30,10 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const languages = [
-    { code: "vi", name: "Tiếng Việt", flag: "🇻🇳" },
-    { code: "en", name: "English", flag: "🇬🇧" },
-    { code: "zh", name: "中文", flag: "🇨🇳" },
-  ];
+  // Default login page language to English ("en")
+  useEffect(() => {
+    setLocale("en");
+  }, [setLocale]);
 
   // Generate random 4-character Captcha code
   const generateCaptcha = useCallback(() => {
@@ -58,7 +56,7 @@ export default function AdminLoginPage() {
 
     // Validate Captcha Code
     if (!captchaInput.trim() || captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      setError("Mã xác nhận Captcha không chính xác. Vui lòng thử lại.");
+      setError("Captcha code is invalid. Please try again.");
       generateCaptcha();
       return;
     }
@@ -78,12 +76,12 @@ export default function AdminLoginPage() {
         setAdminToken(data.token);
         router.push("/admin");
       } else {
-        setError("Đăng nhập thất bại: Không nhận được token từ hệ thống");
+        setError("Login failed: Invalid token received from server");
         generateCaptcha();
       }
     } catch (err: any) {
       setError(
-        err.message || "Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
+        err.message || "Invalid username or password. Please try again."
       );
       generateCaptcha();
     } finally {
@@ -99,7 +97,7 @@ export default function AdminLoginPage() {
         {/* Inner Core Enclosure */}
         <div className="bg-white rounded-[calc(2.5rem-0.75rem)] border border-slate-200/60 p-6 sm:p-8 flex flex-col gap-6 shadow-xs">
           
-          {/* Top Bar: Language Switcher & Branding Logo */}
+          {/* Top Bar: Branding Logo */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-red-700 border border-red-500/40 flex items-center justify-center text-white font-black text-sm shadow-md shadow-red-200">
@@ -113,26 +111,6 @@ export default function AdminLoginPage() {
                   BACKOFFICE
                 </span>
               </div>
-            </div>
-
-            {/* Language Selector Pill */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 flex items-center gap-1.5 shadow-xs">
-              <Globe className="w-3.5 h-3.5 text-slate-500" />
-              <select
-                value={locale}
-                onChange={(e) => setLocale(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                {languages.map((l) => (
-                  <option
-                    key={l.code}
-                    value={l.code}
-                    className="bg-white text-slate-900 font-semibold"
-                  >
-                    {l.flag} {l.name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -176,7 +154,7 @@ export default function AdminLoginPage() {
                     autoFocus
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Vd: admin, finance_admin..."
+                    placeholder="E.g. admin, finance_admin..."
                     className="w-full bg-transparent py-2.5 pl-10 pr-4 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none"
                   />
                 </div>
@@ -218,8 +196,8 @@ export default function AdminLoginPage() {
             {/* Captcha Security Code Verification Block */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center justify-between">
-                <span>Mã xác nhận (Captcha)</span>
-                <span className="text-[10px] text-slate-400 font-medium">Bảo vệ chống Bot</span>
+                <span>Verification Code (Captcha)</span>
+                <span className="text-[10px] text-slate-400 font-medium">Bot Protection</span>
               </label>
               
               <div className="grid grid-cols-12 gap-2.5 items-center">
@@ -233,7 +211,7 @@ export default function AdminLoginPage() {
                       maxLength={4}
                       value={captchaInput}
                       onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                      placeholder="Mã 4 số/chữ"
+                      placeholder="4-character code"
                       className="w-full bg-transparent py-2.5 pl-10 pr-3 text-xs font-black tracking-widest uppercase text-slate-900 placeholder-slate-400 outline-none"
                     />
                   </div>
@@ -247,7 +225,7 @@ export default function AdminLoginPage() {
                   <button
                     type="button"
                     onClick={generateCaptcha}
-                    title="Đổi mã mới"
+                    title="Refresh code"
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all active:scale-95"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -263,7 +241,7 @@ export default function AdminLoginPage() {
               className="w-full group p-1.5 rounded-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-black text-xs uppercase tracking-wider transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-md shadow-red-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-between cursor-pointer mt-2"
             >
               <span className="pl-6 py-2">
-                {loading ? "Đang xác thực..." : t("admin.login.submit")}
+                {loading ? "Authenticating..." : t("admin.login.submit")}
               </span>
               
               {/* Button-in-Button Trailing Icon Badge */}
@@ -279,7 +257,7 @@ export default function AdminLoginPage() {
 
           {/* Security Footnote */}
           <div className="pt-2 border-t border-slate-100 text-center text-[11px] text-slate-400 font-medium">
-            Bảo mật Captcha chống Bot & JWT 256-bit • RWG Backoffice 2026
+            Captcha Bot Protection & 256-bit JWT • RWG Backoffice 2026
           </div>
         </div>
 
