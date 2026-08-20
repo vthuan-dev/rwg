@@ -1,0 +1,47 @@
+# Profile "test" cho rwg-admin-app: H2 in-memory (MODE=MySQL), Flyway BẬT để dựng schema cho test
+# (khác runtime: runtime admin để flyway off vì user-app sở hữu migration).
+spring:
+  datasource:
+    url: jdbc:h2:mem:rwgadmin-${random.uuid};MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: none
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+rwg:
+  captcha:
+    enforced: true
+  withdrawal:
+    min-amount: 20
+    daily-max-amount: 5000
+  redis:
+    enabled: false
+  security:
+    jwt-secret: test-only-rwg-jwt-secret-0123456789abcdef-9876543210
+  crypto:
+    bank-enc-key: test-only-rwg-bank-enc-key-0123456789abcdef
+  payment:
+    provider: stub
+    success-delay: PT0S
+    callback-secret: test-only-rwg-payment-callback-secret-0123456789
+  websocket:
+    allowed-origin-patterns:
+      - "*"
+
+management:
+  health:
+    redis:
+      enabled: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn

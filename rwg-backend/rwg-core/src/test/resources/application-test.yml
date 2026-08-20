@@ -1,0 +1,67 @@
+# =============================================================================
+# Profile "test" - chạy mặc định khi mvn verify, KHÔNG cần Docker:
+#   - DB: H2 in-memory ở chế độ MySQL compatibility (MODE=MySQL)
+#   - Flyway: dùng CHÍNH bộ migration MySQL (classpath:db/migration) - đã kiểm
+#     chứng tương thích H2-MySQL mode, nên test chạy đúng schema như MySQL thật.
+#   - Redis: tắt -> dùng fallback in-memory (refresh token + rate limit)
+# =============================================================================
+spring:
+  datasource:
+    # DB riêng cho MỖI Spring test context (random.uuid): nhiều context cached cùng
+    # sống trong 1 JVM (vd RoundLifecycleTest + GameStompAuthTest) KHÔNG chia sẻ H2 ->
+    # RoundScheduler các context không tranh nhau cùng bàn/DB.
+    url: jdbc:h2:mem:rwgtest-${random.uuid};MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  flyway:
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: none
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+rwg:
+  captcha:
+    enforced: true
+  withdrawal:
+    min-amount: 20
+    daily-max-amount: 5000
+  redis:
+    enabled: false
+  security:
+    jwt-secret: test-only-rwg-jwt-secret-0123456789abcdef-9876543210
+    issuer: rwg-backend
+    access-token-ttl: PT15M
+    refresh-token-ttl: P30D
+  crypto:
+    # Khóa mã hóa số TK ngân hàng CHỈ dành cho test (base không có default).
+    bank-enc-key: test-only-rwg-bank-enc-key-0123456789abcdef
+  payment:
+    provider: stub
+    # Test không chờ delay giả lập của stub gateway.
+    success-delay: PT0S
+    # Shared-secret callback CHỈ dành cho test (base không có default).
+    callback-secret: test-only-rwg-payment-callback-secret-0123456789
+  websocket:
+    # Test cho phép mọi origin để context khởi động được (không test WS handshake ở đây).
+    allowed-origin-patterns:
+      - "*"
+  rate-limit:
+    # Rate-limit login: capacity bucket phải > 0, copy nguyên giá trị từ base application.yml.
+    login-window: PT15M
+    captcha-threshold: 5
+    lock-threshold: 10
+    account-lock-threshold: 20
+
+management:
+  health:
+    redis:
+      enabled: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn

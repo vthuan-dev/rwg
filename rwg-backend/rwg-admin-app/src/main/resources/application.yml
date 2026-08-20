@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: rwg-admin
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    # Dùng CHUNG MySQL với rwg-user-app. QUY ƯỚC env: DB_USER / DB_PASSWORD.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/${MYSQL_DB:rwg_dev}}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate.type.preferred_uuid_jdbc_type: CHAR
+  flyway:
+    # ADMIN KHÔNG chạy migration: rwg-user-app sở hữu schema (tránh migrate trùng trên DB dùng chung).
+    enabled: false
+    locations: classpath:db/migration
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
+
+server:
+  # App admin chạy port RIÊNG (mặc định 8081) - nên chỉ mở trong mạng nội bộ/VPN.
+  port: ${ADMIN_APP_PORT:8081}
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '${TRUSTED_PROXIES:127\.0\.0\.1|0:0:0:0:0:0:0:1}'
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:true}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+
+rwg:
+  security:
+    jwt-secret: ${JWT_SECRET}
+    issuer: rwg-backend
+    access-token-ttl: PT15M
+    refresh-token-ttl: P30D
+  redis:
+    enabled: ${RWG_REDIS_ENABLED:true}
+  captcha:
+    enforced: ${RWG_CAPTCHA_ENFORCED:true}
+    provider: ${RWG_CAPTCHA_PROVIDER:dev}
+  websocket:
+    allowed-origin-patterns: []
+  rate-limit:
+    login-window: PT15M
+    captcha-threshold: 5
+    lock-threshold: 10
+    account-lock-threshold: 20
+  payment:
+    provider: ${RWG_PAYMENT_PROVIDER:stub}
+    success-delay: ${RWG_PAYMENT_SUCCESS_DELAY:PT1S}
+    callback-secret: ${RWG_PAYMENT_CALLBACK_SECRET}
+  withdrawal:
+    min-amount: ${RWG_WITHDRAWAL_MIN:20}
+    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
+  crypto:
+    bank-enc-key: ${RWG_BANK_ENC_KEY}
+
+logging:
+  level:
+    org.hibernate.SQL: warn
