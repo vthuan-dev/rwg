@@ -166,6 +166,28 @@ class PlayerLedgerServiceTest {
         assertThat(new BigDecimal(r.adminCredit())).isEqualByComparingTo("1000");
         assertThat(new BigDecimal(r.adminDebit())).isEqualByComparingTo("300");
         assertThat(new BigDecimal(r.withdrawalSettled())).isEqualByComparingTo("200");
+
+        // moneyIn là TỔNG hai nguồn tiền vào: giao diện hiện số này, CSV vẫn tách rõ.
+        // KIỂM CẢ TỔNG LẪN HAI THÀNH PHẦN: nếu ai đó sau này đọc nhầm thứ tự tham số
+        // của record (ba trường String đứng liền nhau, trình biên dịch không báo gì),
+        // thì test này đỏ ngay thay vì số sai lặng lẽ lên báo cáo.
+        assertThat(new BigDecimal(r.moneyIn())).isEqualByComparingTo("1500");
+    }
+
+    @Test
+    @DisplayName("moneyIn chỉ gồm tiền VÀO, không trừ tiền ra")
+    void moneyInExcludesOutflows() {
+        // BẮY ĐÁNG ĐỀ PHÒNG: một người sửa code sau này có thể tưởng "tiền vào ví"
+        // nghĩa là dòng tiền ròng và trừ luôn rút + admin trừ. Nó KHÔNG phải vậy:
+        // đây là tổng tiền đã vào ví, để admin đối chiếu với số mình đã cộng.
+        saveOrder("DEPOSIT", "SUCCESS", "100", midPeriod);
+        saveTxn("ADJUSTMENT", "200", "0", "300", midPeriod);
+        saveOrder("WITHDRAWAL", "SETTLED", "50", midPeriod);
+        saveTxn("ADJUSTMENT", "0", "70", "180", midPeriod);
+
+        PlayerLedgerResponse r = service.ledger(userId, from, to);
+
+        assertThat(new BigDecimal(r.moneyIn())).isEqualByComparingTo("300");
     }
 
     @Test

@@ -117,6 +117,9 @@ public class PlayerLedgerService {
         Wallet wallet = walletRepository.findByUserId(userId).orElse(null);
         GameBreakdown breakdown = buildGameLines(userId, fromInstant, toInstant);
 
+        BigDecimal gateway = gatewayDeposit(userId, fromInstant, toInstant);
+        BigDecimal credit = adminAdjustment(wallet, fromInstant, toInstant, true);
+
         return new PlayerLedgerResponse(
                 userId.toString(),
                 user.getUsername(),
@@ -126,8 +129,9 @@ public class PlayerLedgerService {
                 wallet != null ? wallet.getCurrency() : "USD",
                 plain(balanceAt(wallet, fromInstant)),
                 plain(balanceAt(wallet, toInstant)),
-                plain(gatewayDeposit(userId, fromInstant, toInstant)),
-                plain(adminAdjustment(wallet, fromInstant, toInstant, true)),
+                plain(gateway.add(credit)),
+                plain(gateway),
+                plain(credit),
                 plain(adminAdjustment(wallet, fromInstant, toInstant, false)),
                 plain(settledWithdrawal(userId, fromInstant, toInstant)),
                 breakdown.lines(),
@@ -218,6 +222,7 @@ public class PlayerLedgerService {
         if (byUser.isEmpty()) {
             return new LedgerOverviewResponse(from.toString(), to.toString(), properties.timezone(),
                     List.of(), page, size, 0L, 0,
+                    plain(totals.deposit.add(totals.adminCredit)),
                     plain(totals.deposit), plain(totals.adminCredit), plain(totals.adminDebit),
                     plain(totals.withdrawal), plain(totals.net));
         }
@@ -255,6 +260,7 @@ public class PlayerLedgerService {
                     wallet != null ? wallet.getCurrency() : "USD",
                     acc.betCount,
                     plain(acc.stake), plain(acc.net),
+                    plain(acc.deposit.add(acc.adminCredit)),
                     plain(acc.deposit), plain(acc.adminCredit), plain(acc.adminDebit),
                     plain(acc.withdrawal),
                     plain(wallet != null ? wallet.getBalance() : BigDecimal.ZERO)));
@@ -271,7 +277,8 @@ public class PlayerLedgerService {
                 from.toString(), to.toString(), properties.timezone(),
                 all.subList(fromIdx, toIdx),
                 page, safeSize, all.size(), totalPages,
-                plain(totals.deposit), plain(totals.adminCredit), plain(totals.adminDebit),
+                plain(totals.deposit.add(totals.adminCredit)),
+                    plain(totals.deposit), plain(totals.adminCredit), plain(totals.adminDebit),
                 plain(totals.withdrawal), plain(totals.net));
     }
 

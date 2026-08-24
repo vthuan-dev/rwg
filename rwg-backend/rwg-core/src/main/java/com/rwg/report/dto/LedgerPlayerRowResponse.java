@@ -15,7 +15,10 @@ package com.rwg.report.dto;
  * @param betCount số ván đã kết toán trong kỳ
  * @param stake tổng tiền cược
  * @param net lãi/lỗ người chơi; âm là người chơi lỗ
- * @param deposit nạp qua cổng thanh toán
+ * @param moneyIn TỔNG tiền vào ví = {@code deposit} + {@code adminCredit}. Giao diện hiện
+ *     số này thay vì hai cột riêng: tính năng nạp tự động đã gỡ, giờ mọi đồng vào ví
+ *     đều do admin cộng tay, nên tách hai cột chỉ làm người đọc phải tự cộng
+ * @param deposit nạp qua cổng thanh toán — GIỮ LẠI để xuất CSV và đối soát dữ liệu cũ
  * @param adminCredit admin cộng tay
  * @param adminDebit admin trừ tay
  * @param withdrawal rút thành công
@@ -28,6 +31,7 @@ public record LedgerPlayerRowResponse(
         long betCount,
         String stake,
         String net,
+        String moneyIn,
         String deposit,
         String adminCredit,
         String adminDebit,

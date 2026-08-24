@@ -526,7 +526,8 @@
       "page_of": "{page} / {total} 페이지",
       "prev": "이전",
       "next": "다음",
-      "no_match": "이 기간에 ‘{keyword}’와 일치하는 플레이어가 없습니다"
+      "no_match": "이 기간에 ‘{keyword}’와 일치하는 플레이어가 없습니다",
+      "money_in": "입금 합계"
     }
   },
   "auth": {

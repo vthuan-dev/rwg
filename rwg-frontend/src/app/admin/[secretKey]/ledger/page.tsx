@@ -25,6 +25,8 @@ interface OverviewRow {
   betCount: number;
   stake: string;
   net: string;
+  /** TỔNG tiền vào ví = deposit + adminCredit, backend đã cộng bằng BigDecimal. */
+  moneyIn: string;
   deposit: string;
   adminCredit: string;
   adminDebit: string;
@@ -41,6 +43,7 @@ interface LedgerOverview {
   size: number;
   totalElements: number;
   totalPages: number;
+  totalMoneyIn: string;
   totalDeposit: string;
   totalAdminCredit: string;
   totalAdminDebit: string;
@@ -68,6 +71,7 @@ interface PlayerLedger {
   currency: string;
   openingBalance: string;
   closingBalance: string;
+  moneyIn: string;
   depositViaGateway: string;
   adminCredit: string;
   adminDebit: string;
@@ -299,24 +303,6 @@ export default function LedgerPage() {
 
   const currency = detail?.currency ?? "USD";
 
-  /**
-   * Kỳ này CÓ đồng nào nạp qua cổng thanh toán hay không.
-   *
-   * VÌ SAO PHẢI ẨN CÓ ĐIỀU KIỆN, KHÔNG XOÁ HẲN: tính năng nạp tự động đã được gỡ ở
-   * phía người chơi — giờ admin cộng tiền tay trong khung chat. Nhưng dữ liệu cũ vẫn
-   * còn (2.696 từ cổng giả lập hồi test), và sổ sách phải cân đối theo đẳng thức
-   * `dư cuối = dư đầu + nạp + admin cộng − admin trừ − rút + lãi/lỗ`. Bỏ hẳn số nạp
-   * khỏi phép tính thì đẳng thức vỡ và người vận hành thấy số dư lệch mà không hiểu
-   * vì sao.
-   *
-   * Cách này cũng tự đúng nếu sau này bật lại cổng thanh toán: cột hiện lại mà không
-   * cần sửa mã.
-   */
-  const hasGatewayDeposit =
-    detailUserId === null
-      ? Number(overview?.totalDeposit ?? 0) > 0
-      : Number(detail?.depositViaGateway ?? 0) > 0;
-
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
@@ -403,26 +389,16 @@ export default function LedgerPage() {
                 <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">
                   {t("admin.ledger.period_total")}
                 </h2>
-                {/* Lưới tự co theo số thẻ thật: cố định lg:grid-cols-4 khi chỉ còn 3
-                    thẻ sẽ để lại một ô trống lệch ở cuối hàng. */}
-                <div
-                  className={`grid gap-3 sm:grid-cols-2 ${
-                    hasGatewayDeposit ? "lg:grid-cols-4" : "lg:grid-cols-3"
-                  }`}
-                >
-                  {hasGatewayDeposit ? (
-                    <MoneyCard
-                      currency="USD"
-                      label={t("admin.ledger.deposit_gateway")}
-                      tone="in"
-                      value={overview.totalDeposit}
-                    />
-                  ) : null}
+                {/* BA THẺ, KHÔNG PHẢI BỐN: "nạp qua cổng" và "admin cộng" đã gộp thành
+                    một. Tính năng nạp tự động đã gỡ ở phía người chơi nên mọi đồng vào ví
+                    đều do admin cộng tay; tách hai cột chỉ bắt người đọc tự cộng nhẩm.
+                    Tệp CSV vẫn tách rõ hai thành phần để đối soát dữ liệu cũ. */}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <MoneyCard
                     currency="USD"
-                    label={t("admin.ledger.admin_credit")}
+                    label={t("admin.ledger.money_in")}
                     tone="in"
-                    value={overview.totalAdminCredit}
+                    value={overview.totalMoneyIn}
                   />
                   <MoneyCard
                     currency="USD"
@@ -509,13 +485,8 @@ export default function LedgerPage() {
                             <th className="pb-2 pr-4 text-right font-semibold">
                               {t("admin.ledger.col_net")}
                             </th>
-                            {hasGatewayDeposit ? (
-                              <th className="pb-2 pr-4 text-right font-semibold">
-                                {t("admin.ledger.deposit_gateway")}
-                              </th>
-                            ) : null}
                             <th className="pb-2 pr-4 text-right font-semibold">
-                              {t("admin.ledger.admin_credit")}
+                              {t("admin.ledger.money_in")}
                             </th>
                             <th className="pb-2 pr-4 text-right font-semibold">
                               {t("admin.ledger.withdrawal_settled")}
@@ -556,13 +527,8 @@ export default function LedgerPage() {
                               <td className="py-3 pr-4 text-right">
                                 <SignedAmount value={r.net} />
                               </td>
-                              {hasGatewayDeposit ? (
-                                <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
-                                  {formatMoney(r.deposit)}
-                                </td>
-                              ) : null}
                               <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
-                                {formatMoney(r.adminCredit)}
+                                {formatMoney(r.moneyIn)}
                               </td>
                               <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
                                 {formatMoney(r.withdrawal)}
@@ -659,24 +625,12 @@ export default function LedgerPage() {
                     {t("admin.ledger.cash_flow")}
                   </h3>
 
-                  <div
-                    className={`grid gap-3 sm:grid-cols-2 ${
-                      hasGatewayDeposit ? "lg:grid-cols-4" : "lg:grid-cols-3"
-                    }`}
-                  >
-                    {hasGatewayDeposit ? (
-                      <MoneyCard
-                        currency={currency}
-                        label={t("admin.ledger.deposit_gateway")}
-                        tone="in"
-                        value={detail.depositViaGateway}
-                      />
-                    ) : null}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <MoneyCard
                       currency={currency}
-                      label={t("admin.ledger.admin_credit")}
+                      label={t("admin.ledger.money_in")}
                       tone="in"
-                      value={detail.adminCredit}
+                      value={detail.moneyIn}
                     />
                     <MoneyCard
                       currency={currency}

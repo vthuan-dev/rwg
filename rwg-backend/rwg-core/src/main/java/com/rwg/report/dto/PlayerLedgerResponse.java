@@ -24,7 +24,8 @@ import java.util.List;
  * @param currency đơn vị tiền của ví
  * @param openingBalance số dư ngay trước đầu kỳ
  * @param closingBalance số dư tại cuối kỳ
- * @param depositViaGateway người chơi tự nạp qua cổng, đã hoàn tất
+ * @param moneyIn TỔNG tiền vào ví = {@code depositViaGateway} + {@code adminCredit}
+ * @param depositViaGateway người chơi tự nạp qua cổng, đã hoàn tất — GIỮ LẠI cho CSV
  * @param adminCredit admin cộng tay vào ví
  * @param adminDebit admin trừ tay khỏi ví
  * @param withdrawalSettled rút đã chi thành công
@@ -43,6 +44,7 @@ public record PlayerLedgerResponse(
         String currency,
         String openingBalance,
         String closingBalance,
+        String moneyIn,
         String depositViaGateway,
         String adminCredit,
         String adminDebit,

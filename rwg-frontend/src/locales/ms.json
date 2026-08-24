@@ -526,7 +526,8 @@
       "page_of": "Halaman {page} daripada {total}",
       "prev": "Sebelum",
       "next": "Seterusnya",
-      "no_match": "Tiada pemain sepadan dengan “{keyword}” dalam tempoh ini"
+      "no_match": "Tiada pemain sepadan dengan “{keyword}” dalam tempoh ini",
+      "money_in": "Wang masuk"
     }
   },
   "auth": {

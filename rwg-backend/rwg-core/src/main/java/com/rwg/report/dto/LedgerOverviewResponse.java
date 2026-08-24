@@ -21,6 +21,7 @@ import java.util.List;
  * @param size số dòng mỗi trang
  * @param totalElements tổng số người chơi có hoạt động trong kỳ
  * @param totalPages tổng số trang
+ * @param totalMoneyIn TỔNG tiền vào ví của toàn kỳ = nạp qua cổng + admin cộng
  * @param totalDeposit tổng nạp qua cổng của TOÀN kỳ, không chỉ trang hiện tại
  * @param totalAdminCredit tổng admin cộng của toàn kỳ
  * @param totalAdminDebit tổng admin trừ của toàn kỳ
@@ -36,6 +37,7 @@ public record LedgerOverviewResponse(
         int size,
         long totalElements,
         int totalPages,
+        String totalMoneyIn,
         String totalDeposit,
         String totalAdminCredit,
         String totalAdminDebit,

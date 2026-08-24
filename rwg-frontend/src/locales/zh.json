@@ -526,7 +526,8 @@
       "page_of": "第 {page} / {total} 页",
       "prev": "上一页",
       "next": "下一页",
-      "no_match": "本期没有玩家匹配“{keyword}”"
+      "no_match": "本期没有玩家匹配“{keyword}”",
+      "money_in": "入金合计"
     }
   },
   "auth": {

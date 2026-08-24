@@ -115,8 +115,9 @@ public class AdminReportController {
 
         sb.append("DÒNG TIỀN VÀO / RA\n");
         sb.append("Số dư đầu kỳ,").append(esc(d.openingBalance())).append('\n');
-        sb.append("Nạp qua cổng,").append(esc(d.depositViaGateway())).append('\n');
-        sb.append("Admin cộng,").append(esc(d.adminCredit())).append('\n');
+        sb.append("Tiền vào ví,").append(esc(d.moneyIn())).append('\n');
+        sb.append("  trong đó nạp qua cổng,").append(esc(d.depositViaGateway())).append('\n');
+        sb.append("  trong đó admin cộng,").append(esc(d.adminCredit())).append('\n');
         sb.append("Admin trừ,").append(esc(d.adminDebit())).append('\n');
         sb.append("Rút thành công,").append(esc(d.withdrawalSettled())).append('\n');
         sb.append("Số dư cuối kỳ,").append(esc(d.closingBalance())).append('\n');

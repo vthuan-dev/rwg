@@ -526,7 +526,8 @@
       "page_of": "{page} / {total} ベージ",
       "prev": "前へ",
       "next": "次へ",
-      "no_match": "この期間に「{keyword}」に一致するプレイヤーはありません"
+      "no_match": "この期間に「{keyword}」に一致するプレイヤーはありません",
+      "money_in": "入金合計"
     }
   },
   "auth": {

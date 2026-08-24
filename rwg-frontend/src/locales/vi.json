@@ -526,7 +526,8 @@
       "page_of": "Trang {page} / {total}",
       "prev": "Trước",
       "next": "Sau",
-      "no_match": "Không có người chơi nào khớp “{keyword}” trong kỳ này"
+      "no_match": "Không có người chơi nào khớp “{keyword}” trong kỳ này",
+      "money_in": "Tiền vào ví"
     }
   },
   "auth": {
