@@ -3,6 +3,7 @@ package com.rwg.report.api;
 import com.rwg.common.PageResponse;
 import com.rwg.report.dto.LedgerBetResponse;
 import com.rwg.report.dto.LedgerOverviewResponse;
+import com.rwg.report.dto.LedgerGameLineResponse;
 import com.rwg.report.dto.PlayerLedgerResponse;
 import com.rwg.report.service.PlayerLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -123,7 +124,7 @@ public class AdminReportController {
 
         sb.append("THẮNG / THUA THEO GAME\n");
         sb.append("Game,Số ván,Tiền cược,Tiền thắng,Lãi lỗ,Đang treo\n");
-        for (PlayerLedgerResponse.GameLine g : d.games()) {
+        for (LedgerGameLineResponse g : d.games()) {
             sb.append(esc(g.gameType())).append(',')
                     .append(g.betCount()).append(',')
                     .append(esc(g.stake())).append(',')

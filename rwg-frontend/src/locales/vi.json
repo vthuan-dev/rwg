@@ -525,7 +525,8 @@
       "back_to_list": "Về bảng tổng quan",
       "page_of": "Trang {page} / {total}",
       "prev": "Trước",
-      "next": "Sau"
+      "next": "Sau",
+      "no_match": "Không có người chơi nào khớp “{keyword}” trong kỳ này"
     }
   },
   "auth": {

@@ -10,7 +10,9 @@ import com.rwg.identity.repository.UserRepository;
 import com.rwg.payment.domain.PaymentStatus;
 import com.rwg.payment.domain.PaymentType;
 import com.rwg.payment.repository.PaymentOrderRepository;
+import com.rwg.report.dto.LedgerGameLineResponse;
 import com.rwg.report.dto.LedgerOverviewResponse;
+import com.rwg.report.dto.LedgerPlayerRowResponse;
 import com.rwg.report.dto.PlayerLedgerResponse;
 import com.rwg.wallet.domain.Wallet;
 import com.rwg.wallet.domain.WalletRefType;
@@ -233,7 +235,7 @@ public class PlayerLedgerService {
         }
 
         String needle = keyword == null ? "" : keyword.trim().toLowerCase();
-        List<LedgerOverviewResponse.Row> all = new ArrayList<>();
+        List<LedgerPlayerRowResponse> all = new ArrayList<>();
         for (Map.Entry<UUID, Accumulator> e : byUser.entrySet()) {
             User user = userById.get(e.getKey());
             // TÀI KHOẢN ĐÃ BỊ XOÁ nhưng ledger còn dòng: bỏ qua thay vì hiện dòng
@@ -247,7 +249,7 @@ public class PlayerLedgerService {
 
             Accumulator acc = e.getValue();
             Wallet wallet = walletByUser.get(e.getKey());
-            all.add(new LedgerOverviewResponse.Row(
+            all.add(new LedgerPlayerRowResponse(
                     e.getKey().toString(),
                     user.getUsername(),
                     wallet != null ? wallet.getCurrency() : "USD",
@@ -302,14 +304,14 @@ public class PlayerLedgerService {
      * Giá trị không hợp lệ rơi về {@code stake} thay vì báo lỗi: một tham số sai
      * không đáng làm cả trang báo cáo không mở được.
      */
-    private Comparator<LedgerOverviewResponse.Row> comparatorFor(String sort) {
+    private Comparator<LedgerPlayerRowResponse> comparatorFor(String sort) {
         String key = sort == null ? "" : sort.trim().toLowerCase();
         return switch (key) {
             case "net" -> Comparator.comparing(r -> new BigDecimal(r.net()));
             case "deposit" -> Comparator.comparing(
-                    (LedgerOverviewResponse.Row r) -> new BigDecimal(r.deposit())).reversed();
+                    (LedgerPlayerRowResponse r) -> new BigDecimal(r.deposit())).reversed();
             default -> Comparator.comparing(
-                    (LedgerOverviewResponse.Row r) -> new BigDecimal(r.stake())).reversed();
+                    (LedgerPlayerRowResponse r) -> new BigDecimal(r.stake())).reversed();
         };
     }
 
@@ -393,7 +395,7 @@ public class PlayerLedgerService {
      * trường dùng chung sẽ bị hai yêu cầu đồng thời ghi đè lên nhau.
      */
     private record GameBreakdown(
-            List<PlayerLedgerResponse.GameLine> lines,
+            List<LedgerGameLineResponse> lines,
             BigDecimal stake,
             BigDecimal payout,
             BigDecimal net,
@@ -406,7 +408,7 @@ public class PlayerLedgerService {
             pendingByGame.put(row.getGameType(), zeroIfNull(row.getPendingStake()));
         }
 
-        List<PlayerLedgerResponse.GameLine> lines = new ArrayList<>();
+        List<LedgerGameLineResponse> lines = new ArrayList<>();
         BigDecimal sumStake = BigDecimal.ZERO;
         BigDecimal sumPayout = BigDecimal.ZERO;
         BigDecimal sumPending = BigDecimal.ZERO;
@@ -420,7 +422,7 @@ public class PlayerLedgerService {
             BigDecimal pending = Optional.ofNullable(pendingByGame.remove(row.getGameType()))
                     .orElse(BigDecimal.ZERO);
 
-            lines.add(new PlayerLedgerResponse.GameLine(
+            lines.add(new LedgerGameLineResponse(
                     row.getGameType(), row.getBetCount(),
                     plain(stake), plain(payout), plain(net), plain(pending)));
 
@@ -433,7 +435,7 @@ public class PlayerLedgerService {
         // đi theo danh sách game đã kết toán. Bỏ qua thì tiền treo biến mất khỏi báo
         // cáo và phép đối chiếu cân đối sẽ lệch đúng bằng số tiền đó.
         for (Map.Entry<String, BigDecimal> leftover : pendingByGame.entrySet()) {
-            lines.add(new PlayerLedgerResponse.GameLine(
+            lines.add(new LedgerGameLineResponse(
                     leftover.getKey(), 0L,
                     plain(BigDecimal.ZERO), plain(BigDecimal.ZERO),
                     plain(BigDecimal.ZERO), plain(leftover.getValue())));

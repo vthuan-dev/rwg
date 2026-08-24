@@ -9,7 +9,6 @@ import {
   Users,
   CreditCard,
   Gamepad2,
-  ShieldAlert,
   Network,
   Image as ImageIcon,
   BookText,
@@ -130,11 +129,6 @@ export const AdminSidebar: React.FC = () => {
           href: `${ADMIN_URL_PREFIX}/games`,
           label: t("admin.nav.games"),
           icon: Gamepad2,
-        },
-        {
-          href: `${ADMIN_URL_PREFIX}/risk`,
-          label: t("admin.nav.risk"),
-          icon: ShieldAlert,
         },
         {
           href: `${ADMIN_URL_PREFIX}/banners`,

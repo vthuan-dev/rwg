@@ -209,6 +209,29 @@ export default function LedgerPage() {
     void loadOverview();
   }, [loadOverview]);
 
+  /**
+   * Áp dụng từ khoá sau khi người dùng ngừng gõ 400ms.
+   *
+   * DEBOUNCE LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ: mỗi lần gọi endpoint này backend
+   * chạy bốn truy vấn tổng hợp trên toàn bộ giao dịch của kỳ. Gọi theo từng ký tự
+   * thì gõ một tên 8 chữ là 8 lần tính lại, và các phản hồi có thể về không đúng
+   * thứ tự khiến bảng hiện kết quả của từ khoá cũ.
+   *
+   * VỀ TRANG ĐẦU khi từ khoá đổi: giữ trang 5 với một bộ lọc hẹp hơn sẽ ra bảng
+   * trống và trông như hệ thống hỏng.
+   */
+  useEffect(() => {
+    const next = keyword.trim();
+    if (next === appliedKeyword) return;
+
+    const timer = setTimeout(() => {
+      setPage(0);
+      setAppliedKeyword(next);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [keyword, appliedKeyword]);
+
+
   const openDetail = async (userId: string) => {
     setDetailUserId(userId);
     setLoadingDetail(true);
@@ -276,6 +299,25 @@ export default function LedgerPage() {
 
   const currency = detail?.currency ?? "USD";
 
+  /**
+   * Kỳ này CÓ đồng nào nạp qua cổng thanh toán hay không.
+   *
+   * VÌ SAO PHẢI ẨN CÓ ĐIỀU KIỆN, KHÔNG XOÁ HẲN: tính năng nạp tự động đã được gỡ ở
+   * phía người chơi — giờ admin cộng tiền tay trong khung chat. Nhưng dữ liệu cũ vẫn
+   * còn (2.696 từ cổng giả lập hồi test), và sổ sách phải cân đối theo đẳng thức
+   * `dư cuối = dư đầu + nạp + admin cộng − admin trừ − rút + lãi/lỗ`. Bỏ hẳn số nạp
+   * khỏi phép tính thì đẳng thức vỡ và người vận hành thấy số dư lệch mà không hiểu
+   * vì sao.
+   *
+   * Cách này cũng tự đúng nếu sau này bật lại cổng thanh toán: cột hiện lại mà không
+   * cần sửa mã.
+   */
+  const hasGatewayDeposit =
+    detailUserId === null
+      ? Number(overview?.totalDeposit ?? 0) > 0
+      : Number(detail?.depositViaGateway ?? 0) > 0;
+
+
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
@@ -289,37 +331,6 @@ export default function LedgerPage() {
         {detailUserId === null ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap items-end gap-4">
-              <div className="min-w-[240px] flex-1">
-                <label
-                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500"
-                  htmlFor="ledger-search"
-                >
-                  {t("admin.ledger.filter_player")}
-                </label>
-                <div className="relative">
-                  <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-900"
-                    id="ledger-search"
-                    onChange={(e) => setKeyword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        // VỀ TRANG ĐẦU khi đổi từ khoá: giữ trang 5 với một bộ lọc
-                        // hẹp hơn sẽ ra bảng trống và trông như hệ thống hỏng.
-                        setPage(0);
-                        setAppliedKeyword(keyword.trim());
-                      }
-                    }}
-                    placeholder={t("admin.ledger.search_placeholder")}
-                    type="text"
-                    value={keyword}
-                  />
-                </div>
-              </div>
-
               <div>
                 <label
                   className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500"
@@ -392,13 +403,21 @@ export default function LedgerPage() {
                 <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-500">
                   {t("admin.ledger.period_total")}
                 </h2>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <MoneyCard
-                    currency="USD"
-                    label={t("admin.ledger.deposit_gateway")}
-                    tone="in"
-                    value={overview.totalDeposit}
-                  />
+                {/* Lưới tự co theo số thẻ thật: cố định lg:grid-cols-4 khi chỉ còn 3
+                    thẻ sẽ để lại một ô trống lệch ở cuối hàng. */}
+                <div
+                  className={`grid gap-3 sm:grid-cols-2 ${
+                    hasGatewayDeposit ? "lg:grid-cols-4" : "lg:grid-cols-3"
+                  }`}
+                >
+                  {hasGatewayDeposit ? (
+                    <MoneyCard
+                      currency="USD"
+                      label={t("admin.ledger.deposit_gateway")}
+                      tone="in"
+                      value={overview.totalDeposit}
+                    />
+                  ) : null}
                   <MoneyCard
                     currency="USD"
                     label={t("admin.ledger.admin_credit")}
@@ -425,17 +444,52 @@ export default function LedgerPage() {
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
                     {t("admin.ledger.active_players", {
                       count: String(overview.totalElements),
                     })}
                   </h2>
+
+                  {/* Ô TÌM KIẾM NẰM NGAY TRÊN BẢNG, không ở khối bộ lọc phía trên:
+                      nó lọc chính bảng này, nên đặt cạnh bảng thì thấy ngay kết quả
+                      thay đổi. Chỉ có MỘT ô tìm kiếm trên trang — hai ô cùng lọc một
+                      thứ ở hai chỗ khác nhau là cách chắc chắn làm người dùng bối rối. */}
+                  <div className="relative w-full sm:w-72">
+                    <Search
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+                    />
+                    <label className="sr-only" htmlFor="ledger-search">
+                      {t("admin.ledger.filter_player")}
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-9 text-sm outline-none focus:border-slate-900"
+                      id="ledger-search"
+                      onChange={(e) => setKeyword(e.target.value)}
+                      placeholder={t("admin.ledger.search_placeholder")}
+                      type="search"
+                      value={keyword}
+                    />
+                    {/* Vòng xoay chỉ hiện khi ĐANG GÕ DỞ (từ khoá chưa kịp áp dụng),
+                        để người dùng biết hệ thống đã nhận ký tự vừa nhập. */}
+                    {keyword.trim() !== appliedKeyword ? (
+                      <Loader2
+                        aria-hidden="true"
+                        className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-slate-400"
+                      />
+                    ) : null}
+                  </div>
                 </div>
 
                 {overview.rows.length === 0 ? (
                   <p className="py-12 text-center text-sm text-slate-500">
-                    {t("admin.ledger.no_activity")}
+                    {/* Phân biệt "không ai hoạt động" với "không ai khớp từ khoá":
+                        gộp hai thông báo sẽ khiến người vận hành tưởng cả tháng không
+                        có giao dịch, trong khi thực ra chỉ là gõ sai tên. */}
+                    {appliedKeyword
+                      ? t("admin.ledger.no_match", { keyword: appliedKeyword })
+                      : t("admin.ledger.no_activity")}
                   </p>
                 ) : (
                   <>
@@ -455,9 +509,11 @@ export default function LedgerPage() {
                             <th className="pb-2 pr-4 text-right font-semibold">
                               {t("admin.ledger.col_net")}
                             </th>
-                            <th className="pb-2 pr-4 text-right font-semibold">
-                              {t("admin.ledger.deposit_gateway")}
-                            </th>
+                            {hasGatewayDeposit ? (
+                              <th className="pb-2 pr-4 text-right font-semibold">
+                                {t("admin.ledger.deposit_gateway")}
+                              </th>
+                            ) : null}
                             <th className="pb-2 pr-4 text-right font-semibold">
                               {t("admin.ledger.admin_credit")}
                             </th>
@@ -500,9 +556,11 @@ export default function LedgerPage() {
                               <td className="py-3 pr-4 text-right">
                                 <SignedAmount value={r.net} />
                               </td>
-                              <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
-                                {formatMoney(r.deposit)}
-                              </td>
+                              {hasGatewayDeposit ? (
+                                <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
+                                  {formatMoney(r.deposit)}
+                                </td>
+                              ) : null}
                               <td className="py-3 pr-4 text-right tabular-nums text-slate-600">
                                 {formatMoney(r.adminCredit)}
                               </td>
@@ -601,13 +659,19 @@ export default function LedgerPage() {
                     {t("admin.ledger.cash_flow")}
                   </h3>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <MoneyCard
-                      currency={currency}
-                      label={t("admin.ledger.deposit_gateway")}
-                      tone="in"
-                      value={detail.depositViaGateway}
-                    />
+                  <div
+                    className={`grid gap-3 sm:grid-cols-2 ${
+                      hasGatewayDeposit ? "lg:grid-cols-4" : "lg:grid-cols-3"
+                    }`}
+                  >
+                    {hasGatewayDeposit ? (
+                      <MoneyCard
+                        currency={currency}
+                        label={t("admin.ledger.deposit_gateway")}
+                        tone="in"
+                        value={detail.depositViaGateway}
+                      />
+                    ) : null}
                     <MoneyCard
                       currency={currency}
                       label={t("admin.ledger.admin_credit")}

@@ -1,6 +1,7 @@
 package com.rwg.report;
 
 import com.rwg.CoreTestApplication;
+import com.rwg.report.dto.LedgerGameLineResponse;
 import com.rwg.report.dto.PlayerLedgerResponse;
 import com.rwg.report.service.PlayerLedgerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,7 +87,7 @@ class PlayerLedgerServiceTest {
 
         assertThat(r.games()).hasSize(2);
 
-        PlayerLedgerResponse.GameLine kl28 = lineOf(r, "KL28");
+        LedgerGameLineResponse kl28 = lineOf(r, "KL28");
         assertThat(kl28.betCount()).isEqualTo(2);
         assertThat(new BigDecimal(kl28.stake())).isEqualByComparingTo("150");
         assertThat(new BigDecimal(kl28.payout())).isEqualByComparingTo("198");
@@ -121,7 +122,7 @@ class PlayerLedgerServiceTest {
 
         PlayerLedgerResponse r = service.ledger(userId, from, to);
 
-        PlayerLedgerResponse.GameLine kl28 = lineOf(r, "KL28");
+        LedgerGameLineResponse kl28 = lineOf(r, "KL28");
         // Chỉ đếm ván đã kết toán.
         assertThat(kl28.betCount()).isEqualTo(1);
         assertThat(new BigDecimal(kl28.net())).isEqualByComparingTo("98");
@@ -140,7 +141,7 @@ class PlayerLedgerServiceTest {
         PlayerLedgerResponse r = service.ledger(userId, from, to);
 
         assertThat(r.games()).hasSize(2);
-        PlayerLedgerResponse.GameLine baccarat = lineOf(r, "BACCARAT");
+        LedgerGameLineResponse baccarat = lineOf(r, "BACCARAT");
         assertThat(baccarat.betCount()).isZero();
         assertThat(new BigDecimal(baccarat.pendingStake())).isEqualByComparingTo("60");
         assertThat(new BigDecimal(r.totalPending())).isEqualByComparingTo("60");
@@ -314,7 +315,7 @@ class PlayerLedgerServiceTest {
     // Tiện ích dựng dữ liệu
     // ------------------------------------------------------------------
 
-    private PlayerLedgerResponse.GameLine lineOf(PlayerLedgerResponse r, String gameType) {
+    private LedgerGameLineResponse lineOf(PlayerLedgerResponse r, String gameType) {
         return r.games().stream()
                 .filter(g -> g.gameType().equals(gameType))
                 .findFirst()

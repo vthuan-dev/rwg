@@ -525,7 +525,8 @@
       "back_to_list": "一覧に戻る",
       "page_of": "{page} / {total} ベージ",
       "prev": "前へ",
-      "next": "次へ"
+      "next": "次へ",
+      "no_match": "この期間に「{keyword}」に一致するプレイヤーはありません"
     }
   },
   "auth": {

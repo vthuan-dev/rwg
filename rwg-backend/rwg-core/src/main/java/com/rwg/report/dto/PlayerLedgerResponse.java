@@ -47,29 +47,9 @@ public record PlayerLedgerResponse(
         String adminCredit,
         String adminDebit,
         String withdrawalSettled,
-        List<GameLine> games,
+        List<LedgerGameLineResponse> games,
         String totalStake,
         String totalPayout,
         String totalNet,
         String totalPending) {
-
-    /**
-     * Một dòng thắng/thua của một loại game.
-     *
-     * @param gameType mã game trong DB, ví dụ {@code LUCKY28}. Frontend tự dịch sang
-     *     tên hiển thị; trả mã thô để backend không phải biết ngôn ngữ nào đang bật.
-     * @param betCount số ván đã kết toán
-     * @param stake tổng tiền đã cược
-     * @param payout tổng tiền nhận về, ĐÃ GỒM TIỀN GỐC (quy ước stake-inclusive)
-     * @param net lãi/lỗ người chơi = {@code payout - stake}
-     * @param pendingStake tiền cược còn treo ở game này
-     */
-    public record GameLine(
-            String gameType,
-            long betCount,
-            String stake,
-            String payout,
-            String net,
-            String pendingStake) {
-    }
 }

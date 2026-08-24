@@ -525,7 +525,8 @@
       "back_to_list": "Back to overview",
       "page_of": "Page {page} of {total}",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "no_match": "No player matches “{keyword}” in this period"
     }
   },
   "auth": {

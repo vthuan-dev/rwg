@@ -31,7 +31,7 @@ public record LedgerOverviewResponse(
         String periodFrom,
         String periodTo,
         String timezone,
-        List<Row> rows,
+        List<LedgerPlayerRowResponse> rows,
         int page,
         int size,
         long totalElements,
@@ -41,33 +41,4 @@ public record LedgerOverviewResponse(
         String totalAdminDebit,
         String totalWithdrawal,
         String totalNet) {
-
-    /**
-     * Một người chơi trong bảng tổng quan.
-     *
-     * @param userId để frontend dựng liên kết sang báo cáo chi tiết
-     * @param username tên hiển thị
-     * @param currency đơn vị tiền của ví
-     * @param betCount số ván đã kết toán trong kỳ
-     * @param stake tổng tiền cược
-     * @param net lãi/lỗ người chơi; âm là người chơi lỗ
-     * @param deposit nạp qua cổng
-     * @param adminCredit admin cộng tay
-     * @param adminDebit admin trừ tay
-     * @param withdrawal rút thành công
-     * @param balance số dư hiện tại của ví
-     */
-    public record Row(
-            String userId,
-            String username,
-            String currency,
-            long betCount,
-            String stake,
-            String net,
-            String deposit,
-            String adminCredit,
-            String adminDebit,
-            String withdrawal,
-            String balance) {
-    }
 }
