@@ -83,8 +83,65 @@ public final class Kl28Engine {
         return new RoundResult(List.of(n1, n2, n3), sum);
     }
 
-    /** Tính tiền thắng/thua theo tỷ lệ odds của Lucky 28. */
+    /**
+     * Odds lợi MẶC ĐỊNH cho bốn cược kết hợp (Lớn, Nhỏ, Lẻ, Chẵn).
+     *
+     * 0.98 tương đương hệ số trả 1.98: cược 100 thắng nhận 198.
+     */
+    public static final BigDecimal DEFAULT_COMBINATION_ODDS = new BigDecimal("0.98");
+
+    /**
+     * Odds lợi mặc định khi đoán đúng tổng {@code sum}.
+     *
+     * Mở ra ngoài để tầng trên tra được mức chung mà không phải sao lại bảng 28 số.
+     * Sao lại thì hai bản sẽ lệch nhau ngay lần đầu ai đó sửa một bên.
+     *
+     * @return odds lợi, hoặc 0 nếu {@code sum} ngoài 0-27
+     */
+    public static BigDecimal defaultNumberOdds(int sum) {
+        if (sum < 0 || sum >= NUMBER_ODDS.length) {
+            return BigDecimal.ZERO;
+        }
+        return NUMBER_ODDS[sum];
+    }
+
+    /**
+     * Odds lợi mặc định cho một cược, biết trước lúc đặt.
+     *
+     * Với {@code KL28_NUMBER}, odds phụ thuộc số người chơi ĐOÁN chứ không phụ thuộc kết
+     * quả, nên xác định được ngay khi nhận cược — điều kiện cần để chốt odds vào bản ghi.
+     */
+    public static BigDecimal defaultOddsFor(BetType type, String selection) {
+        if (type == null) {
+            return BigDecimal.ZERO;
+        }
+        return switch (type) {
+            case KL28_BIG, KL28_SMALL, KL28_SINGLE, KL28_DOUBLE -> DEFAULT_COMBINATION_ODDS;
+            case KL28_NUMBER -> {
+                try {
+                    yield defaultNumberOdds(Integer.parseInt(normalize(selection)));
+                } catch (NumberFormatException e) {
+                    yield BigDecimal.ZERO;
+                }
+            }
+            default -> BigDecimal.ZERO;
+        };
+    }
+
+    /** Tính tiền thắng/thua theo tỷ lệ odds mặc định của Lucky 28. */
     public static Money payout(BetType type, String selection, int sum, Money stake) {
+        return payout(type, selection, sum, stake, null);
+    }
+
+    /**
+     * Tính tiền thắng/thua với odds chỉ định.
+     *
+     * @param oddsOverride odds lợi đã chốt lúc đặt cược, hoặc null để dùng mức mặc định.
+     *     Cược đặt trước khi có tính năng tỷ lệ riêng có cột này null, nên phải rơi về
+     *     mặc định thay vì coi là odds 0 và trả trắng cho người thắng.
+     */
+    public static Money payout(BetType type, String selection, int sum, Money stake,
+                               BigDecimal oddsOverride) {
         if (stake == null || !stake.isPositive()) {
             return Money.zero();
         }
@@ -103,18 +160,19 @@ public final class Kl28Engine {
             default -> false;
         };
 
-        if (won) {
-            if (type == BetType.KL28_NUMBER) {
-                if (sum >= 0 && sum < NUMBER_ODDS.length) {
-                    return stake.winningPayoutAtOdds(NUMBER_ODDS[sum]);
-                }
-                return Money.zero();
-            }
-            // Tỷ lệ ăn 1.98 (stake-inclusive), tức là odds lời 0.98
-            return stake.winningPayoutAtOdds(new BigDecimal("0.98"));
-        } else {
+        if (!won) {
             return Money.zero();
         }
+
+        if (oddsOverride != null) {
+            return stake.winningPayoutAtOdds(oddsOverride);
+        }
+
+        if (type == BetType.KL28_NUMBER) {
+            BigDecimal odds = defaultNumberOdds(sum);
+            return odds.signum() == 0 ? Money.zero() : stake.winningPayoutAtOdds(odds);
+        }
+        return stake.winningPayoutAtOdds(DEFAULT_COMBINATION_ODDS);
     }
 
     /** Chuẩn hóa selection (giữ nguyên cho KL28_NUMBER, trim). */

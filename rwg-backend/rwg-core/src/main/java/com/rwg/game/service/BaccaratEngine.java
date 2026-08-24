@@ -208,54 +208,133 @@ public final class BaccaratEngine {
         return new RoundResult(playerCards, bankerCards, playerScore, bankerScore, playerPair, bankerPair, outcome);
     }
 
-    /** Tính tiền thắng/thua hoặc hoàn cược theo quy ước stake-inclusive M2. */
-    public static Money payout(BetType type, String outcome, boolean playerPair, boolean bankerPair, Money stake) {
+    /**
+     * Tỷ lệ hoa hồng cửa Nhà băng (DECISIONS.md M6): 5% trên TIỀN LỜI của ván thắng.
+     *
+     * Đặt ở engine, cạnh {@link #oddsFor}, vì hoa hồng là một phần của luật trả tiền cửa
+     * Nhà băng. Trước đây con số này nằm rời trong {@code SettlementService}, tách khỏi chỗ
+     * sinh ra odds — và đó chính là lý do hai bên lệch nhau mà không ai thấy: công thức cũ
+     * trừ trên stake, chỉ trùng kết quả với M6 khi odds đúng bằng 1.
+     */
+    public static final BigDecimal BANKER_COMMISSION_RATE = new BigDecimal("0.05");
+
+    /**
+     * Odds lợi MẶC ĐỊNH cho từng loại cược Baccarat.
+     *
+     * BANKER trả về 1 (tức 1:1 đầy đủ) chứ không phải 0.95: hoa hồng được thu RIÊNG qua sổ
+     * cái commission để truy vết được, xem {@link #commissionFor}. Con số ĐỂ HIỂN THỊ cho
+     * người chơi là {@link #netOddsFor}, không phải hàm này.
+     */
+    public static BigDecimal oddsFor(BetType type) {
+        if (type == null) {
+            return BigDecimal.ZERO;
+        }
+        return switch (type) {
+            case PLAYER, BANKER -> BigDecimal.ONE;
+            case TIE -> new BigDecimal("8");
+            case PLAYER_PAIR, BANKER_PAIR -> new BigDecimal("11");
+            default -> BigDecimal.ZERO;
+        };
+    }
+
+    /**
+     * Loại cược này có bị thu hoa hồng không?
+     *
+     * Chỉ cửa Nhà băng. Tách thành hàm riêng để {@code TableOddsService} biết có nên gửi
+     * {@code commissionRate} xuống giao diện hay không, mà không phải tự đoán lại luật.
+     */
+    public static boolean hasCommission(BetType type) {
+        return type == BetType.BANKER;
+    }
+
+    /**
+     * Hoa hồng phải thu của một cược, theo DECISIONS.md M6.
+     *
+     * Tính trên TIỀN LỜI (stake × odds), KHÔNG trên stake. Hai cách cho cùng kết quả khi
+     * odds bằng 1 — mức chung của cửa Nhà băng — nên sai lệch bị che hoàn toàn cho tới khi
+     * quản trị đặt tỷ lệ riêng. Ở odds 3, cược 100 lệch tới 10 đơn vị: hạ tỷ lệ thì người
+     * chơi bị thu quá, nâng tỷ lệ thì nhà cái thu thiếu.
+     *
+     * Chỉ thu khi cửa Nhà băng THẮNG. Ván hoà hoàn cược nên không có tiền lời để thu, và
+     * thu hoa hồng trên một khoản hoàn lại là lấy bớt tiền gốc của người chơi.
+     *
+     * @param odds odds lợi đã chốt lúc đặt cược, hoặc null để dùng mức chung
+     * @return hoa hồng, hoặc 0 nếu cược này không phải chịu
+     */
+    public static Money commissionFor(BetType type, String outcome, Money stake, BigDecimal odds) {
+        if (!hasCommission(type) || !"BANKER".equals(outcome)) {
+            return Money.zero();
+        }
         if (stake == null || !stake.isPositive()) {
             return Money.zero();
         }
+        BigDecimal effectiveOdds = odds != null ? odds : oddsFor(type);
+        if (effectiveOdds.signum() <= 0) {
+            return Money.zero();
+        }
+        return stake.profitAtOdds(effectiveOdds).multiply(BANKER_COMMISSION_RATE);
+    }
+
+    /**
+     * Odds lợi SAU hoa hồng — con số dùng để hiển thị cho người chơi.
+     *
+     * Người chơi cần thấy đúng số tiền mình nhận được. Cửa Nhà băng ở mức chung: odds lợi 1
+     * nhưng thực nhận tương đương odds 0.95, tức hệ số 1.95 chứ không phải 2.
+     *
+     * @param odds odds lợi gộp, hoặc null để dùng mức chung
+     */
+    public static BigDecimal netOddsFor(BetType type, BigDecimal odds) {
+        BigDecimal effectiveOdds = odds != null ? odds : oddsFor(type);
+        if (!hasCommission(type)) {
+            return effectiveOdds;
+        }
+        return effectiveOdds.multiply(BigDecimal.ONE.subtract(BANKER_COMMISSION_RATE));
+    }
+
+    /** Tính tiền thắng/thua hoặc hoàn cược theo quy ước stake-inclusive M2. */
+    public static Money payout(BetType type, String outcome, boolean playerPair, boolean bankerPair, Money stake) {
+        return payout(type, outcome, playerPair, bankerPair, stake, null);
+    }
+
+    /**
+     * Payout với odds chỉ định.
+     *
+     * Trường hợp HOÀ hoàn cược cho PLAYER/BANKER không đi qua odds: hoàn lại đúng số tiền
+     * đã đặt là quy tắc của ván hoà, không phải một mức trả thưởng, nên tỷ lệ riêng không
+     * được phép làm người chơi nhận về nhiều hay ít hơn tiền gốc.
+     *
+     * @param oddsOverride odds lợi đã chốt lúc đặt cược, hoặc null để dùng {@link #oddsFor}
+     */
+    public static Money payout(BetType type, String outcome, boolean playerPair, boolean bankerPair,
+                               Money stake, BigDecimal oddsOverride) {
+        if (stake == null || !stake.isPositive()) {
+            return Money.zero();
+        }
+        BigDecimal odds = oddsOverride != null ? oddsOverride : oddsFor(type);
         return switch (type) {
             case PLAYER -> {
                 if ("PLAYER".equals(outcome)) {
-                    yield stake.winningPayoutAtOdds(BigDecimal.ONE); // 1:1 payout
+                    yield stake.winningPayoutAtOdds(odds);
                 } else if ("TIE".equals(outcome)) {
-                    yield stake; // tie refunds player bet
+                    yield stake; // hoà thì hoàn cược
                 } else {
                     yield Money.zero();
                 }
             }
             case BANKER -> {
                 if ("BANKER".equals(outcome)) {
-                    // Trả thưởng Banker thắng 1:1, hoa hồng 5% sẽ được thu riêng qua sổ cái commission.
-                    // Ở đây, hàm payout này vẫn trả về 2:1 đầy đủ (stake + stake * 1)
-                    // để Caller (SettlementService) thực hiện credit WIN và debit COMMISSION sau đó.
-                    yield stake.winningPayoutAtOdds(BigDecimal.ONE);
+                    // Trả 1:1 đầy đủ; hoa hồng 5% thu riêng qua sổ cái commission ở
+                    // SettlementService, nên KHÔNG trừ tại đây.
+                    yield stake.winningPayoutAtOdds(odds);
                 } else if ("TIE".equals(outcome)) {
-                    yield stake; // tie refunds banker bet
+                    yield stake; // hoà thì hoàn cược
                 } else {
                     yield Money.zero();
                 }
             }
-            case TIE -> {
-                if ("TIE".equals(outcome)) {
-                    yield stake.winningPayoutAtOdds(new BigDecimal("8")); // 8:1 payout
-                } else {
-                    yield Money.zero();
-                }
-            }
-            case PLAYER_PAIR -> {
-                if (playerPair) {
-                    yield stake.winningPayoutAtOdds(new BigDecimal("11")); // 11:1 payout
-                } else {
-                    yield Money.zero();
-                }
-            }
-            case BANKER_PAIR -> {
-                if (bankerPair) {
-                    yield stake.winningPayoutAtOdds(new BigDecimal("11")); // 11:1 payout
-                } else {
-                    yield Money.zero();
-                }
-            }
+            case TIE -> "TIE".equals(outcome) ? stake.winningPayoutAtOdds(odds) : Money.zero();
+            case PLAYER_PAIR -> playerPair ? stake.winningPayoutAtOdds(odds) : Money.zero();
+            case BANKER_PAIR -> bankerPair ? stake.winningPayoutAtOdds(odds) : Money.zero();
             default -> Money.zero();
         };
     }

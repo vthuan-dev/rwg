@@ -1,0 +1,531 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090b;
+  --foreground: #ffffff;
+  /* Màu nhấn của thương hiệu, lấy đúng từ biến --primary của trang gốc. */
+  --primary: #ff4355;
+
+  /* ------------------------------------------------------------------------
+     Khung mobile dùng chung
+     ------------------------------------------------------------------------
+     Chiều cao thanh điều hướng dưới. ĐẶT Ở ĐÂY chứ không viết số trực tiếp vào
+     hai chỗ: thanh dưới dùng nó để định chiều cao, còn khung nội dung dùng nó
+     để chừa khoảng trống. Nếu mỗi bên tự giữ một con số thì sửa một bên sẽ làm
+     nội dung cuối trang bị thanh dưới che, mà lỗi này chỉ thấy khi cuộn tới
+     cuối nên rất dễ lọt.
+
+     env(safe-area-inset-bottom) là chiều cao thanh gesture của iPhone (và thanh
+     điều hướng ảo Android). Trên máy không có thì bằng 0. CHỈ có giá trị khác 0
+     khi thẻ viewport có viewport-fit=cover — xem export viewport ở layout.tsx. */
+  --bottom-nav-height: 3.5rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-nav-total: calc(var(--bottom-nav-height) + var(--safe-bottom));
+
+  /* Bề rộng tối đa của khung nội dung, khớp sm:max-w-[640px] của trang gốc. */
+  --shell-max-width: 640px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-roboto), "Roboto", sans-serif;
+}
+
+*, ::before, ::after, input, button, select, textarea {
+  font-family: var(--font-roboto), "Roboto", system-ui, -apple-system, sans-serif !important;
+}
+
+body {
+  background: #070709;
+  color: #ffffff;
+  font-family: var(--font-roboto), "Roboto", system-ui, -apple-system, sans-serif !important;
+  overflow-x: hidden;
+
+  /* iOS vẽ một ô sáng màu xanh phủ lên phần tử vừa được bấm. Trên giao diện tối
+     nó nhìn như lỗi hiển thị. Các trạng thái active: đã tự lo phản hồi khi bấm. */
+  -webkit-tap-highlight-color: transparent;
+
+  /* Chặn kéo-để-làm-mới và hiệu ứng nảy khi cuộn quá đầu/cuối trang: người dùng
+     vuốt xuống trong danh sách game rất dễ chạm ngưỡng làm mới ngoài ý muốn và
+     mất trạng thái đang xem. `contain` giữ cử chỉ cuộn nằm trong trang. */
+  overscroll-behavior-y: contain;
+}
+
+/* ==========================================================================
+   Khung mobile-first
+   ==========================================================================
+   Vùng an toàn hai bên: iPhone khi xoay NGANG có tai thỏ ăn vào lề, chữ sát lề
+   sẽ bị khuyết. max() để trên máy không có tai thỏ vẫn giữ lề tối thiểu. */
+.mobile-shell {
+  padding-left: max(0px, env(safe-area-inset-left, 0px));
+  padding-right: max(0px, env(safe-area-inset-right, 0px));
+}
+
+/* Chừa chỗ cho thanh điều hướng dưới (fixed nên không chiếm chỗ trong luồng). */
+.pb-bottom-nav {
+  padding-bottom: var(--bottom-nav-total);
+}
+
+/* ==========================================================================
+   Khu xác thực (đăng nhập / tạo tài khoản)
+   ==========================================================================
+   Trang gốc dùng IBM Plex Sans, còn phần còn lại của app này đang ép Roboto
+   bằng `!important` ở selector `*` phía trên. Muốn thắng thì cũng phải
+   `!important` và selector phải phủ được cả phần tử con — nên dùng
+   `.font-auth, .font-auth *` chứ không chỉ đặt trên phần tử cha: quy tắc `*`
+   kia áp trực tiếp lên TỪNG phần tử, mà thuộc tính đặt trực tiếp luôn thắng
+   thuộc tính thừa hưởng từ cha, bất kể độ ưu tiên của selector cha cao đến đâu.
+
+   CỐ TÌNH giới hạn trong `.font-auth`: đổi font toàn cục sẽ thay đổi cả khu
+   quản trị và trang chủ vốn đã được dựng theo Roboto. */
+.font-auth,
+.font-auth * {
+  /* PHẢI dùng biến --font-ibm-plex-sans chứ không viết thẳng "IBM Plex Sans":
+     next/font self-host và đặt tên family đã băm (ví dụ __IBM_Plex_Sans_abc123),
+     nên tên gốc không tồn tại trên trang và trình duyệt sẽ lặng lẽ rơi về font
+     dự phòng — trông vẫn có chữ nên lỗi này rất dễ bị bỏ qua. */
+  font-family: var(--font-ibm-plex-sans), var(--font-roboto), system-ui, sans-serif !important;
+}
+
+/* ==========================================================================
+   Ảnh nền trang đăng nhập
+   ==========================================================================
+   Sao lại ĐÚNG hai media query của trang gốc:
+     Dưới 768px: `cover` để ảnh lấp kín màn hình điện thoại.
+     Từ 769px:   CHỈ căn giữa, KHÔNG cover. Trang gốc cố ý làm vậy — ở khung 640px
+                 trên màn hình rộng, `cover` sẽ phóng ảnh lên rất lớn và chỉ còn
+                 thấy một mảng nhoè ở giữa toà nhà.
+
+   TỐI ƯU TỐC ĐỘ TẢI
+   -----------------
+   1. Dùng .webp thay .png: 700 KB -> 39 KB, cùng kích thước 1242x2955. KHÔNG cần
+      dự phòng PNG: bố cục này dùng đơn vị `dvh`, vốn mới hơn WebP (dvh có từ
+      Safari 15.4 / Chrome 108; WebP từ Safari 14 / Chrome 32). Trình duyệt nào
+      hiển thị đúng khung thì chắc chắn đọc được WebP.
+
+   2. Xếp HAI lớp ảnh: lớp trên là ảnh thật, lớp dưới là ảnh mờ 14px nhúng sẵn
+      dưới dạng data URI (128 byte, nằm ngay trong file CSS nên có mặt cùng lúc
+      với quy tắc này, không tốn thêm một lượt request). Nhờ vậy màn hình có sẵn
+      hình mờ đúng tông màu thay vì một khoảng đen trong lúc ảnh thật đang tải.
+
+   3. `background-color` là màu chủ đạo trích từ chính ảnh, phòng trường hợp cả
+      hai lớp ảnh đều chưa vẽ được.
+
+   Ảnh thật còn được `<link rel="preload">` ở trang đăng nhập, xem login/page.tsx —
+   ảnh nền khai báo trong CSS bị phát hiện MUỘN vì trình duyệt phải tải xong CSS,
+   phân tích, rồi mới biết cần ảnh; preload cho nó tải song song ngay từ lúc đọc
+   HTML.
+
+   `background-attachment: fixed` giữ theo bản gốc: ảnh không trôi khi nội dung
+   form dài hơn màn hình, mà trên mobile bàn phím ảo bật lên là gặp ngay. */
+
+@media (max-width: 768px) {
+  .bg-ss2 {
+    background-color: #080818;
+    background-image: url("/element/ss2.webp"),
+      url("data:image/webp;base64,UklGRngAAABXRUJQVlA4WAoAAAAQAAAADQAAIAAAQUxQSBQAAAABD9D/iAgIBAhn/qsEGIjofzJnAlZQOCA+AAAAcAMAnQEqDgAhAD7pYKtNKSWkIiqsASAdCWUAwzQcuAGmkHawAP7wcpktKV5HSG/Em85bAhVLdOR/UFAHHAA=");
+    background-repeat: no-repeat, no-repeat;
+    background-size: cover, cover;
+    background-attachment: fixed, fixed;
+  }
+}
+
+@media (min-width: 769px) {
+  .bg-ss2 {
+    background-color: #080818;
+    background-image: url("/element/ss2.webp"),
+      url("data:image/webp;base64,UklGRngAAABXRUJQVlA4WAoAAAAQAAAADQAAIAAAQUxQSBQAAAABD9D/iAgIBAhn/qsEGIjofzJnAlZQOCA+AAAAcAMAnQEqDgAhAD7pYKtNKSWkIiqsASAdCWUAwzQcuAGmkHawAP7wcpktKV5HSG/Em85bAhVLdOR/UFAHHAA=");
+    background-position: 50%, 50%;
+    background-repeat: no-repeat, no-repeat;
+    /* Lớp ảnh mờ vẫn cover: nó chỉ là nền lót, để nguyên kích thước gốc 14px thì
+       sẽ thành một ô tí xíu giữa màn hình. */
+    background-size: auto, cover;
+    background-attachment: fixed, fixed;
+  }
+}
+
+/* ==========================================================================
+   Bộ icon icomoon
+   ==========================================================================
+   Trang gốc dùng font icon thay vì SVG. Giữ nguyên cách này để các mã ký tự
+   (\e900, \e901, \e931, \e94b) khớp tuyệt đối với thiết kế gốc.
+
+   font-display: block (không phải swap): đây là ICON, không phải chữ. Nếu để
+   swap thì trong lúc font đang tải, trình duyệt vẽ tạm bằng font hệ thống và
+   người dùng thấy ký tự rác ở ô Private Use Area. Thà chỗ đó trống trong
+   ~100ms còn hơn hiện ký tự vô nghĩa rồi nhảy. */
+@font-face {
+  font-family: "icomoon";
+  src: url("/fonts/icomoon.woff") format("woff"),
+       url("/fonts/icomoon.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="icon-"],
+[class*=" icon-"] {
+  font-family: "icomoon" !important;
+  speak: never;
+  font-style: normal;
+  font-weight: 400;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* BẮT BUỘC phải có, đừng gộp vào quy tắc trên.
+
+   Quy tắc toàn cục ép Roboto ở đầu file liệt kê cả `::before`, nên nó áp Roboto
+   TRỰC TIẾP lên pseudo-element. Quy tắc `[class^="icon-"]` phía trên chỉ áp lên
+   thẻ <i>, còn pseudo-element chỉ THỪA HƯỞNG — mà thuộc tính đặt trực tiếp luôn
+   thắng thuộc tính thừa hưởng, bất kể !important hay độ ưu tiên của selector cha.
+
+   Hệ quả khi thiếu: ký tự ở vùng Private Use Area (\e900...) được vẽ bằng Roboto,
+   font này không có glyph tương ứng nên trình duyệt hiện ô vuông rỗng. Font vẫn
+   tải về HTTP 200 nên nhìn vào tab Network không thấy gì bất thường. */
+[class^="icon-"]::before,
+[class*=" icon-"]::before {
+  font-family: "icomoon" !important;
+}
+
+.icon-icon1::before { content: "\e900"; }   /* mắt đóng - đang ẩn mật khẩu */
+.icon-icon2::before { content: "\e901"; }   /* mắt mở - đang hiện mật khẩu */
+.icon-icon3::before { content: "\e902"; }   /* dấu X - đóng hộp thoại */
+.icon-icon5::before { content: "\e904"; }   /* danh sách - nút lịch sử */
+.icon-icon6::before { content: "\e905"; }   /* đồng hồ - thời lượng vòng */
+.icon-icon15::before { content: "\e90e"; }  /* thẻ - mã ván quay */
+.icon-icon48::before { content: "\e92f"; }  /* lịch - thời điểm quay */
+.icon-icon50::before { content: "\e931"; }  /* quả cầu - chọn ngôn ngữ */
+.icon-icon76::before { content: "\e94b"; }  /* mũi nhọn trái - quay lại */
+
+/* Bảy mã dưới đây dùng cho trang hồ sơ. Đọc TRỰC TIẾP từ CSS production của bản
+   gốc (`_next/static/css/ee231b19726ea3a8.css`), không phải đoán theo hình dạng —
+   thứ tự glyph trong icomoon không theo quy luật nào nên đoán là sai.
+
+   `icomoon.woff` sẵn có đã chứa đủ các glyph này; không cần tải thêm font. */
+.icon-icon10::before { content: "\e909"; }  /* nạp tiền */
+.icon-icon11::before { content: "\e90a"; }  /* rút tiền */
+.icon-icon17::before { content: "\e910"; }  /* người - cài đặt tài khoản */
+.icon-icon32::before { content: "\e91f"; }  /* loa - thông báo */
+.icon-icon42::before { content: "\e929"; }  /* ổ khoá - trung tâm bảo mật */
+.icon-icon72::before { content: "\e947"; }  /* quà - lời mời */
+.icon-icon77::before { content: "\e94c"; }  /* mũi nhọn phải - đi tới */
+
+/* Năm mã cho các trang tài sản và hai trang menu con. Cùng nguồn như trên: đọc từ
+   `_next/static/css/ee231b19726ea3a8.css` của bản gốc.
+
+   `icon15` đã được khai báo ở khối trên (thẻ - mã ván quay) và dùng lại ở đây làm nút
+   xem lịch sử góc phải thanh tiêu đề — bản gốc dùng CÙNG một mã cho cả hai chỗ. */
+.icon-icon28::before { content: "\e91b"; }  /* hai tờ giấy - sao chép */
+.icon-icon37::before { content: "\e924"; }  /* chìa khoá - mật khẩu đăng nhập */
+.icon-icon65::before { content: "\e940"; }  /* thẻ ngân hàng - thông tin rút tiền */
+.icon-icon66::before { content: "\e941"; }  /* bút - sửa hồ sơ */
+
+/* ==========================================================================
+   Ảnh nền thẻ bàn chơi
+   ==========================================================================
+   Sao lại đúng cách đặt nền của trang gốc: ảnh dán sát mép PHẢI, cao bằng thẻ,
+   không lặp. Phần bên trái để trống cho chữ đứng trên nền đặc.
+
+   Dùng `background-image` chứ không `next/image`: đây là nền trang trí, không phải
+   nội dung — trình đọc màn hình không cần biết đến nó, và cũng không có mô tả nào
+   đáng đặt vào `alt`.
+
+   `background-size: contain` giữ nguyên theo bản gốc: `cover` sẽ phóng ảnh tràn cả
+   thẻ và chữ trắng chỉ còn đọc được ở nửa ảnh tối.
+
+   Bốn ảnh đã chuyển WebP: 2.5 MB PNG xuống 197 KB, giảm 92%. */
+.bg-room-1,
+.bg-room-2,
+.bg-room-3,
+.bg-room-4 {
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.bg-room-1 { background-image: url("/element/room1.webp"); }
+.bg-room-2 { background-image: url("/element/room2.webp"); }
+.bg-room-3 { background-image: url("/element/room3.webp"); }
+.bg-room-4 { background-image: url("/element/room4.webp"); }
+
+/* ==========================================================================
+   Ảnh trong ô trò chơi nhạt dần về phía đáy
+   ==========================================================================
+   Dùng `mask-image` để làm ảnh MỜ THẬT (giảm alpha), không phải phủ một lớp màu
+   lên trên.
+
+   Vì sao không dùng lớp phủ gradient: lớp phủ phải trùng đúng màu nền của ô, nên
+   mỗi lần đổi màu nền là phải sửa cả gradient — và trên ảnh sáng thì lớp phủ đen
+   tạo ra một vệt xám bẩn thay vì hoà vào nền. Mask thì để nền thật lộ ra qua ảnh,
+   nên luôn khớp màu bất kể nền là gì.
+
+   `-webkit-mask-image` vẫn cần cho Safari cũ (dưới 15.4) và Chrome/Android cũ;
+   thuộc tính không có tiền tố mới được hỗ trợ rộng gần đây. Thiếu nó thì ảnh chỉ
+   không mờ dần, chứ không hỏng gì — suy giảm êm.
+
+   Dải chuyển bắt đầu từ 55%: để muộn hơn thì phần mờ quá gấp thành một đường kẻ,
+   sớm hơn thì mất mặt người trong ảnh. */
+.game-thumb-fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0) 0%,
+    rgb(0 0 0) 55%,
+    rgb(0 0 0 / 0.55) 78%,
+    rgb(0 0 0 / 0) 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0) 0%,
+    rgb(0 0 0) 55%,
+    rgb(0 0 0 / 0.55) 78%,
+    rgb(0 0 0 / 0) 100%
+  );
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 16s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Hiệu ứng mở/đóng hộp thoại (modal)
+   ==========================================================================
+   Dùng CSS keyframes chứ không dùng thư viện animation: cả dự án chưa có
+   framer-motion, và thêm một dependency ~50KB cho vài hiệu ứng fade/scale là
+   không tương xứng.
+
+   Vì sao tách riêng lớp phủ và khung nội dung: lớp phủ chỉ cần mờ dần, còn khung
+   phải vừa mờ dần vừa phóng lên — gộp vào một animation thì lớp phủ cũng bị phóng
+   theo, làm mép tối chạy vào giữa màn hình trông như bị giật.
+   ========================================================================== */
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-backdrop-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    /* Xuất phát hơi nhỏ và thấp hơn một chút: cảm giác hộp thoại "nổi lên" từ chỗ
+       người dùng vừa bấm. Chỉ 0.96 và 8px — phóng mạnh hơn sẽ thành hiệu ứng gây
+       chú ý, mà đây là công cụ vận hành dùng hàng trăm lần mỗi ngày. */
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modal-panel-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+.animate-modal-backdrop-in {
+  animation: modal-backdrop-in 180ms ease-out both;
+}
+
+.animate-modal-backdrop-out {
+  animation: modal-backdrop-out 140ms ease-in both;
+}
+
+.animate-modal-panel-in {
+  /* cubic-bezier có phần cuối chậm dần rõ: khung dừng lại mềm thay vì phanh gấp. */
+  animation: modal-panel-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal-panel-out {
+  /* Đóng NHANH hơn mở (140ms so với 200ms). Khi người dùng đã quyết định đóng thì
+     họ muốn nó biến đi; hiệu ứng đóng dài bằng hiệu ứng mở sẽ tạo cảm giác chậm. */
+  animation: modal-panel-out 140ms ease-in both;
+}
+
+/* Class hiệu ứng RIÊNG cho hộp thoại khu xác thực.
+   Dùng chung keyframes nhưng KHÔNG dùng chung tên class với AdminModal: các
+   quy tắc `.animate-modal-panel-in button:hover` phía dưới đính thêm translateY
+   và box-shadow màu sáng — đúng cho giao diện sáng của khu quản trị, nhưng làm
+   nút đỏ trên nền đen của trang đăng nhập nhảy lên khi hover, khác bản gốc. */
+.animate-auth-backdrop-in {
+  animation: modal-backdrop-in 180ms ease-out both;
+}
+
+/* Hiệu ứng mở hộp thoại khu xác thực.
+
+   CHỈ dùng `scale`, không có `translate`: hộp thoại được căn giữa bằng FLEX
+   (`items-center justify-center` ở lớp phủ), không phải bằng `left-1/2` +
+   `translate(-50%, -50%)`.
+
+   Vì sao không dùng translate để căn giữa: `left: 50%` tính theo khối chứa gần nhất,
+   mà hộp thoại nằm sâu trong cây DOM của trang nên khối đó không phải khung 640px —
+   hộp thoại bị lệch hẳn sang một bên so với cột nội dung.
+
+   Kèm theo đó, `transform` là MỘT thuộc tính duy nhất: nếu vẫn căn bằng translate thì
+   keyframes buộc phải mang lại đầy đủ phần `translate(-50%, -50%)` ở CẢ HAI mốc, vì
+   `animation-fill-mode: both` giữ nguyên khung cuối — thiếu là hộp thoại lệch VĨNH
+   VIỄN xuống góc dưới phải, không chỉ lệch trong lúc chạy. Căn bằng flex tránh hẳn
+   cái bẫy đó. */
+@keyframes auth-dialog-in {
+  from {
+    opacity: 0;
+    /* 0.95 khớp `zoom-in-95` của bản gốc. */
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-auth-panel-in {
+  /* 240ms thay vì 200ms: khung phải xong trước khi ảnh nảy tới đỉnh, không thì
+     hai chuyển động đè nhau thành một đám nhòe. */
+  animation: auth-dialog-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Ảnh dấu tích / dấu X nảy vào.
+
+   Dùng thuộc tính `scale` ĐỘC LẬP, KHÔNG dùng `transform`.
+
+   Tailwind v4 biên dịch `-translate-x-1/2` thành thuộc tính `translate` riêng
+   (`translate: var(--tw-translate-x) ...`), không phải `transform` như v3. Hai thuộc
+   tính này CỘNG DỒN với nhau, nên nếu keyframes ghi `transform: translateX(-50%)`
+   thì ảnh bị dịch trái tổng cộng 100% chiều rộng của chính nó — lệch hẳn ra khỏi tâm
+   hộp thoại.
+
+   Tách ra như vậy còn có lợi: việc căn giữa do `translate` lo, hiệu ứng do `scale`
+   lo, hai bên không đụng nhau nên sửa một bên không làm hỏng bên kia.
+
+   Vượt quá 1 (1.06) rồi mới về: cảm giác "bật" lên, phù hợp một thông báo đáng
+   ăn mừng. Đỉnh đặt ở 65% để đoạn co về chậm hơn đoạn phóng ra. */
+@keyframes auth-icon-in {
+  0% {
+    opacity: 0;
+    scale: 0.4;
+  }
+  65% {
+    opacity: 1;
+    scale: 1.06;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.animate-auth-icon-in {
+  /* Chờ 120ms cho khung hiện gần xong rồi ảnh mới nảy ra — có thứ tự thì mắt dễ
+     theo, hai thứ cùng lúc thì không biết nhìn đâu. */
+  animation: auth-icon-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
+}
+
+/* Tiêu đề, mô tả, nút: trôi lên nhẹ. Khoảng trễ khác nhau đặt ngay tại chỗ dùng
+   (`[animation-delay:60ms]`) để không phải sinh ba class gần như giống nhau. */
+@keyframes auth-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-auth-content-in {
+  animation: auth-content-in 300ms cubic-bezier(0.16, 1, 0.3, 1) 140ms both;
+}
+
+/* Người bật "giảm chuyển động" trong hệ điều hành thường làm vậy vì chuyển động
+   gây chóng mặt hoặc buồn nôn. Tắt hẳn phần biến đổi hình học, chỉ giữ mờ dần rất
+   nhanh để hộp thoại không xuất hiện đột ngột. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-modal-backdrop-in,
+  .animate-auth-backdrop-in,
+  .animate-auth-panel-in,
+  .animate-auth-icon-in,
+  .animate-auth-content-in,
+  .animate-modal-backdrop-out,
+  .animate-modal-panel-in,
+  .animate-modal-panel-out {
+    animation-duration: 1ms;
+    animation-timing-function: linear;
+    /* Xoá luôn khoảng trễ: rút thời lượng về 1ms nhưng giữ delay 140ms thì phần
+       tử vẫn vô hình trong 140ms rồi bật ra — thành một cú nháy đứng, đúng cái
+       mà người bật tính này muốn tránh. */
+    animation-delay: 0ms !important;
+  }
+
+  /* Chữ chạy vô hạn: dừng HẲN chứ không rút ngắn thời lượng. Đây là hiệu ứng gây
+     chóng mặt mạnh nhất trên trang vì nó không bao giờ kết thúc. Người dùng vẫn
+     đọc được phần đầu thông báo ở trạng thái tĩnh. */
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* Hiệu ứng hover & active tinh tế cho toàn bộ button trong AdminModal */
+.animate-modal-panel-in button,
+.animate-modal-panel-out button {
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-modal-panel-in button:hover:not(:disabled),
+.animate-modal-panel-out button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.animate-modal-panel-in button:active:not(:disabled),
+.animate-modal-panel-out button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Hiệu ứng trượt nhẹ xuất hiện (Fade In Up) */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+

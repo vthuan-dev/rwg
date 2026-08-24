@@ -72,8 +72,8 @@ class RoundLifecycleTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

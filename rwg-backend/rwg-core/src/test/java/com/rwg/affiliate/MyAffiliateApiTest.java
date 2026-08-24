@@ -52,11 +52,11 @@ class MyAffiliateApiTest {
     private void register(String username, String referralCode) throws Exception {
         String body = referralCode == null
                 ? """
-                  {"username":"%s","email":"%s@example.com","password":"%s"}
-                  """.formatted(username, username, PASSWORD)
+                  {"username":"%s","password":"%s"}
+                  """.formatted(username, PASSWORD)
                 : """
-                  {"username":"%s","email":"%s@example.com","password":"%s","referralCode":"%s"}
-                  """.formatted(username, username, PASSWORD, referralCode);
+                  {"username":"%s","password":"%s","referralCode":"%s"}
+                  """.formatted(username, PASSWORD, referralCode);
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))

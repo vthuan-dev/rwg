@@ -28,3 +28,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Tệp người dùng tải lên (banner, ảnh đính kèm trong chat).
+#
+# KHÔNG commit: đây là dữ liệu chạy thật, không phải mã nguồn. Riêng uploads/media/chat
+# còn là dữ liệu cá nhân — biên lai chuyển tiền và ảnh giấy tờ người chơi gửi cho bộ
+# phận hỗ trợ. Một lần commit là nằm vĩnh viễn trong lịch sử git, kể cả sau khi xoá tệp.
+uploads/

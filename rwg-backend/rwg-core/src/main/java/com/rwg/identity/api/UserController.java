@@ -4,7 +4,10 @@ import com.rwg.common.web.ClientAddresses;
 import com.rwg.identity.dto.ChangePasswordRequest;
 import com.rwg.identity.dto.SetWithdrawalPasswordRequest;
 import com.rwg.identity.dto.UpdateLocaleRequest;
+import com.rwg.identity.dto.UpdateProfileRequest;
 import com.rwg.identity.dto.UserResponse;
+import com.rwg.identity.dto.VerifyWithdrawalPasswordRequest;
+import com.rwg.identity.dto.WithdrawalPasswordCheckResponse;
 import com.rwg.identity.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -61,12 +64,50 @@ public class UserController {
                 ClientAddresses.clientIp(httpRequest));
     }
 
+    /**
+     * Kiểm mật khẩu rút tiền mà KHÔNG tạo lệnh rút.
+     *
+     * Trang rút tiền gọi ngầm endpoint này trong lúc người chơi gõ, để chỉ bật nút gửi lệnh khi
+     * mật khẩu đã đúng.
+     *
+     * DÙNG {@code POST} KHÔNG {@code GET} dù đây là thao tác kiểm:
+     *   1. Mật khẩu không được nằm trong URL. URL đi vào lịch sử duyệt web, log proxy và
+     *      access log của server; response của GET còn có thể bị cache.
+     *   2. Có tác dụng phụ thật — trừ một lượt trong bộ đếm chống dò khi gõ sai.
+     */
+    @PostMapping("/me/withdrawal-password/verify")
+    @Operation(summary = "Kiểm mật khẩu rút tiền (không tạo lệnh); dùng chung bộ đếm chống dò "
+            + "với POST /wallet/withdrawals")
+    public WithdrawalPasswordCheckResponse verifyWithdrawalPassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody VerifyWithdrawalPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        return authService.verifyWithdrawalPassword(UUID.fromString(jwt.getSubject()), request,
+                ClientAddresses.clientIp(httpRequest));
+    }
+
     @PatchMapping("/me/locale")
     @Operation(summary = "Đổi ngôn ngữ hiển thị (en/vi/zh/ja)")
     public UserResponse updateLocale(@AuthenticationPrincipal Jwt jwt,
                                      @Valid @RequestBody UpdateLocaleRequest request,
                                      HttpServletRequest httpRequest) {
         return authService.updateLocale(UUID.fromString(jwt.getSubject()), request,
+                ClientAddresses.clientIp(httpRequest));
+    }
+
+    /**
+     * Cập nhật họ tên, quốc gia, số điện thoại.
+     *
+     * Dùng {@code PATCH} không {@code PUT}: client gửi đúng các ô đang sửa, trường không
+     * gửi thì giữ nguyên. Với {@code PUT} thì theo đúng nghĩa là thay toàn bộ, nên thiếu
+     * một trường đồng nghĩa với xoá nó.
+     */
+    @PatchMapping("/me/profile")
+    @Operation(summary = "Cập nhật hồ sơ: họ tên, quốc gia, số điện thoại")
+    public UserResponse updateProfile(@AuthenticationPrincipal Jwt jwt,
+                                      @Valid @RequestBody UpdateProfileRequest request,
+                                      HttpServletRequest httpRequest) {
+        return authService.updateProfile(UUID.fromString(jwt.getSubject()), request,
                 ClientAddresses.clientIp(httpRequest));
     }
 }

@@ -47,7 +47,7 @@ class WalletServiceTest {
 
     private User newUser(String prefix) {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
-        return userRepository.save(new User(prefix + suffix, prefix + suffix + "@example.com",
+        return userRepository.save(new User(prefix + suffix, null,
                 "$2a$12$dummyhashdummyhashdummyhashdummyhashdummyhashdummyhashdu"));
     }
 

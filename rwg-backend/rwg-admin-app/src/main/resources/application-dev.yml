@@ -18,16 +18,27 @@ rwg:
     provider: stub
     success-delay: PT1S
     callback-secret: dev-only-rwg-payment-callback-secret-CHANGE-ME-0123456789
+  cors:
+    # Frontend dev chạy ở cổng 3000, backend quản trị ở 8081 -> khác origin, nên
+    # BẮT BUỘC khai báo ở đây, không thì trình duyệt chặn ngay bước preflight.
+    allowed-origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
   websocket:
     allowed-origin-patterns:
       - "*"
   redis:
-    enabled: ${RWG_REDIS_ENABLED:false}
+    # BẬT ở dev vì CHAT HỖ TRỢ CẦN Redis. Xem chú thích đầy đủ ở
+    # rwg-user-app/src/main/resources/application-dev.yml.
+    #
+    # PHẢI GIỐNG giá trị của user-app: bật một bên thì bên đó publish vào Redis nhưng
+    # bên kia không có listener, và không ai nhận được gì — y như tắt cả hai.
+    enabled: ${RWG_REDIS_ENABLED:true}
 
 management:
   health:
     redis:
-      enabled: ${RWG_REDIS_HEALTH_ENABLED:false}
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:true}
 
 logging:
   level:

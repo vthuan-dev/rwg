@@ -5,7 +5,6 @@ import com.rwg.game.domain.Bet;
 import com.rwg.game.domain.BetStatus;
 import com.rwg.game.domain.GameRound;
 import com.rwg.game.domain.RoundStatus;
-import com.rwg.game.domain.BetType;
 import com.rwg.game.domain.GameTable;
 import com.rwg.game.repository.BetRepository;
 import com.rwg.game.repository.GameRoundRepository;
@@ -118,8 +117,10 @@ public class SettlementService {
             Map<UUID, Money> winByUser = new LinkedHashMap<>();
             for (Bet bet : pendingBets) {
                 Money stake = Money.of(bet.getStake());
+                // `bet.getOdds()` là odds ĐÃ CHỐT lúc đặt cược. NULL với cược đặt trước khi có
+                // tính năng tỷ lệ riêng, lúc đó engine rơi về mức mặc định.
                 Money payout = RouletteEngine.payout(bet.getBetType(), bet.getSelection(),
-                        winningNumber, stake);
+                        winningNumber, stake, bet.getOdds());
                 bet.settle(payout.amount());
                 stakeByUser.merge(bet.getUserId(), stake, Money::add);
                 if (payout.isPositive()) {
@@ -145,10 +146,21 @@ public class SettlementService {
         }
 
         // Ngoài transaction: unicast kết quả + gọi SPI loyalty (KHÔNG để lỗi listener phá settle).
-        outcome.winByUser().forEach((userId, payout) -> broadcaster.unicastWin(userId,
-                outcome.round().getTableId().toString(), outcome.round().getId().toString(),
-                outcome.winningNumber(), payout.amount(),
-                outcome.balanceAfterWin().get(userId).amount()));
+        outcome.stakeByUser().forEach((userId, staked) -> {
+            boolean won = outcome.winByUser().containsKey(userId);
+            if (won) {
+                Money payout = outcome.winByUser().get(userId);
+                broadcaster.unicastWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        outcome.winningNumber(), payout.amount(),
+                        outcome.balanceAfterWin().get(userId).amount());
+            } else {
+                BigDecimal balanceAfter = walletService.getBalance(userId).amount();
+                broadcaster.unicastWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        outcome.winningNumber(), BigDecimal.ZERO, balanceAfter);
+            }
+        });
         outcome.stakeByUser().forEach((userId, staked) -> notifyListeners(userId,
                 outcome.round().getTableId(), staked.amount(),
                 outcome.winByUser().getOrDefault(userId, Money.zero()).amount()));
@@ -236,12 +248,13 @@ public class SettlementService {
             for (Bet bet : pendingBets) {
                 Money stake = Money.of(bet.getStake());
                 Money payout = BaccaratEngine.payout(bet.getBetType(), result.getOutcome(),
-                        result.isPlayerPair(), result.isBankerPair(), stake);
+                        result.isPlayerPair(), result.isBankerPair(), stake, bet.getOdds());
 
-                Money commission = Money.zero();
-                if (bet.getBetType() == BetType.BANKER && "BANKER".equals(result.getOutcome())) {
-                    commission = stake.multiply(new BigDecimal("0.05"));
-                }
+                // Hoa hồng do engine tính (DECISIONS.md M6: 5% trên TIỀN LỜI). Truyền
+                // bet.getOdds() để hoa hồng dựa trên tỷ lệ ĐÃ CHỐT lúc đặt cược, không phải
+                // tỷ lệ hiện tại — quản trị có thể đã đổi tỷ lệ sau khi cược được đặt.
+                Money commission = BaccaratEngine.commissionFor(
+                        bet.getBetType(), result.getOutcome(), stake, bet.getOdds());
 
                 BigDecimal netPayout = payout.amount().subtract(commission.amount());
                 bet.settle(netPayout);
@@ -279,10 +292,21 @@ public class SettlementService {
             return false;
         }
 
-        outcome.winByUser().forEach((userId, payout) -> broadcaster.unicastBaccaratWin(userId,
-                outcome.round().getTableId().toString(), outcome.round().getId().toString(),
-                result, payout.amount(),
-                outcome.balanceAfterWin().get(userId).amount()));
+        outcome.stakeByUser().forEach((userId, staked) -> {
+            boolean won = outcome.winByUser().containsKey(userId);
+            if (won) {
+                Money payout = outcome.winByUser().get(userId);
+                broadcaster.unicastBaccaratWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, payout.amount(),
+                        outcome.balanceAfterWin().get(userId).amount());
+            } else {
+                BigDecimal balanceAfter = walletService.getBalance(userId).amount();
+                broadcaster.unicastBaccaratWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, BigDecimal.ZERO, balanceAfter);
+            }
+        });
 
         outcome.stakeByUser().forEach((userId, staked) -> notifyBaccaratListeners(userId,
                 outcome.round().getTableId(), staked.amount(),
@@ -324,7 +348,8 @@ public class SettlementService {
 
             for (Bet bet : pendingBets) {
                 Money stake = Money.of(bet.getStake());
-                Money payout = Kl28Engine.payout(bet.getBetType(), bet.getSelection(), result.getSum(), stake);
+                Money payout = Kl28Engine.payout(bet.getBetType(), bet.getSelection(),
+                        result.getSum(), stake, bet.getOdds());
                 bet.settle(payout.amount());
 
                 stakeByUser.merge(bet.getUserId(), stake, Money::add);
@@ -350,10 +375,21 @@ public class SettlementService {
             return false;
         }
 
-        outcome.winByUser().forEach((userId, payout) -> broadcaster.unicastKl28Win(userId,
-                outcome.round().getTableId().toString(), outcome.round().getId().toString(),
-                result, payout.amount(),
-                outcome.balanceAfterWin().get(userId).amount()));
+        outcome.stakeByUser().forEach((userId, staked) -> {
+            boolean won = outcome.winByUser().containsKey(userId);
+            if (won) {
+                Money payout = outcome.winByUser().get(userId);
+                broadcaster.unicastKl28Win(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, payout.amount(),
+                        outcome.balanceAfterWin().get(userId).amount());
+            } else {
+                BigDecimal balanceAfter = walletService.getBalance(userId).amount();
+                broadcaster.unicastKl28Win(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, BigDecimal.ZERO, balanceAfter);
+            }
+        });
 
         String gameType = tableRepository.findById(outcome.round().getTableId())
                 .map(GameTable::getGameType)

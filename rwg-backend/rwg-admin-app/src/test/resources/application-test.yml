@@ -23,9 +23,6 @@ rwg:
   withdrawal:
     min-amount: 20
     daily-max-amount: 5000
-  admin:
-    adjust-max-per-transaction: 1000
-    adjust-daily-max-per-admin: 10000
   redis:
     enabled: false
   security:

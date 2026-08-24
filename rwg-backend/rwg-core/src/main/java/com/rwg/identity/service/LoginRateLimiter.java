@@ -8,6 +8,7 @@ import io.github.bucket4j.ConsumptionProbe;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Rate-limit đăng nhập với HAI bucket chạy song song:
@@ -22,6 +23,21 @@ import java.util.Locale;
  */
 @Component
 public class LoginRateLimiter {
+
+    /**
+     * Tiền tố bucket cho mật khẩu RÚT TIỀN — tách hẳn khỏi bucket đăng nhập.
+     *
+     * Đặt ở đây, không đặt trong từng service dùng nó: hiện có HAI đường tiêu ngân sách thử
+     * cùng một mật khẩu rút (endpoint kiểm ngầm ở trang rút tiền, và endpoint tạo lệnh rút).
+     * Hai nơi tự khai chuỗi riêng thì chỉ cần một bên sửa là kẻ tấn công có hai ngân sách
+     * độc lập — dò cạn bucket của đường này mà đường kia vẫn còn nguyên lượt.
+     */
+    public static final String WITHDRAWAL_BUCKET_PREFIX = "withdrawal:";
+
+    /** Khóa bucket mật khẩu rút tiền của một user. */
+    public static String withdrawalKey(UUID userId) {
+        return WITHDRAWAL_BUCKET_PREFIX + userId;
+    }
 
     /** Kết quả kiểm tra/ghi nhận một lần thử đăng nhập. */
     public record AttemptResult(boolean captchaRequired, boolean locked, long retryAfterSeconds) {
@@ -142,6 +158,23 @@ public class LoginRateLimiter {
         store.reset(accountBucketKey(identifier));
         store.unlock(ipLockKey(ip, identifier));
         store.unlock(accountLockKey(identifier));
+    }
+
+    /**
+     * Số lần còn được thử trước khi bị khóa.
+     *
+     * Lấy GIÁ TRỊ NHỎ HƠN của hai bucket: bucket nào cạn trước cũng dẫn tới khóa, nên báo
+     * theo bucket còn nhiều hơn sẽ hứa với người dùng nhiều lượt hơn thực tế họ có.
+     *
+     * Dùng cho màn hình rút tiền: người chơi đang gõ mã PIN được kiểm ngầm, cần biết mình
+     * sắp bị khóa 15 phút TRƯỚC khi điều đó xảy ra.
+     */
+    public long remainingAttempts(String ip, String identifier) {
+        long ipRemaining = store.bucketFor(ipBucketKey(ip, identifier), ipConfiguration)
+                .getAvailableTokens();
+        long accountRemaining = store.bucketFor(accountBucketKey(identifier), accountConfiguration)
+                .getAvailableTokens();
+        return Math.max(Math.min(ipRemaining, accountRemaining), 0);
     }
 
     private long capacity(BucketConfiguration configuration) {

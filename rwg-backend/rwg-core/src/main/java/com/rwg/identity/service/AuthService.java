@@ -11,12 +11,16 @@ import com.rwg.identity.dto.LoginRequest;
 import com.rwg.identity.dto.RegisterRequest;
 import com.rwg.identity.dto.SetWithdrawalPasswordRequest;
 import com.rwg.identity.dto.TokenResponse;
+import com.rwg.identity.dto.UpdateProfileRequest;
 import com.rwg.identity.dto.UpdateLocaleRequest;
 import com.rwg.identity.dto.UserResponse;
+import com.rwg.identity.dto.VerifyWithdrawalPasswordRequest;
+import com.rwg.identity.dto.WithdrawalPasswordCheckResponse;
 import com.rwg.identity.repository.UserRepository;
 import com.rwg.affiliate.service.ReferralService;
 import com.rwg.risk.service.AccountLinkDetector;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,7 +41,8 @@ import java.util.UUID;
  * Hardening (code review):
  * - Captcha được ENFORCE phía server TRƯỚC khi chạm BCrypt/DB khi rate-limiter báo captchaRequired.
  * - Login khi user không tồn tại vẫn chạy BCrypt với hash dummy (chống dò user qua timing).
- * - Register gộp lỗi trùng username/email thành 1 lỗi chung (chống dò tài khoản).
+ * - Register gộp lỗi trùng username thành 1 lỗi chung (chống dò tài khoản). API này
+ *   KHÔNG còn nhận email nên không có gì để đụng ở cột email.
  * - Password validate theo BYTE UTF-8 <= 72 (BCrypt truncation).
  */
 @Service
@@ -43,6 +50,15 @@ public class AuthService {
 
     /** BCrypt chỉ dùng tối đa 72 BYTE đầu tiên — dài hơn phải bị từ chối. */
     private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
+
+    /**
+     * Các mã ngôn ngữ có bundle thông báo. Phải khớp với RwgLocaleResolver và với
+     * regex của UpdateLocaleRequest — thêm ngôn ngữ thì phải sửa cả ba chỗ.
+     */
+    private static final Set<String> SUPPORTED_LOCALES = Set.of("en", "vi", "zh", "ja");
+
+    /** Ngôn ngữ mặc định, ứng với bundle messages.properties. */
+    private static final String DEFAULT_LOCALE = "en";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -116,19 +132,47 @@ public class AuthService {
     public UserResponse register(RegisterRequest request, String ip,
                                 String deviceId, String userAgent) {
         validatePasswordBytes(request.password());
-        // Gộp 2 kiểm tra trùng thành 1 lỗi CHUNG — không tiết lộ trường nào đã tồn tại
-        // (chống dò tài khoản đã đăng ký qua thông báo lỗi).
-        boolean duplicate = userRepository.existsByUsernameIgnoreCase(request.username())
-                || userRepository.existsByEmailIgnoreCase(request.email());
-        if (duplicate) {
+
+        // Chỉ còn kiểm tra trùng TÊN ĐĂNG NHẬP: API này không nhận email nữa nên
+        // không có gì để đụng ở cột email. Vẫn giữ thông báo lỗi CHUNG (không nói rõ
+        // trường nào) để không biến API đăng ký thành công cụ dò tên tài khoản đã có.
+        if (userRepository.existsByUsernameIgnoreCase(request.username())) {
             // i18n: message resolve từ bundle key error.conflict.registration theo locale request.
             throw new ApiException(ErrorCode.CONFLICT, ErrorCode.CONFLICT.defaultMessage(),
                     null, "error.conflict.registration");
         }
         String hash = passwordEncoder.encode(request.password()); // BCrypt strength 12
-        User user = userRepository.save(new User(request.username(), request.email().toLowerCase(), hash));
+
+        // email = null: tài khoản tạo từ form người chơi không có email. Cột vẫn
+        // UNIQUE nhưng MySQL cho phép nhiều dòng NULL nên không bị đụng nhau.
+        User user = new User(request.username(), null, hash);
+
+        // Ngôn ngữ của tài khoản lấy theo ngôn ngữ của chính request đăng ký.
+        //
+        // Trước đây để nguyên mặc định "en" của entity, nên người đăng ký ở giao diện
+        // tiếng Việt vẫn được lưu locale="en"; đăng nhập vào là giao diện tự nhảy sang
+        // tiếng Anh vì frontend đọc locale này từ /users/me rồi áp dụng.
+        user.setLocale(registrationLocale());
+
+        // Mật khẩu rút tiền đặt LUÔN khi đăng ký nếu form có gửi. Ở đây KHÔNG yêu cầu
+        // xác nhận lại mật khẩu đăng nhập như setWithdrawalPassword: người dùng vừa tự
+        // tạo cả hai mật khẩu trong cùng một form, chưa có phiên nào để chiếm quyền.
+        String withdrawalPassword = request.withdrawalPassword();
+        boolean withWithdrawalPassword = withdrawalPassword != null && !withdrawalPassword.isBlank();
+        if (withWithdrawalPassword) {
+            user.setWithdrawalPasswordHash(passwordEncoder.encode(withdrawalPassword));
+        }
+
+        user = userRepository.save(user);
+
+        // Chi tiết audit dùng LinkedHashMap thay vì Map.of: Map.of NÉM
+        // NullPointerException với giá trị null, mà email luôn null ở luồng này.
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("email", user.getEmail());
+        details.put("withdrawalPasswordSet", withWithdrawalPassword);
+        details.put("locale", user.getLocale());
         audit.record(user.getId(), user.getUsername(), AuditTrailService.USER_REGISTERED,
-                "USER", user.getId().toString(), Map.of("email", user.getEmail()), ip);
+                "USER", user.getId().toString(), details, ip);
 
         // Ghi dấu vết + dò đa tài khoản. Phải đặt TRƯỚC attachReferral để liên kết
         // được tạo trước khi quan hệ đại lý hình thành — kỳ hoa hồng đầu tiên đã chặn
@@ -148,10 +192,57 @@ public class AuthService {
         return toResponse(user);
     }
 
+
     // ===== LOGIN =====
 
     @Transactional
     public TokenResponse login(LoginRequest request, String ip) {
+        User user = authenticate(request, ip);
+        // Mỗi lần đăng nhập mở một family rotation mới.
+        TokenResponse tokens = issueTokens(user, UUID.randomUUID().toString());
+        audit.record(user.getId(), user.getUsername(), AuditTrailService.LOGIN_SUCCESS,
+                "USER", user.getId().toString(), null, ip);
+        return tokens;
+    }
+
+    /**
+     * Đăng nhập KHU QUẢN TRỊ (backoffice). Dùng CHUNG toàn bộ đường xác thực với
+     * {@link #login} — rate limiter, enforce captcha, cân bằng thời gian BCrypt —
+     * rồi thêm một tầng chặn: tài khoản PLAYER bị từ chối dù mật khẩu đúng.
+     *
+     * VÌ SAO KIỂM TRA ROLE SAU KHI XÁC THỰC MẬT KHẨU, KHÔNG PHẢI TRƯỚC: nếu chặn
+     * ngay khi thấy role PLAYER thì thông báo lỗi (403) khác với khi sai mật khẩu
+     * (401), và kẻ tấn công chỉ cần so hai mã lỗi là biết tài khoản nào là nhân sự
+     * quản trị — đúng danh sách cần nhắm vào. Xác thực trước rồi mới chặn khiến hai
+     * trường hợp không phân biệt được từ bên ngoài khi mật khẩu sai.
+     *
+     * Việc phân quyền theo route trong SecurityConfig vẫn là chốt cuối: token của
+     * PLAYER dù có lọt ra cũng không chạm được /api/v1/admin/**. Tầng chặn ở đây là
+     * lớp thứ hai, để người chơi không vào được cửa backoffice ngay từ đầu.
+     */
+    @Transactional
+    public TokenResponse loginStaff(LoginRequest request, String ip) {
+        User user = authenticate(request, ip);
+
+        if (!user.getRole().isStaff()) {
+            audit.record(user.getId(), user.getUsername(), AuditTrailService.ADMIN_LOGIN_FORBIDDEN,
+                    "USER", user.getId().toString(), Map.of("role", user.getRole().name()), ip);
+            throw new ApiException(ErrorCode.FORBIDDEN, ErrorCode.FORBIDDEN.defaultMessage(),
+                    null, "error.forbidden.backoffice");
+        }
+
+        TokenResponse tokens = issueTokens(user, UUID.randomUUID().toString());
+        audit.record(user.getId(), user.getUsername(), AuditTrailService.ADMIN_LOGIN_SUCCESS,
+                "USER", user.getId().toString(), Map.of("role", user.getRole().name()), ip);
+        return tokens;
+    }
+
+    /**
+     * Xác thực thông tin đăng nhập và trả về user đã kích hoạt. KHÔNG phát hành
+     * token và KHÔNG ghi audit thành công — việc đó thuộc về hàm gọi, vì luồng người
+     * chơi và luồng quản trị ghi hai loại sự kiện khác nhau.
+     */
+    private User authenticate(LoginRequest request, String ip) {
         String identifier = request.identifier().trim();
 
         LoginRateLimiter.AttemptResult pre = rateLimiter.checkBeforeAttempt(ip, identifier);
@@ -201,12 +292,7 @@ public class AuthService {
         rateLimiter.reset(ip, identifier);
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
-
-        // Mỗi lần đăng nhập mở một family rotation mới.
-        TokenResponse tokens = issueTokens(user, UUID.randomUUID().toString());
-        audit.record(user.getId(), user.getUsername(), AuditTrailService.LOGIN_SUCCESS,
-                "USER", user.getId().toString(), null, ip);
-        return tokens;
+        return user;
     }
 
     // ===== REFRESH (rotation + phát hiện reuse) =====
@@ -269,6 +355,64 @@ public class AuthService {
         return toResponse(user);
     }
 
+    /**
+     * Kiểm mật khẩu rút tiền MÀ KHÔNG tạo lệnh rút.
+     *
+     * Trang rút tiền gọi hàm này NGẦM trong lúc người chơi gõ, để chỉ bật nút gửi lệnh khi mật
+     * khẩu đã đúng. Không có bước này thì người dùng chỉ biết mình gõ sai sau khi đã bấm gửi,
+     * và mỗi lần như vậy đều ăn một lượt trong bộ đếm chống dò.
+     *
+     * ĐÂY LÀ MỘT ORACLE DÒ MẬT KHẨU: nó trả lời đúng/sai cho một mã PIN 6 số. Bảo vệ duy
+     * nhất là rate-limit, nên nó dùng ĐÚNG bucket mà {@code WithdrawalService.request} dùng
+     * ({@link LoginRateLimiter#withdrawalKey}) — tổng ngân sách gõ sai của cả hai đường vẫn
+     * là một, không nới thêm cho kẻ tấn công một lượt nào.
+     *
+     * KHÔNG {@code @Transactional}: hàm chỉ đọc, và việc trừ token rate-limit phải có hiệu lực
+     * ngay cả khi có exception — nếu nằm trong transaction bị rollback thì bộ đếm sai bị xóa.
+     */
+    public WithdrawalPasswordCheckResponse verifyWithdrawalPassword(
+            UUID userId, VerifyWithdrawalPasswordRequest request, String ip) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.defaultMessage(),
+                        null, "error.not_found.user"));
+
+        String limitKey = LoginRateLimiter.withdrawalKey(userId);
+
+        // Đã bị khóa -> 429 NGAY, không chạm BCrypt. BCrypt strength 12 tốn hàng trăm ms nên
+        // bỏ qua bước này biến endpoint thành đòn bẩy làm cạn CPU.
+        LoginRateLimiter.AttemptResult pre = rateLimiter.checkBeforeAttempt(ip, limitKey);
+        if (pre.locked()) {
+            throw new ApiException(ErrorCode.RATE_LIMITED,
+                    ErrorCode.RATE_LIMITED.defaultMessage(),
+                    Map.of("retryAfterSeconds", pre.retryAfterSeconds()));
+        }
+
+        // Chưa đặt mật khẩu rút: báo đúng mã lỗi như luồng tạo lệnh để giao diện dẫn người dùng
+        // sang trang đặt mật khẩu, thay vì báo "sai mật khẩu" cho một mật khẩu chưa tồn tại.
+        if (user.getWithdrawalPasswordHash() == null) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_PASSWORD_NOT_SET);
+        }
+
+        if (!passwordEncoder.matches(request.withdrawalPassword(), user.getWithdrawalPasswordHash())) {
+            LoginRateLimiter.AttemptResult after = rateLimiter.recordFailure(ip, limitKey);
+            audit.record(user.getId(), user.getUsername(),
+                    AuditTrailService.WITHDRAWAL_PASSWORD_VERIFY_FAILED,
+                    "USER", user.getId().toString(), null, ip);
+            if (after.locked()) {
+                throw new ApiException(ErrorCode.RATE_LIMITED,
+                        ErrorCode.RATE_LIMITED.defaultMessage(),
+                        Map.of("retryAfterSeconds", after.retryAfterSeconds()));
+            }
+            return new WithdrawalPasswordCheckResponse(false,
+                    rateLimiter.remainingAttempts(ip, limitKey));
+        }
+
+        // Đúng -> reset bộ đếm sai. Không reset thì người dùng gõ sai vài lần rồi gõ đúng vẫn
+        // mang theo số lần sai cũ — lần rút tiền sau đó có thể bị khóa vì lỗi đã sửa xong.
+        rateLimiter.reset(ip, limitKey);
+        return new WithdrawalPasswordCheckResponse(true, rateLimiter.remainingAttempts(ip, limitKey));
+    }
+
     // ===== ĐỔI MẬT KHẨU ĐĂNG NHẬP (chặng 2 Phase b) =====
 
     /**
@@ -321,7 +465,82 @@ public class AuthService {
         return toResponse(user);
     }
 
+    // ===== HỒ SƠ CÁ NHÂN =====
+
+    /**
+     * Cập nhật họ tên, quốc gia, số điện thoại.
+     *
+     * KHÔNG yêu cầu mật khẩu: đây là thông tin liên lạc, sửa sai không gây thiệt hại về
+     * tiền. Ngược lại, thông tin nhận tiền (số tài khoản ngân hàng) thì BẮT BUỘC xác nhận
+     * mật khẩu rút — xem {@code BankAccountService}.
+     *
+     * Trường nào gửi null thì GIỮ NGUYÊN giá trị cũ; gửi chuỗi rỗng thì XOÁ. Phân biệt hai
+     * trường hợp này là cần thiết vì client có thể chỉ gửi một ô đang sửa, và người dùng
+     * cũng phải xoá được thông tin đã khai.
+     */
+    @Transactional
+    public UserResponse updateProfile(UUID userId, UpdateProfileRequest request, String ip) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.defaultMessage(),
+                        null, "error.not_found.user"));
+
+        if (request.fullName() != null) {
+            user.setFullName(blankToNull(request.fullName()));
+        }
+        if (request.countryCode() != null) {
+            user.setCountryCode(blankToNull(request.countryCode()));
+        }
+        if (request.phone() != null) {
+            user.setPhone(blankToNull(request.phone()));
+        }
+
+        userRepository.save(user);
+
+        // Dùng LinkedHashMap thay vì Map.of: Map.of NÉM NullPointerException với giá trị
+        // null, mà cả ba trường ở đây đều có thể null sau khi người dùng xoá.
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("fullName", user.getFullName());
+        details.put("countryCode", user.getCountryCode());
+        details.put("phone", user.getPhone());
+        audit.record(user.getId(), user.getUsername(), AuditTrailService.USER_PROFILE_UPDATED,
+                "USER", user.getId().toString(), details, ip);
+
+        return toResponse(user);
+    }
+
     // ===== helpers =====
+
+    /**
+     * Chuỗi rỗng hoặc chỉ toàn khoảng trắng thành null.
+     *
+     * Lưu "" và lưu null vào cùng một cột sẽ tạo ra hai cách biểu diễn cho cùng một ý
+     * nghĩa "chưa khai", nên mọi truy vấn sau này phải kiểm cả hai. Chuẩn hoá ngay tại
+     * chỗ ghi để phía đọc chỉ cần kiểm null.
+     */
+    private static String blankToNull(String raw) {
+        String trimmed = raw.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * Ngôn ngữ để gán cho tài khoản vừa đăng ký.
+     *
+     * `LocaleContextHolder` được RwgLocaleResolver đặt sẵn theo header Accept-Language.
+     * Vẫn phải lọc lại qua SUPPORTED_LOCALES: resolver trả về một Locale đầy đủ (ví dụ
+     * "zh-CN" cho header "zh-CN") mà cột `users.locale` chỉ dài 8 ký tự và
+     * UpdateLocaleRequest chỉ nhận đúng bốn mã ngắn — lưu "zh-CN" vào sẽ tạo ra một
+     * tài khoản mà chính API đổi ngôn ngữ không đọc lại được.
+     *
+     * Dùng `getLanguage()` nên "zh-CN" và "zh-TW" đều thành "zh", khớp cách
+     * RwgLocaleResolver so khớp.
+     */
+    private String registrationLocale() {
+        Locale locale = LocaleContextHolder.getLocale();
+        String language = locale == null ? null : locale.getLanguage();
+        return language != null && SUPPORTED_LOCALES.contains(language)
+                ? language
+                : DEFAULT_LOCALE;
+    }
 
     /** Từ chối password vượt 72 BYTE UTF-8 (BCrypt băm tối đa 72 byte đầu). */
     private void validatePasswordBytes(String password) {
@@ -349,6 +568,9 @@ public class AuthService {
                 user.getKycLevel().name(),
                 user.getWithdrawalPasswordHash() != null,
                 user.getLocale(),
+                user.getFullName(),
+                user.getCountryCode(),
+                user.getPhone(),
                 user.getCreatedAt());
     }
 }

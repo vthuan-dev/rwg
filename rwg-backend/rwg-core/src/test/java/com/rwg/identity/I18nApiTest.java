@@ -65,8 +65,8 @@ class I18nApiTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.locale").value("en")); // locale mặc định khi đăng ký
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
@@ -82,7 +82,7 @@ class I18nApiTest {
 
     /** Body đăng ký với username "ab" -> trượt @Size(min=3) của username. */
     private static final String INVALID_REGISTER_BODY = """
-            {"username":"ab","email":"i18n@example.com","password":"MatKhau@12345"}
+            {"username":"ab","password":"MatKhau@12345"}
             """;
 
     @Test
@@ -126,13 +126,13 @@ class I18nApiTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
 
         String dupBody = """
-                {"username":"%s","email":"%s@example.com","password":"%s"}
-                """.formatted(username, unique("othermail"), PASSWORD);
+                {"username":"%s","password":"%s"}
+                """.formatted(username, PASSWORD);
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -214,7 +214,7 @@ class I18nApiTest {
     void resolverFallsBackToStoredUserLocaleWhenAcceptLanguageMismatch() {
         // Tạo user thẳng trong DB với locale đã lưu = zh (bypass API để kiểm soát locale).
         String username = unique("i18nresolver");
-        User user = userRepository.save(new User(username, username + "@example.com", "hash-gia"));
+        User user = userRepository.save(new User(username, null, "hash-gia"));
         user.setLocale("zh");
         userRepository.save(user);
 

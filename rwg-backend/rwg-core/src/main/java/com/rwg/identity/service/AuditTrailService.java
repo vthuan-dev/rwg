@@ -30,7 +30,9 @@ public class AuditTrailService {
     public static final String REFRESH_TOKEN_REUSE = "REFRESH_TOKEN_REUSE";
     public static final String LOGOUT = "LOGOUT";
     public static final String WITHDRAWAL_PASSWORD_SET = "WITHDRAWAL_PASSWORD_SET";
+    public static final String WITHDRAWAL_PASSWORD_VERIFY_FAILED = "WITHDRAWAL_PASSWORD_VERIFY_FAILED";
     public static final String USER_LOCALE_UPDATED = "USER_LOCALE_UPDATED";
+    public static final String USER_PROFILE_UPDATED = "USER_PROFILE_UPDATED";
     public static final String PASSWORD_CHANGED = "PASSWORD_CHANGED";
 
     // Chặng 2 Phase b: nghiệp vụ tiền / thanh toán / ngân hàng.
@@ -71,6 +73,8 @@ public class AuditTrailService {
      * thông thường.
      */
     public static final String ADMIN_SELF_DEALING_BLOCKED = "ADMIN_SELF_DEALING_BLOCKED";
+    public static final String ADMIN_LOGIN_SUCCESS = "ADMIN_LOGIN_SUCCESS";
+    public static final String ADMIN_LOGIN_FORBIDDEN = "ADMIN_LOGIN_FORBIDDEN";
 
     // Chặng 6: quản trị bàn chơi.
     /**
@@ -80,6 +84,8 @@ public class AuditTrailService {
     public static final String ADMIN_TABLE_STATUS_CHANGED = "ADMIN_TABLE_STATUS_CHANGED";
     /** Admin đổi hạn mức cược của bàn — ảnh hưởng mức rủi ro tối đa mỗi lệnh cược. */
     public static final String ADMIN_TABLE_LIMITS_CHANGED = "ADMIN_TABLE_LIMITS_CHANGED";
+    public static final String ADMIN_USER_ODDS_CHANGED = "ADMIN_USER_ODDS_CHANGED";
+    public static final String ADMIN_USER_ODDS_REMOVED = "ADMIN_USER_ODDS_REMOVED";
 
     // Chặng 7: chống đa tài khoản.
     /**
@@ -91,6 +97,10 @@ public class AuditTrailService {
     public static final String RISK_ACCOUNT_LINK_REVIEWED = "RISK_ACCOUNT_LINK_REVIEWED";
     /** Người vận hành tự nối hai tài khoản theo dấu hiệu máy không thấy. */
     public static final String RISK_ACCOUNT_LINK_CREATED = "RISK_ACCOUNT_LINK_CREATED";
+
+    public static final String ADMIN_PAYOUT_METHOD_REVEALED = "ADMIN_PAYOUT_METHOD_REVEALED";
+    public static final String SUPPORT_CHAT_ASSIGNED = "SUPPORT_CHAT_ASSIGNED";
+    public static final String SUPPORT_CHAT_CLOSED = "SUPPORT_CHAT_CLOSED";
 
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 

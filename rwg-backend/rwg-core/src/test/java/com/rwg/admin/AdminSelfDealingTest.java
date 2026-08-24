@@ -46,6 +46,14 @@ class AdminSelfDealingTest {
     private static final String PASSWORD = "MatKhau@12345";
     private static final String WITHDRAW_PW = "RutTien@98765";
 
+    /**
+     * Body lý do cho thao tác duyệt/từ chối lệnh rút — endpoint bắt buộc có.
+     *
+     * Các test ở đây kiểm chốt chặn TỰ DUYỆT, nên body phải hợp lệ: nếu body sai, phản hồi 400
+     * sẽ đến từ lỗi kiểm tra dữ liệu và test vẫn xanh mà không hề chạm tới chốt cần kiểm.
+     */
+    private static final String DECISION_BODY = "{\"note\":\"kiem tra chan tu duyet\"}";
+
     @Autowired
     MockMvc mockMvc;
 
@@ -66,8 +74,8 @@ class AdminSelfDealingTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         return login(username);
     }
@@ -209,7 +217,9 @@ class AdminSelfDealingTest {
         String orderId = createOwnWithdrawal(admin);
 
         MvcResult result = mockMvc.perform(post("/api/v1/admin/withdrawals/" + orderId + "/approve")
-                        .header("Authorization", admin.bearer()))
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isBadRequest())
                 .andReturn();
 
@@ -226,7 +236,9 @@ class AdminSelfDealingTest {
         BigDecimal balanceBefore = balanceOf(admin.bearer());
 
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + orderId + "/reject")
-                        .header("Authorization", admin.bearer()))
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isBadRequest());
 
         assertThat(statusOfOrder(admin.bearer(), orderId)).isEqualTo("PENDING");
@@ -246,7 +258,9 @@ class AdminSelfDealingTest {
         String other = "Bearer " + login(otherName).get("accessToken").asText();
 
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + orderId + "/approve")
-                        .header("Authorization", other))
+                        .header("Authorization", other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isOk());
 
         assertThat(statusOfOrder(owner.bearer(), orderId)).isEqualTo("SETTLED");
@@ -267,8 +281,8 @@ class AdminSelfDealingTest {
                         .header("Authorization", staff.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A"}
-                                """))
+                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A","withdrawalPassword":"%s"}
+                                """.formatted(WITHDRAW_PW)))
                 .andExpect(status().isCreated());
         MvcResult result = mockMvc.perform(post("/api/v1/wallet/withdrawals")
                         .header("Authorization", staff.bearer())

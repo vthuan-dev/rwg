@@ -30,11 +30,6 @@ rwg:
   withdrawal:
     min-amount: 20
     daily-max-amount: 5000
-  admin:
-    # Trùng giá trị mặc định production để test phản ánh đúng hành vi thật:
-    # > 1000 mỗi lần -> phải qua quy trình 4 mắt; tổng > 10000/ngày/admin -> chặn.
-    adjust-max-per-transaction: 1000
-    adjust-daily-max-per-admin: 10000
   redis:
     enabled: false
   security:

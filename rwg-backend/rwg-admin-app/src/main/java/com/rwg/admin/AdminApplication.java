@@ -2,8 +2,7 @@ package com.rwg.admin;
 
 import com.rwg.affiliate.api.MyAffiliateController;
 import com.rwg.bank.api.BankAccountController;
-import com.rwg.config.WebSocketConfig;
-import com.rwg.config.WsAuthChannelInterceptor;
+import com.rwg.chat.api.ChatController;
 import com.rwg.game.api.GameController;
 import com.rwg.game.service.BetService;
 import com.rwg.game.service.GameEventBroadcaster;
@@ -14,6 +13,7 @@ import com.rwg.game.service.SettlementService;
 import com.rwg.game.service.WagerSettledListener;
 import com.rwg.identity.api.AuthController;
 import com.rwg.identity.api.UserController;
+import com.rwg.notification.api.NotificationController;
 import com.rwg.payment.api.PaymentController;
 import com.rwg.wallet.api.WalletController;
 import org.springframework.boot.SpringApplication;
@@ -54,6 +54,19 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * tạo ở app này: nó có @ConditionalOnProperty(rwg.commission.scheduler-enabled=true)
  * và chỉ rwg-user-app bật cờ đó — hai instance cùng chi hoa hồng là rủi ro thật.
  * Cùng lý do, MyAffiliateController là API của người chơi nên cũng bị loại.
+ *
+ * WEBSOCKET ĐƯỢC BẬT Ở APP NÀY (chặng 8, chat hỗ trợ). Trước đó WebSocketConfig và
+ * WsAuthChannelInterceptor bị loại vì khu quản trị không cần realtime; chat hai chiều
+ * thì cần — nhân sự phải thấy tin người chơi gửi ngay, không phải chờ tải lại trang.
+ *
+ * Broker STOMP là enableSimpleBroker (in-memory theo từng JVM) nên hai app KHÔNG thấy
+ * gói của nhau; ChatRelayConfig bắc cầu bằng Redis pub/sub. Nếu để WebSocket tắt ở đây
+ * thì tin nhân sự gửi vẫn vào DB nhưng người chơi chỉ thấy khi tự tải lại trang.
+ *
+ * rwg.websocket.audience=STAFF ở application.yml của app này chỉ cho token quản trị mở
+ * phiên STOMP: hai app dùng chung JWT_SECRET nên thiếu cấu hình đó thì token PLAYER cũng
+ * kết nối được vào broker của khu quản trị.
+ *
  * Quy ước bắt buộc: xem DECISIONS.md ở root repository.
  */
 @SpringBootConfiguration
@@ -72,7 +85,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.bank",
                 "com.rwg.affiliate",
                 "com.rwg.game",
-                "com.rwg.risk"
+                "com.rwg.risk",
+                "com.rwg.banner",
+                "com.rwg.media",
+                "com.rwg.notification",
+                "com.rwg.chat"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
@@ -82,9 +99,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                         WalletController.class,
                         BankAccountController.class,
                         PaymentController.class,
-                        WebSocketConfig.class,
-                        WsAuthChannelInterceptor.class,
+                        NotificationController.class,
                         // API của người chơi — không thuộc khu quản trị.
+                        ChatController.class,
                         MyAffiliateController.class,
                         GameController.class,
                         // Runtime game: CHỈ chạy ở rwg-user-app (xem javadoc ở trên).

@@ -87,7 +87,7 @@ class CommissionJobTest {
 
     private User newUser(String prefix) {
         String name = prefix + UUID.randomUUID().toString().substring(0, 8);
-        return userRepository.save(new User(name, name + "@example.com", "hash-khong-dung-de-login"));
+        return userRepository.save(new User(name, null, "hash-khong-dung-de-login"));
     }
 
     /** Đặt cược ĐÃ SETTLED trong ngày PERIOD (turnover hợp lệ). */

@@ -12,6 +12,8 @@ import com.rwg.identity.domain.User;
 import com.rwg.identity.repository.UserRepository;
 import com.rwg.identity.service.AuditTrailService;
 import com.rwg.identity.service.LoginRateLimiter;
+import com.rwg.notification.domain.NotificationType;
+import com.rwg.notification.service.NotificationService;
 import com.rwg.payment.domain.PaymentOrder;
 import com.rwg.payment.domain.PaymentStatus;
 import com.rwg.payment.domain.PaymentType;
@@ -20,6 +22,7 @@ import com.rwg.payment.dto.WithdrawalRequest;
 import com.rwg.payment.repository.PaymentOrderRepository;
 import com.rwg.wallet.domain.WalletRefType;
 import com.rwg.wallet.service.WalletService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,9 +48,6 @@ import java.util.UUID;
 @Service
 public class WithdrawalService {
 
-    /** Tiền tố bucket rate-limit riêng cho mật khẩu rút tiền (tách khỏi bucket đăng nhập). */
-    private static final String RATE_LIMIT_PREFIX = "withdrawal:";
-
     private final PaymentOrderRepository orderRepository;
     private final WalletService walletService;
     private final UserRepository userRepository;
@@ -57,6 +57,13 @@ public class WithdrawalService {
     private final PaymentProperties paymentProperties;
     private final LoginRateLimiter loginRateLimiter;
     private final AuditTrailService audit;
+    private final NotificationService notifications;
+
+    /**
+     * Dùng để báo cho tầng chat biết có lệnh rút mới — xem
+     * {@link WithdrawalRequestedEvent} để biết vì sao không gọi trực tiếp.
+     */
+    private final ApplicationEventPublisher events;
 
     public WithdrawalService(PaymentOrderRepository orderRepository,
                              WalletService walletService,
@@ -66,7 +73,9 @@ public class WithdrawalService {
                              WithdrawalProperties withdrawalProperties,
                              PaymentProperties paymentProperties,
                              LoginRateLimiter loginRateLimiter,
-                             AuditTrailService audit) {
+                             AuditTrailService audit,
+                             NotificationService notifications,
+                             ApplicationEventPublisher events) {
         this.orderRepository = orderRepository;
         this.walletService = walletService;
         this.userRepository = userRepository;
@@ -76,6 +85,8 @@ public class WithdrawalService {
         this.paymentProperties = paymentProperties;
         this.loginRateLimiter = loginRateLimiter;
         this.audit = audit;
+        this.notifications = notifications;
+        this.events = events;
     }
 
     /** Tạo lệnh rút: debit ví ngay (M1) + order PENDING chờ admin duyệt. */
@@ -86,7 +97,9 @@ public class WithdrawalService {
                         ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.user"));
 
         // 0) Chống brute-force mật khẩu rút tiền (m9): reuse LoginRateLimiter theo userId.
-        String limitKey = RATE_LIMIT_PREFIX + userId;
+        //    Khóa bucket lấy từ LoginRateLimiter — CÙNG bucket với endpoint kiểm ngầm mật
+        //    khẩu ở trang rút tiền, nên tổng số lần gõ sai của cả hai đường là một ngân sách.
+        String limitKey = LoginRateLimiter.withdrawalKey(userId);
         LoginRateLimiter.AttemptResult pre = loginRateLimiter.checkBeforeAttempt(ip, limitKey);
         if (pre.locked()) {
             throw new ApiException(ErrorCode.RATE_LIMITED,
@@ -112,10 +125,8 @@ public class WithdrawalService {
         }
         loginRateLimiter.reset(ip, limitKey);
 
-        // 2) Bắt buộc có tài khoản ngân hàng mặc định.
-        BankAccount bank = bankAccountRepository
-                .findFirstByUserIdAndIsDefaultTrueAndStatus(userId, BankAccountStatus.ACTIVE)
-                .orElseThrow(() -> new ApiException(ErrorCode.BANK_ACCOUNT_REQUIRED));
+        // 2) Tài khoản nhận tiền: người chơi chỉ định, hoặc lấy mặc định khi bỏ trống.
+        BankAccount bank = resolveBankAccount(userId, request.bankAccountId());
 
         // 3) Khóa row ví per-user (SELECT ... FOR UPDATE — fix M3): serialize các lệnh
         //    song song của cùng user để sumAmountSince + insert chạy tuần tự.
@@ -141,7 +152,53 @@ public class WithdrawalService {
                 Map.of("amount", amount.toPlainString(),
                         "bankAccountId", bank.getId().toString(),
                         "maskedLast4", bank.getMaskedLast4()), ip);
+
+        // Tin xác nhận đã nhận lệnh. Gửi ở đây, SAU khi ví đã bị trừ, để người chơi có
+        // một mẩu giải thích cho khoản tiền vừa rời ví trong lúc chờ admin duyệt.
+        notifications.notifyMoney(userId, NotificationType.WITHDRAWAL_REQUESTED, amount);
+
+        // Báo cho tầng chat gắn thẻ duyệt vào luồng hỗ trợ của chính người này. Listener
+        // chạy SAU KHI transaction commit, nên một lỗi ở đó không làm mất lệnh rút — lệnh
+        // vẫn xử lý được ở trang duyệt rút tiền, chỉ thiếu thẻ trong chat.
+        events.publishEvent(new WithdrawalRequestedEvent(this, userId, order.getId(), amount));
+
         return PaymentOrderResponse.from(order);
+    }
+
+    /**
+     * Chọn tài khoản nhận tiền cho lệnh rút.
+     *
+     * Bỏ trống thì dùng tài khoản MẶC ĐỊNH — giữ nguyên hành vi trước khi có tính năng chọn.
+     *
+     * Có chỉ định thì BẮT BUỘC kiểm hai điều: tài khoản thuộc CHÍNH người đang đăng nhập, và
+     * đang ACTIVE. Thiếu bước kiểm chủ sở hữu là lỗ hổng chuyển tiền: id tài khoản là UUID
+     * nhưng nó xuất hiện trong response của người khác (và trong khu quản trị), nên không thể
+     * coi việc biết id là bằng chứng sở hữu.
+     *
+     * Trả NOT_FOUND — KHÔNG phải FORBIDDEN — khi tài khoản thuộc người khác: FORBIDDEN xác
+     * nhận rằng id đó có thật, biến endpoint này thành công cụ dò sự tồn tại của tài khoản.
+     */
+    private BankAccount resolveBankAccount(UUID userId, String bankAccountId) {
+        if (bankAccountId == null || bankAccountId.isBlank()) {
+            return bankAccountRepository
+                    .findFirstByUserIdAndIsDefaultTrueAndStatus(userId, BankAccountStatus.ACTIVE)
+                    .orElseThrow(() -> new ApiException(ErrorCode.BANK_ACCOUNT_REQUIRED));
+        }
+
+        UUID id;
+        try {
+            id = UUID.fromString(bankAccountId.trim());
+        } catch (IllegalArgumentException notAUuid) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    ErrorCode.VALIDATION_ERROR.defaultMessage(),
+                    Map.of("field", "bankAccountId"), "validation.withdrawal.bank_account.invalid");
+        }
+
+        return bankAccountRepository.findFirstById(id)
+                .filter(ba -> ba.getUserId().equals(userId))
+                .filter(ba -> ba.getStatus() == BankAccountStatus.ACTIVE)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
+                        ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.bank_account"));
     }
 
     /**
@@ -151,9 +208,11 @@ public class WithdrawalService {
      * CHẮN TỰ DUYỆT (chặng 5): admin không được duyệt lệnh rút của chính mình. Thiếu
      * chốt này thì một admin có thể tự cộng tiền vào ví rồi tự duyệt rút — chuyển tiền
      * ra khỏi sàn mà không ai khác biết.
+     *
+     * @param note lý do duyệt, ghi vào nhật ký. Bắt buộc ở tầng controller.
      */
     @Transactional
-    public PaymentOrderResponse approve(UUID orderId, UUID adminId, String ip) {
+    public PaymentOrderResponse approve(UUID orderId, UUID adminId, String note, String ip) {
         requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_APPROVE", ip);
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.SETTLED, nowMicros());
@@ -166,7 +225,9 @@ public class WithdrawalService {
         audit.record(adminId, null, AuditTrailService.WITHDRAWAL_APPROVED,
                 "PAYMENT_ORDER", order.getId().toString(),
                 Map.of("amount", order.getAmount().toPlainString(),
-                        "userId", order.getUserId().toString()), ip);
+                        "userId", order.getUserId().toString(),
+                        "note", note), ip);
+        notifications.notifyMoney(order.getUserId(), NotificationType.WITHDRAWAL_APPROVED, order.getAmount());
         return PaymentOrderResponse.from(order);
     }
 
@@ -177,9 +238,11 @@ public class WithdrawalService {
      *
      * Cũng chặn tự xử lý lệnh của chính mình: từ chối làm tiền quay lại ví nên vẫn
      * là thao tác tài chính trên tài khoản của chính admin đó.
+     *
+     * @param note lý do từ chối, ghi vào nhật ký. Bắt buộc ở tầng controller.
      */
     @Transactional
-    public PaymentOrderResponse reject(UUID orderId, UUID adminId, String ip) {
+    public PaymentOrderResponse reject(UUID orderId, UUID adminId, String note, String ip) {
         requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_REJECT", ip);
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.VOIDED, nowMicros());
@@ -198,7 +261,9 @@ public class WithdrawalService {
                 "PAYMENT_ORDER", order.getId().toString(),
                 Map.of("amount", order.getAmount().toPlainString(),
                         "userId", order.getUserId().toString(),
-                        "balanceAfter", balanceAfter.amount().toPlainString()), ip);
+                        "balanceAfter", balanceAfter.amount().toPlainString(),
+                        "note", note), ip);
+        notifications.notifyMoney(order.getUserId(), NotificationType.WITHDRAWAL_REJECTED, order.getAmount());
         return PaymentOrderResponse.from(order);
     }
 

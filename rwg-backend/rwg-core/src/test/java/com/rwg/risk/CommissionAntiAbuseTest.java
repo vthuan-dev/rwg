@@ -83,7 +83,7 @@ class CommissionAntiAbuseTest {
     private User newUser(String prefix) {
         String name = prefix + UUID.randomUUID().toString().substring(0, 8);
         return userRepository.save(
-                new User(name, name + "@example.com", "hash-khong-dung-de-login"));
+                new User(name, null, "hash-khong-dung-de-login"));
     }
 
     /** Nối tuyến dưới vào đại lý qua mã giới thiệu (đường thật, không ghi tay quan hệ). */

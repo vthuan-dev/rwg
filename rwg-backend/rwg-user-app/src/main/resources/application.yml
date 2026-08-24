@@ -89,6 +89,10 @@ rwg:
     # provider=dev -> dùng stub (chấp nhận token khác rỗng); TODO: tích hợp provider thật ở bước sau.
     enforced: ${RWG_CAPTCHA_ENFORCED:true}
     provider: ${RWG_CAPTCHA_PROVIDER:dev}
+  cors:
+    # Danh sách origin được phép gọi API. RỖNG ở base -> không đăng ký mapping CORS
+    # nào (mọi request chéo origin bị chặn), an toàn khi frontend cùng domain.
+    allowed-origins: []
   websocket:
     # KHÔNG hard-code "*" ở base: môi trường thật PHẢI cấu hình danh sách origin cụ thể.
     # Profile dev đặt ["*"]; test đặt ["*"] để context khởi động được.
@@ -124,12 +128,6 @@ rwg:
     scheduler-enabled: ${RWG_COMMISSION_SCHEDULER_ENABLED:true}
     # 01:00 UTC mỗi ngày, chốt cho NGÀY UTC HÔM QUA (đủ trễ để vòng cuối ngày settle xong).
     cron: ${RWG_COMMISSION_CRON:0 0 1 * * *}
-  admin:
-    # Hạn mức điều chỉnh ví thủ công — lớp chặn thiệt hại khi tài khoản admin bị lạm
-    # dụng. Vượt trần mỗi lần thì KHÔNG thực thi ngay mà phải qua quy trình 4 mắt
-    # (admin thứ hai phê duyệt). Trần ngày là giới hạn cứng, kể cả đã được phê duyệt.
-    adjust-max-per-transaction: ${RWG_ADMIN_ADJUST_MAX:1000}
-    adjust-daily-max-per-admin: ${RWG_ADMIN_ADJUST_DAILY_MAX:10000}
   risk:
     # Dò đa tài khoản. Điểm chặn là HOA HỒNG, không phải tài khoản: người bị nghi
     # vẫn chơi/nạp/cược bình thường, chỉ dòng hoa hồng tự trả bị giữ.

@@ -34,20 +34,43 @@ rwg:
     # Default shared-secret callback CHỈ dành cho DEV — CẤM DÙNG CHO MÔI TRƯỜNG THẬT.
     # Mọi môi trường khác bắt buộc set biến môi trường RWG_PAYMENT_CALLBACK_SECRET.
     callback-secret: dev-only-rwg-payment-callback-secret-CHANGE-ME-0123456789
+  cors:
+    # Frontend dev chạy ở cổng 3000, backend người chơi ở 8080 -> khác origin, nên
+    # BẮT BUỘC khai báo ở đây, không thì trình duyệt chặn ngay bước preflight.
+    allowed-origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
   websocket:
     # Dev cho phép mọi origin; các môi trường khác phải cấu hình danh sách cụ thể.
     allowed-origin-patterns:
       - "*"
   redis:
-    # Redis OPTIONAL ở dev: chưa cài Redis thì giữ false -> app dùng fallback
-    # in-memory (refresh token + rate limit). Có Redis rồi thì set RWG_REDIS_ENABLED=true.
-    # HẠN CHẾ của fallback: state KHÔNG được chia sẻ giữa nhiều instance - chỉ dùng dev.
-    enabled: ${RWG_REDIS_ENABLED:false}
+    # BẬT ở dev vì CHAT HỖ TRỢ CẦN Redis để hoạt động đúng.
+    #
+    # Broker STOMP của dự án là enableSimpleBroker — nó nằm TRONG BỘ NHỚ của từng JVM.
+    # Người chơi nối WebSocket vào app này (8080), nhân sự nối vào app quản trị (8081),
+    # nên hai broker không biết gì về nhau. Redis pub/sub là đường DUY NHẤT chở sự kiện
+    # chat qua lại (xem ChatRelayConfig).
+    #
+    # Để false thì ChatRelayConfig không được tạo, ChatEventPublisher.relay() gặp
+    # redis == null rồi bỏ qua IM LẶNG: tin nhắn vẫn vào MySQL đúng, nhưng phía kia
+    # KHÔNG BAO GIỜ thấy tin mới cho tới khi người dùng TỰ TẢI LẠI TRANG. Không có
+    # polling nào bù lại việc này — cả hai màn hình chat đều chỉ dựa vào WebSocket.
+    #
+    # Chưa cài Redis thì đặt RWG_REDIS_ENABLED=false: app vẫn khởi động bình thường với
+    # fallback in-memory cho refresh token + rate limit, chỉ mất realtime của chat.
+    # HẠN CHẾ của fallback: state KHÔNG chia sẻ giữa nhiều instance — chỉ dùng cho dev.
+    #
+    # PHẢI GIỐNG NHAU Ở CẢ HAI APP: bật một bên thì bên đó publish vào Redis nhưng bên
+    # kia không có listener, và không ai nhận được gì — y như tắt cả hai.
+    enabled: ${RWG_REDIS_ENABLED:true}
 
 management:
   health:
     redis:
-      enabled: ${RWG_REDIS_HEALTH_ENABLED:false}
+      # Theo cờ trên: bật Redis thì health check cũng nên phản ánh trạng thái thật, để
+      # Redis chết hiện ra ở /actuator/health thay vì âm thầm làm chat mất realtime.
+      enabled: ${RWG_REDIS_HEALTH_ENABLED:true}
 
 logging:
   level:

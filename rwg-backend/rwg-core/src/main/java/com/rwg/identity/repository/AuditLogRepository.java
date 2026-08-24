@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,4 +38,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
                                   @Param("from") Instant from,
                                   @Param("to") Instant to,
                                   Pageable pageable);
+
+    /**
+     * Nạp nhật ký của NHIỀU đối tượng trong một truy vấn — cho bảng lịch sử rút tiền, nơi mỗi
+     * dòng cần biết ai đã quyết định và vì sao.
+     *
+     * Nếu tra từng dòng thì một trang 10 lệnh là 10 lượt gọi DB thêm mỗi lần mở trang.
+     *
+     * Vẫn là thao tác ĐỌC: bảng audit_log append-only, repository này không có method sửa/xoá.
+     */
+    List<AuditLog> findByActionInAndTargetIdIn(Collection<String> actions, Collection<String> targetIds);
 }
