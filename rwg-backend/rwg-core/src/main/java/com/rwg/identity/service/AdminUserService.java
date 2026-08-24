@@ -9,6 +9,7 @@ import com.rwg.identity.domain.User;
 import com.rwg.identity.domain.UserRole;
 import com.rwg.identity.domain.UserStatus;
 import com.rwg.identity.dto.AdminUserDetailResponse;
+import com.rwg.identity.dto.AdminUserListItemResponse;
 import com.rwg.identity.dto.ChangeUserRoleRequest;
 import com.rwg.identity.dto.ChangeUserStatusRequest;
 import com.rwg.identity.dto.UpdateKycLevelRequest;
@@ -18,7 +19,10 @@ import com.rwg.payment.domain.PaymentStatus;
 import com.rwg.payment.domain.PaymentType;
 import com.rwg.payment.repository.PaymentOrderRepository;
 import com.rwg.wallet.domain.Wallet;
+import com.rwg.wallet.domain.WalletRefType;
 import com.rwg.wallet.repository.WalletRepository;
+import com.rwg.wallet.repository.WalletTransactionRepository;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -28,6 +32,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Nghiệp vụ quản trị người dùng (chặng 3). Toàn bộ endpoint gọi service này nằm dưới
@@ -53,24 +58,33 @@ public class AdminUserService {
     private final PaymentOrderRepository paymentOrderRepository;
     private final RefreshTokenStore refreshTokenStore;
     private final AuditTrailService audit;
+    private final WalletTransactionRepository transactionRepository;
 
     public AdminUserService(UserRepository userRepository,
                             WalletRepository walletRepository,
                             PaymentOrderRepository paymentOrderRepository,
                             RefreshTokenStore refreshTokenStore,
-                            AuditTrailService audit) {
+                            AuditTrailService audit,
+                            WalletTransactionRepository transactionRepository) {
         this.userRepository = userRepository;
         this.walletRepository = walletRepository;
         this.paymentOrderRepository = paymentOrderRepository;
         this.refreshTokenStore = refreshTokenStore;
         this.audit = audit;
+        this.transactionRepository = transactionRepository;
     }
 
     // ===== ĐỌC =====
 
-    /** Tìm kiếm user; mọi filter optional (null/blank = bỏ qua). */
+    /**
+     * Tìm kiếm user; mọi filter optional (null/blank = bỏ qua).
+     *
+     * Kèm số dư ví của từng dòng: người vận hành cần thấy số dư ngay trên bảng để biết nên
+     * mở tài khoản nào, thay vì phải bấm vào từng người mới biết.
+     */
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> search(String status, String role, String keyword, int page, int size) {
+    public PageResponse<AdminUserListItemResponse> search(String status, String role, String keyword,
+                                                          int page, int size) {
         UserStatus statusFilter = status == null || status.isBlank() ? null : parseStatus(status);
         UserRole roleFilter = role == null || role.isBlank() ? null : parseRole(role);
         // Wildcard được thêm Ở ĐÂY (repository nhận pattern hoàn chỉnh) và escape các
@@ -78,10 +92,34 @@ public class AdminUserService {
         String keywordFilter = keyword == null || keyword.isBlank()
                 ? null
                 : "%" + escapeLike(keyword.trim().toLowerCase()) + "%";
-        return PageResponse.from(
-                userRepository.searchForAdmin(statusFilter, roleFilter, keywordFilter,
-                        PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))),
-                AuthService::toResponse);
+
+        Page<User> found = userRepository.searchForAdmin(statusFilter, roleFilter, keywordFilter,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+
+        // MỘT truy vấn cho toàn bộ ví của trang, không phải mỗi dòng một lượt: với size mặc
+        // định 20 thì cách kia thành 21 truy vấn cho một lần vẽ bảng.
+        Map<UUID, Wallet> walletByUser = found.getContent().isEmpty()
+                ? Map.of()
+                : walletRepository.findByUserIdIn(
+                        found.getContent().stream().map(User::getId).toList()).stream()
+                .collect(Collectors.toMap(Wallet::getUserId, w -> w));
+
+        return PageResponse.from(found, user -> {
+            Wallet wallet = walletByUser.get(user.getId());
+
+            // Ví null nghĩa là tài khoản chưa từng phát sinh giao dịch. Trả "0.00" thay vì
+            // null: với người vận hành, "chưa có ví" và "số dư bằng không" là cùng một điều.
+            String balance = wallet == null
+                    ? Money.zero().amount().toPlainString()
+                    : Money.of(wallet.getBalance()).amount().toPlainString();
+            String currency = wallet == null ? Wallet.DEFAULT_CURRENCY : wallet.getCurrency();
+
+            return new AdminUserListItemResponse(
+                    user.getId(), user.getUsername(), user.getEmail(),
+                    user.getRole().name(), user.getStatus().name(), user.getKycLevel().name(),
+                    user.getWithdrawalPasswordHash() != null, user.getLocale(),
+                    user.getCreatedAt(), balance, currency);
+        });
     }
 
     /** Chi tiết user kèm ảnh chụp tài chính (số dư, tổng nạp/rút, lệnh chờ duyệt). */
@@ -101,6 +139,18 @@ public class AdminUserService {
                 userId, PaymentType.DEPOSIT, PaymentStatus.SUCCESS);
         BigDecimal withdrawn = paymentOrderRepository.sumAmountByUserAndTypeAndStatus(
                 userId, PaymentType.WITHDRAWAL, PaymentStatus.SETTLED);
+
+        // Cộng thêm số tiền điều chỉnh thủ công (ADJUSTMENT) của Admin
+        if (wallet != null) {
+            BigDecimal adjustCredit = transactionRepository.sumCreditByWalletIdAndRefType(wallet.getId(), WalletRefType.ADJUSTMENT);
+            BigDecimal adjustDebit = transactionRepository.sumDebitByWalletIdAndRefType(wallet.getId(), WalletRefType.ADJUSTMENT);
+            if (adjustCredit != null) {
+                deposited = deposited.add(adjustCredit);
+            }
+            if (adjustDebit != null) {
+                withdrawn = withdrawn.add(adjustDebit);
+            }
+        }
 
         return new AdminUserDetailResponse(
                 user.getId(), user.getUsername(), user.getEmail(),

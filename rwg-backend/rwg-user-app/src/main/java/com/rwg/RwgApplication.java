@@ -2,8 +2,12 @@ package com.rwg;
 
 import com.rwg.affiliate.api.AdminAffiliateController;
 import com.rwg.affiliate.api.AdminDashboardController;
+import com.rwg.bank.api.AdminPayoutMethodController;
+import com.rwg.chat.api.AdminChatController;
 import com.rwg.game.api.AdminGameController;
+import com.rwg.game.api.AdminUserOddsController;
 import com.rwg.identity.api.AdminApprovalController;
+import com.rwg.identity.api.AdminAuthController;
 import com.rwg.identity.api.AdminAuditController;
 import com.rwg.identity.api.AdminController;
 import com.rwg.identity.api.AdminUserController;
@@ -40,6 +44,9 @@ import org.springframework.context.annotation.FilterType;
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {
                         AdminController.class,
+                        // Đăng nhập backoffice chỉ tồn tại ở rwg-admin-app: app người chơi đã
+                        // có /api/v1/auth/login riêng, không cần thêm cửa đăng nhập thứ hai.
+                        AdminAuthController.class,
                         AdminWithdrawalController.class,
                         AdminUserController.class,
                         AdminWalletController.class,
@@ -50,7 +57,15 @@ import org.springframework.context.annotation.FilterType;
                         AdminApprovalController.class,
                         AdminGameController.class,
                         AdminRiskController.class,
-                        AdminBannerController.class
+                        AdminBannerController.class,
+                        // Xem số tài khoản / địa chỉ ví của người chơi: chỉ thuộc khu quản trị.
+                        AdminPayoutMethodController.class,
+                        // Đặt tỷ lệ cược riêng cho từng người chơi: nếu lọt vào app người chơi thì
+                        // chính người chơi có thể gọi tới điểm cuối sửa tỷ lệ chi trả của mình.
+                        AdminUserOddsController.class,
+                        // Hộp thư hỗ trợ: nếu lọt vào app người chơi thì có một đường dẫn
+                        // công khai tới toàn bộ lịch sử trò chuyện của mọi người chơi khác.
+                        AdminChatController.class
                 }))
 public class RwgApplication {
 

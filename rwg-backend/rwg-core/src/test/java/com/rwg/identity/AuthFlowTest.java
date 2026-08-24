@@ -55,10 +55,10 @@ class AuthFlowTest {
         return prefix + UUID.randomUUID().toString().substring(0, 8);
     }
 
-    private String registerJson(String username, String email) {
+    private String registerJson(String username) {
         return """
-                {"username":"%s","email":"%s","password":"%s"}
-                """.formatted(username, email, PASSWORD);
+                {"username":"%s","password":"%s"}
+                """.formatted(username, PASSWORD);
     }
 
     private String loginJson(String identifier, String password) {
@@ -76,7 +76,7 @@ class AuthFlowTest {
     private MvcResult register(String username) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerJson(username, username + "@example.com")))
+                        .content(registerJson(username)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.role").value("PLAYER"))
@@ -115,29 +115,35 @@ class AuthFlowTest {
 
     @Test
     @Order(3)
-    void duplicateUsernameOrEmailReturnsGeneric409() throws Exception {
+    void duplicateUsernameReturnsGeneric409() throws Exception {
         String username = unique("dupuser");
         register(username);
         // Trùng username -> 409 CHUNG (không tiết lộ trường nào trong message).
         MvcResult dupUsername = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerJson(username, unique("dupmail") + "@example.com")))
+                        .content(registerJson(username)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CONFLICT"))
                 .andExpect(jsonPath("$.traceId").isNotEmpty())
                 .andReturn();
         assertThat(objectMapper.readTree(dupUsername.getResponse().getContentAsString())
                 .get("message").asText()).doesNotContain("username").doesNotContain("email");
+    }
 
-        // Trùng email (username mới) -> cũng 409 với message CHUNG như trên.
-        MvcResult dupEmail = mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerJson(unique("dupuser2"), username + "@example.com")))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("CONFLICT"))
-                .andReturn();
-        assertThat(objectMapper.readTree(dupEmail.getResponse().getContentAsString())
-                .get("message").asText()).doesNotContain("username").doesNotContain("email");
+    /**
+     * API đăng ký KHÔNG nhận email, nên nhiều tài khoản cùng có email NULL phải
+     * tạo được song song. Đây là điểm dễ vỡ nhất của thay đổi bỏ email: cột email
+     * vẫn còn ràng buộc UNIQUE, chỉ dựa vào việc MySQL không so trùng các giá trị
+     * NULL. Nếu ai đó đổi lại thành chuỗi rỗng thì người thứ hai sẽ bị 409.
+     */
+    @Test
+    @Order(16)
+    void multipleAccountsWithoutEmailCanCoexist() throws Exception {
+        register(unique("noemail1"))
+                .getResponse();
+        MvcResult second = register(unique("noemail2"));
+        assertThat(objectMapper.readTree(second.getResponse().getContentAsString())
+                .get("email").isNull()).isTrue();
     }
 
     @Test
@@ -146,11 +152,76 @@ class AuthFlowTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"ab","email":"not-an-email","password":"123"}
+                                {"username":"ab","password":"123"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details").isNotEmpty());
+    }
+
+    /**
+     * Mật khẩu rút tiền đặt LUÔN ở bước đăng ký (form khu người chơi có ô này).
+     * Sai định dạng phải bị chặn ngay, không được lặng lẽ bỏ qua rồi để người dùng
+     * tưởng đã đặt xong.
+     */
+    @Test
+    @Order(17)
+    void registerWithWithdrawalPasswordSetsItAndRejectsBadFormat() throws Exception {
+        String username = unique("withpin");
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"%s","password":"%s","withdrawalPassword":"135790"}
+                                """.formatted(username, PASSWORD)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.hasWithdrawalPassword").value(true));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"%s","password":"%s","withdrawalPassword":"12ab"}
+                                """.formatted(unique("badpin"), PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.withdrawalPassword").isNotEmpty());
+    }
+
+    /**
+     * Tài khoản mới phải lưu ngôn ngữ theo ngôn ngữ của chính request đăng ký.
+     *
+     * Test này tồn tại vì một lỗi thật: entity User mặc định locale = "en" và register
+     * không hề gán lại, nên người đăng ký ở giao diện tiếng Việt vẫn được lưu "en".
+     * Đăng nhập vào là frontend đọc locale này từ /users/me rồi CHUYỂN TOÀN BỘ giao
+     * diện sang tiếng Anh, người dùng không hiểu vì sao.
+     */
+    @Test
+    @Order(18)
+    void registerStoresLocaleFromRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Accept-Language", "vi")
+                        .content(registerJson(unique("locvi"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.locale").value("vi"));
+
+        // "zh-CN" phải rút về "zh": cột users.locale chỉ dài 8 ký tự và
+        // UpdateLocaleRequest chỉ nhận bốn mã ngắn — lưu "zh-CN" sẽ tạo ra tài khoản
+        // mà chính API đổi ngôn ngữ không đọc lại được.
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Accept-Language", "zh-CN")
+                        .content(registerJson(unique("loczh"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.locale").value("zh"));
+
+        // Ngôn ngữ không có bundle (tiếng Mã Lai) rơi về mặc định, KHÔNG lưu "ms":
+        // lưu vào sẽ khiến PATCH /users/me/locale sau này từ chối chính giá trị đó.
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Accept-Language", "ms")
+                        .content(registerJson(unique("locms"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.locale").value("en"));
     }
 
     @Test
@@ -378,8 +449,8 @@ class AuthFlowTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(unique("longpw"), unique("longpw"), longPassword)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(unique("longpw"), longPassword)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }

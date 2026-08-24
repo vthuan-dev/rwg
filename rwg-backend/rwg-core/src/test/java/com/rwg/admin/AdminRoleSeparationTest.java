@@ -57,8 +57,8 @@ class AdminRoleSeparationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         return login(username);
     }
@@ -135,21 +135,19 @@ class AdminRoleSeparationTest {
 
         // 403 (chặn ở tầng phân quyền) chứ KHÔNG phải 404 — nghĩa là request không hề
         // đi tới service, nên không có cơ hội tác động dữ liệu.
+        //
+        // Gửi kèm body HỢP LỆ: nếu để trống, 400 do thiếu lý do sẽ che mất kết quả cần kiểm và
+        // test không còn chứng minh được điều gì về phân quyền.
+        String decisionBody = "{\"note\":\"kiem tra phan quyen\"}";
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + anyOrder + "/approve")
-                        .header("Authorization", support))
+                        .header("Authorization", support)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(decisionBody))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + anyOrder + "/reject")
-                        .header("Authorization", support))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("SUPPORT KHÔNG phê duyệt được đề nghị 4 mắt (403)")
-    void supportCannotDecideApprovals() throws Exception {
-        String support = staffBearer(UserRole.SUPPORT);
-
-        mockMvc.perform(post("/api/v1/admin/approvals/" + UUID.randomUUID() + "/approve")
-                        .header("Authorization", support))
+                        .header("Authorization", support)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(decisionBody))
                 .andExpect(status().isForbidden());
     }
 

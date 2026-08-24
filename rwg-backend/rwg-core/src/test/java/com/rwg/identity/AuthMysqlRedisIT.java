@@ -82,8 +82,8 @@ class AuthMysqlRedisIT {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"MatKhau@12345"}
-                                """.formatted(username, username)))
+                                {"username":"%s","password":"MatKhau@12345"}
+                                """.formatted(username)))
                 .andExpect(status().isCreated());
 
         // Login

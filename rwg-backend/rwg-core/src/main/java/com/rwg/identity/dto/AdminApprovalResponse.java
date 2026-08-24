@@ -17,25 +17,29 @@ public record AdminApprovalResponse(
         String type,
         String status,
         UUID targetUserId,
+        String targetUsername,
         String direction,
         String amount,
         String reason,
         UUID makerId,
+        String makerUsername,
         UUID checkerId,
         String decisionNote,
         Instant decidedAt,
         Instant createdAt
 ) {
-    public static AdminApprovalResponse from(AdminApprovalRequest request) {
+    public static AdminApprovalResponse from(AdminApprovalRequest request, String targetUsername, String makerUsername) {
         return new AdminApprovalResponse(
                 request.getId(),
                 request.getType(),
                 request.getStatus(),
                 request.getTargetUserId(),
+                targetUsername,
                 request.getDirection(),
                 nullSafe(request.getAmount()),
                 request.getReason(),
                 request.getMakerId(),
+                makerUsername,
                 request.getCheckerId(),
                 request.getDecisionNote(),
                 request.getDecidedAt(),

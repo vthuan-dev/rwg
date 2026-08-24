@@ -3,6 +3,7 @@ package com.rwg.wallet.api;
 import com.rwg.common.PageResponse;
 import com.rwg.common.web.ClientAddresses;
 import com.rwg.wallet.dto.AdjustWalletRequest;
+import com.rwg.wallet.dto.WalletAdjustmentResponse;
 import com.rwg.wallet.dto.WalletResponse;
 import com.rwg.wallet.dto.WalletTransactionResponse;
 import com.rwg.wallet.service.AdminWalletService;
@@ -11,7 +12,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,28 +63,20 @@ public class AdminWalletController {
     }
 
     /**
-     * Cộng/trừ tiền thủ công.
+     * Cộng/trừ tiền thủ công. Luôn trả 200 OK — tiền chuyển ngay trong request này.
      *
-     * 200 OK  = tiền ĐÃ chuyển (dưới trần mỗi lần).
-     * 202 Accepted = đề nghị đã tạo, TIỀN CHƯA CHUYỂN, chờ admin thứ hai phê duyệt.
-     *
-     * Phân biệt bằng mã trạng thái để client không hiểu nhầm "đã xong" khi thực chất
-     * mới chỉ là đề nghị.
+     * TRƯỚC ĐÂY có thêm nhánh 202 Accepted cho khoản vượt hạn mức, khi đó chỉ tạo đề
+     * nghị chờ admin thứ hai duyệt. Quy trình 4 mắt đã bỏ nên chỉ còn một đường thoát.
      */
     @PostMapping("/adjust")
     @Operation(summary = "Cộng/trừ tiền thủ công (bắt buộc có lý do). "
-            + "Dưới hạn mức -> 200 và sinh 1 dòng ledger ADJUSTMENT. "
-            + "Vượt hạn mức -> 202 và chờ admin thứ hai phê duyệt (quy trình 4 mắt).")
-    public ResponseEntity<?> adjust(@PathVariable UUID userId,
-                                    @Valid @RequestBody AdjustWalletRequest request,
-                                    @AuthenticationPrincipal Jwt jwt,
-                                    HttpServletRequest httpRequest) {
-        AdminWalletService.AdjustOutcome outcome = adminWalletService.adjust(
+            + "Thực thi ngay với mọi số tiền và sinh 1 dòng ledger ADJUSTMENT.")
+    public WalletAdjustmentResponse adjust(@PathVariable UUID userId,
+                                           @Valid @RequestBody AdjustWalletRequest request,
+                                           @AuthenticationPrincipal Jwt jwt,
+                                           HttpServletRequest httpRequest) {
+        return adminWalletService.adjust(
                 userId, request, UUID.fromString(jwt.getSubject()),
                 ClientAddresses.clientIp(httpRequest));
-        if (outcome.isPending()) {
-            return ResponseEntity.accepted().body(outcome.pending());
-        }
-        return ResponseEntity.ok(outcome.executed());
     }
 }

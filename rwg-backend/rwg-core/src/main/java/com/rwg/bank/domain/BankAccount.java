@@ -15,9 +15,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
- * Tài khoản ngân hàng liên kết của user (map bảng bank_accounts).
- * Số tài khoản CHỈ lưu dạng MÃ HÓA (ciphertext + iv); API KHÔNG BAO GIỜ trả plaintext —
- * response chỉ có maskedLast4 (4 số cuối). PK composite (id, created_at).
+ * Phương thức nhận tiền của user (map bảng bank_accounts).
+ *
+ * Chỉ hỗ trợ tài khoản ngân hàng (BANK) theo yêu cầu mới nhất của dự án.
+ *
+ * Số tài khoản được lưu dạng mã hoá (ciphertext + iv).
+ *
+ * PK composite (id, created_at) theo DECISIONS.md mục (b).
  */
 @Entity
 @Table(name = "bank_accounts")
@@ -35,6 +39,7 @@ public class BankAccount {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    /** Mã ngân hàng. Bắt buộc. */
     @Column(name = "bank_code", nullable = false, length = 32)
     private String bankCode;
 
@@ -46,10 +51,11 @@ public class BankAccount {
     @Column(name = "account_number_iv", nullable = false, length = 64)
     private String accountNumberIv;
 
-    /** 4 số cuối để hiển thị (vd "1234"). */
+    /** 4 ký tự cuối để hiển thị (vd "1234"). */
     @Column(name = "masked_last4", nullable = false, length = 4)
     private String maskedLast4;
 
+    /** Tên chủ tài khoản. Bắt buộc. */
     @Column(name = "holder_name", nullable = false, length = 128)
     private String holderName;
 
@@ -67,8 +73,11 @@ public class BankAccount {
         // cho JPA
     }
 
-    public static BankAccount create(UUID userId, String bankCode, String ciphertext, String iv,
-                                     String maskedLast4, String holderName, boolean isDefault) {
+    /**
+     * Tạo phương thức nhận tiền dạng TÀI KHOẢN NGÂN HÀNG.
+     */
+    public static BankAccount createBank(UUID userId, String bankCode, String ciphertext, String iv,
+                                         String maskedLast4, String holderName, boolean isDefault) {
         BankAccount ba = new BankAccount();
         ba.userId = userId;
         ba.bankCode = bankCode;

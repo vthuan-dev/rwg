@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -53,8 +54,8 @@ class AdminPaymentQueryTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         return login(username);
     }
@@ -103,8 +104,8 @@ class AdminPaymentQueryTest {
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A"}
-                                """))
+                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A","withdrawalPassword":"%s"}
+                                """.formatted(WITHDRAW_PW)))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/v1/wallet/withdrawals")
                         .header("Authorization", bearer)
@@ -161,7 +162,23 @@ class AdminPaymentQueryTest {
                 .andReturn();
         JsonNode withdrawalBody = objectMapper.readTree(withdrawals.getResponse().getContentAsString());
         assertThat(withdrawalBody.get("totalElements").asLong()).isEqualTo(1);
-        assertThat(withdrawalBody.get("content").get(0).get("type").asText()).isEqualTo("WITHDRAWAL");
+
+        // KHÔNG khẳng định trên trường "type": endpoint này trả AdminWithdrawalRowResponse,
+        // một DTO chỉ dùng cho bảng lệnh rút nên không mang cột phân loại — mọi dòng ở đây
+        // đều là lệnh rút theo định nghĩa của endpoint. Thay vào đó kiểm các trường ĐẶC
+        // TRƯNG của lệnh rút, thứ mà một lệnh nạp lọt vào đây sẽ không có.
+        JsonNode row = withdrawalBody.get("content").get(0);
+        assertThat(row.get("status").asText()).isEqualTo("PENDING");
+        assertThat(row.get("userId").asText()).isEqualTo(player.id().toString());
+        // So sánh bằng BigDecimal, không so chuỗi: "50" và "50.00" là cùng một số tiền, và
+        // một thay đổi về cách định dạng không nên làm đỏ một test về bộ lọc.
+        assertThat(new BigDecimal(row.get("amount").asText()))
+                .isEqualByComparingTo(new BigDecimal("50"));
+        // Tài khoản nhận tiền: chỉ lệnh rút mới có, và chỉ được lộ 4 số cuối.
+        assertThat(row.get("bankCode").asText()).isEqualTo("VCB");
+        assertThat(row.get("maskedLast4").asText()).isEqualTo("6789");
+        // Lệnh còn PENDING thì chưa ai quyết định.
+        assertThat(row.get("decidedByUsername").isNull()).isTrue();
 
         // Lệnh rút KHÔNG lọt vào danh sách nạp (filter type là bắt buộc, không nhầm lẫn).
         MvcResult settled = mockMvc.perform(get("/api/v1/admin/deposits")

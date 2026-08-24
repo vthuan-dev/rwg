@@ -14,6 +14,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,9 +28,40 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
 
     Optional<PaymentOrder> findFirstById(UUID id);
 
+    /**
+     * Nạp NHIỀU lệnh theo mã trong một truy vấn.
+     *
+     * Cần cho hộp thư hỗ trợ: một trang lịch sử chat có thể chứa nhiều thẻ duyệt lệnh
+     * rút, và tra từng thẻ là một lượt gọi DB cho mỗi thẻ — trên màn hình được mở lại
+     * mỗi lần nhân sự chuyển luồng.
+     *
+     * Lọc theo {@code id} chứ không phải PK đầy đủ {@code (id, created_at)}: id là UUID
+     * nên thực tế đã unique, và bên gọi chỉ có mã lệnh chứ không lưu kèm thời điểm tạo.
+     */
+    List<PaymentOrder> findByIdIn(Collection<UUID> ids);
+
     Optional<PaymentOrder> findFirstByProviderTxnId(String providerTxnId);
 
     Optional<PaymentOrder> findFirstByIdempotencyKey(String idempotencyKey);
+
+    /**
+     * Lệnh nạp/rút của MỘT người chơi, mới nhất trước — cho màn hình lịch sử của họ.
+     *
+     * VÌ SAO KHÔNG DÙNG LẠI {@link #searchForAdmin}: hàm đó BẮT BUỘC truyền {@code type}
+     * vì khu quản trị tách riêng màn nạp và màn rút. Người chơi thì cần xem cả hai loại
+     * lẫn nhau theo trình tự thời gian, giống một sổ giao dịch.
+     */
+    Page<PaymentOrder> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+
+    /**
+     * Như trên nhưng chỉ MỘT loại lệnh — cho hai màn lịch sử nạp và rút riêng.
+     *
+     * PHẢI lọc ở đây chứ không lọc sau khi lấy về: nếu lấy một trang 20 lệnh lẫn cả nạp và
+     * rút rồi bỏ bớt ở phía client, mỗi trang sẽ còn số dòng khác nhau và tổng số trang
+     * tính ra không còn đúng với những gì người dùng thấy.
+     */
+    Page<PaymentOrder> findByUserIdAndTypeOrderByCreatedAtDesc(
+            UUID userId, PaymentType type, Pageable pageable);
 
     /** Tổng tiền đã rút trong ngày (loại trừ VOIDED) — phục vụ hạn mức rút theo ngày. */
     @Query("select coalesce(sum(o.amount), 0) from PaymentOrder o "
@@ -69,6 +102,28 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
                                       @Param("from") Instant from,
                                       @Param("to") Instant to,
                                       Pageable pageable);
+
+    /**
+     * Như {@link #searchForAdmin} nhưng nhận NHIỀU trạng thái cùng lúc.
+     *
+     * Cần cho trang lịch sử rút tiền: nó phải hiện CẢ lệnh đã duyệt và đã từ chối trong một
+     * bảng xếp theo thời gian. Gọi hai lần rồi trộn ở tầng trên sẽ làm phân trang sai — trang
+     * 1 của mỗi truy vấn ghép lại không phải trang 1 của tập hợp chung.
+     *
+     * {@code statuses} PHẢI không rỗng. JPQL {@code in (:x)} với x null sinh SQL không hợp lệ,
+     * nên nơi gọi truyền đủ mọi trạng thái khi không muốn lọc, thay vì truyền null.
+     */
+    @Query("select o from PaymentOrder o where "
+            + "o.type = :type and "
+            + "o.status in :statuses and "
+            + "(:userId is null or o.userId = :userId) and "
+            + "o.createdAt >= :from and o.createdAt < :to")
+    Page<PaymentOrder> searchForAdminByStatuses(@Param("type") PaymentType type,
+                                                @Param("statuses") Collection<PaymentStatus> statuses,
+                                                @Param("userId") UUID userId,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to,
+                                                Pageable pageable);
 
     /** Đếm lệnh theo loại + trạng thái (badge "chờ duyệt" trên dashboard admin). */
     long countByTypeAndStatus(PaymentType type, PaymentStatus status);

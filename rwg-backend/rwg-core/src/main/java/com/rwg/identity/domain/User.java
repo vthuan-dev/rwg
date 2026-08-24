@@ -28,7 +28,12 @@ public class User {
     @Column(name = "username", nullable = false, unique = true, length = 32)
     private String username;
 
-    @Column(name = "email", nullable = false, unique = true, length = 255)
+    /**
+     * Email — NULL được phép: form đăng ký của khu người chơi không có ô email.
+     * Vẫn giữ unique; MySQL cho phép nhiều dòng NULL trong unique index nên nhiều
+     * tài khoản không email cùng tồn tại, còn trùng email THẬT thì vẫn bị chặn.
+     */
+    @Column(name = "email", unique = true, length = 255)
     private String email;
 
     /** BCrypt strength 12. */
@@ -38,6 +43,23 @@ public class User {
     /** Hash riêng cho mật khẩu rút tiền; null cho tới khi user đặt. */
     @Column(name = "withdrawal_password_hash", length = 100)
     private String withdrawalPasswordHash;
+
+    /** Họ và tên người dùng tự khai; null khi chưa khai. */
+    @Column(name = "full_name", length = 100)
+    private String fullName;
+
+    /**
+     * Mã quốc gia ISO 3166-1 alpha-2, ví dụ "VN".
+     *
+     * Lưu MÃ chứ không lưu tên hiển thị: tên phụ thuộc ngôn ngữ đang xem nên cùng một
+     * quốc gia sẽ được ghi thành nhiều chuỗi khác nhau, làm cột mất giá trị để lọc.
+     */
+    @Column(name = "country_code", length = 2)
+    private String countryCode;
+
+    /** Số điện thoại người dùng tự khai; KHÔNG unique (xem migration). */
+    @Column(name = "phone", length = 20)
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 16)
@@ -91,6 +113,9 @@ public class User {
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
     public String getWithdrawalPasswordHash() { return withdrawalPasswordHash; }
+    public String getFullName() { return fullName; }
+    public String getCountryCode() { return countryCode; }
+    public String getPhone() { return phone; }
     public UserRole getRole() { return role; }
     public UserStatus getStatus() { return status; }
     public KycLevel getKycLevel() { return kycLevel; }
@@ -126,5 +151,17 @@ public class User {
 
     public void setLocale(String locale) {
         this.locale = locale;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setCountryCode(String countryCode) {
+        this.countryCode = countryCode;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 }

@@ -81,7 +81,7 @@ class GameBetSettlementIdempotencyTest {
     private UUID fundedUser(String seed, String amount) {
         String username = seed + UUID.randomUUID().toString().substring(0, 8);
         var user = userRepository.save(new com.rwg.identity.domain.User(
-                username, username + "@example.com", "not-used-hash"));
+                username, null, "not-used-hash"));
         walletService.credit(user.getId(), Money.of(amount), WalletRefType.DEPOSIT,
                 "SEED:" + user.getId(), "SEED:" + user.getId());
         return user.getId();

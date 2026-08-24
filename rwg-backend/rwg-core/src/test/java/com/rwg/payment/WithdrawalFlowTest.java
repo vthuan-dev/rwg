@@ -51,6 +51,14 @@ class WithdrawalFlowTest {
     private static final String PASSWORD = "MatKhau@12345";
     private static final String WITHDRAW_PW = "654321";
 
+    /**
+     * Body lý do cho thao tác duyệt/từ chối.
+     *
+     * Endpoint duyệt và từ chối đều BẮT BUỘC kèm lý do để ghi nhật ký — gọi không kèm body
+     * sẽ nhận 400 trước khi chạm tới nghiệp vụ.
+     */
+    private static final String DECISION_BODY = "{\"note\":\"kiem tra tu dong\"}";
+
     private String unique(String prefix) {
         return prefix + UUID.randomUUID().toString().substring(0, 8);
     }
@@ -59,8 +67,8 @@ class WithdrawalFlowTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -103,13 +111,17 @@ class WithdrawalFlowTest {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * PHẢI gọi sau {@link #setWithdrawalPassword}: liên kết tài khoản nhận tiền bây giờ
+     * đòi xác nhận mật khẩu rút, nên tài khoản chưa đặt sẽ bị từ chối.
+     */
     private String addDefaultBank(String bearer) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/wallet/me/bank-accounts")
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A"}
-                                """))
+                                {"bankCode":"VCB","accountNumber":"0123456789","holderName":"NGUYEN VAN A","withdrawalPassword":"%s"}
+                                """.formatted(WITHDRAW_PW)))
                 .andExpect(status().isCreated())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
@@ -218,7 +230,9 @@ class WithdrawalFlowTest {
 
         String adminBearer = adminBearer();
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + order.get("id").asText() + "/approve")
-                        .header("Authorization", adminBearer))
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SETTLED"));
 
@@ -227,7 +241,9 @@ class WithdrawalFlowTest {
 
         // Duyệt lại lệnh đã SETTLED -> 400 (idempotent-guard, không đổi trạng thái).
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + order.get("id").asText() + "/approve")
-                        .header("Authorization", adminBearer))
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isBadRequest());
         assertThat(balance(bearer)).isEqualByComparingTo("70");
     }
@@ -249,7 +265,9 @@ class WithdrawalFlowTest {
 
         String adminBearer = adminBearer();
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + order.get("id").asText() + "/reject")
-                        .header("Authorization", adminBearer))
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("VOIDED"));
 
@@ -258,7 +276,9 @@ class WithdrawalFlowTest {
 
         // Từ chối lại lệnh đã VOIDED -> 400, KHÔNG hoàn tiền lần hai.
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + order.get("id").asText() + "/reject")
-                        .header("Authorization", adminBearer))
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isBadRequest());
         assertThat(balance(bearer)).isEqualByComparingTo("100");
     }
@@ -269,7 +289,9 @@ class WithdrawalFlowTest {
         JsonNode tokens = registerAndLogin(username);
         String bearer = "Bearer " + tokens.get("accessToken").asText();
         mockMvc.perform(post("/api/v1/admin/withdrawals/" + UUID.randomUUID() + "/approve")
-                        .header("Authorization", bearer))
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(DECISION_BODY))
                 .andExpect(status().isForbidden());
     }
 
@@ -307,7 +329,9 @@ class WithdrawalFlowTest {
                 try {
                     start.await();
                     MvcResult r = mockMvc.perform(post("/api/v1/admin/withdrawals/" + orderId + "/" + action)
-                                    .header("Authorization", adminBearer))
+                                    .header("Authorization", adminBearer)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(DECISION_BODY))
                             .andReturn();
                     int sc = r.getResponse().getStatus();
                     if (sc == 200) ok.incrementAndGet();
@@ -422,5 +446,65 @@ class WithdrawalFlowTest {
                 .andExpect(status().isTooManyRequests());
         // Tiền KHÔNG bị trừ trong suốt quá trình brute-force.
         assertThat(balance(bearer)).isEqualByComparingTo("100");
+    }
+
+    private ResultActions requestWithdrawalWithBank(String bearer, String amount, String pw, String bankAccountId) throws Exception {
+        return mockMvc.perform(post("/api/v1/wallet/withdrawals")
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":"%s","withdrawalPassword":"%s","bankAccountId":"%s"}
+                                """.formatted(amount, pw, bankAccountId)));
+    }
+
+    @Test
+    void withdrawWithSpecificBankAccount() throws Exception {
+        String username = unique("wdspec");
+        JsonNode tokens = registerAndLogin(username);
+        String bearer = "Bearer " + tokens.get("accessToken").asText();
+        fund(bearer); // 100
+        setWithdrawalPassword(bearer);
+        String bankId = addDefaultBank(bearer);
+
+        // 1. Rút chỉ định bankAccountId của chính mình -> thành công
+        requestWithdrawalWithBank(bearer, "30", WITHDRAW_PW, bankId)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bankAccountId").value(bankId));
+    }
+
+    @Test
+    void withdrawWithOtherUserBankAccountReturns404() throws Exception {
+        String username1 = unique("wdother1");
+        JsonNode tokens1 = registerAndLogin(username1);
+        String bearer1 = "Bearer " + tokens1.get("accessToken").asText();
+        setWithdrawalPassword(bearer1);
+        String otherUserBankId = addDefaultBank(bearer1);
+
+        String username2 = unique("wdother2");
+        JsonNode tokens2 = registerAndLogin(username2);
+        String bearer2 = "Bearer " + tokens2.get("accessToken").asText();
+        fund(bearer2); // 100
+        setWithdrawalPassword(bearer2);
+        addDefaultBank(bearer2); // default bank của user 2
+
+        // 2. Rút chỉ định bankAccountId của người khác -> 404 NOT_FOUND
+        requestWithdrawalWithBank(bearer2, "30", WITHDRAW_PW, otherUserBankId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void withdrawWithInvalidBankAccountUuidReturns400() throws Exception {
+        String username = unique("wdinvaliduuid");
+        JsonNode tokens = registerAndLogin(username);
+        String bearer = "Bearer " + tokens.get("accessToken").asText();
+        fund(bearer); // 100
+        setWithdrawalPassword(bearer);
+        addDefaultBank(bearer);
+
+        // 3. Truyền bankAccountId không phải UUID hợp lệ -> 400
+        requestWithdrawalWithBank(bearer, "30", WITHDRAW_PW, "not-a-uuid-at-all")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }

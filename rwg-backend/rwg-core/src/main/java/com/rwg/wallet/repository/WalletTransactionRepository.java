@@ -61,4 +61,10 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     BigDecimal sumAdjustmentsByAdmin(@Param("adminId") String adminId,
                                      @Param("from") Instant from,
                                      @Param("to") Instant to);
+
+    @Query("select coalesce(sum(t.credit), 0) from WalletTransaction t where t.walletId = :walletId and t.refType = :refType")
+    BigDecimal sumCreditByWalletIdAndRefType(@Param("walletId") UUID walletId, @Param("refType") WalletRefType refType);
+
+    @Query("select coalesce(sum(t.debit), 0) from WalletTransaction t where t.walletId = :walletId and t.refType = :refType")
+    BigDecimal sumDebitByWalletIdAndRefType(@Param("walletId") UUID walletId, @Param("refType") WalletRefType refType);
 }

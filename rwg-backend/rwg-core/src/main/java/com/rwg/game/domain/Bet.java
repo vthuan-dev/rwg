@@ -51,6 +51,19 @@ public class Bet {
     @Column(name = "stake", nullable = false)
     private BigDecimal stake;
 
+    /**
+     * Odds lợi đã chốt lúc nhận cược, theo cùng quy ước engine (0.98 = cược 100 nhận 198).
+     *
+     * Chốt vào đây chứ không tra lại lúc thanh toán: người chơi đồng ý với con số họ
+     * thấy lúc đặt. Nếu thanh toán tra lại bảng tỷ lệ thì đổi tỷ lệ sau khi đã biết kết
+     * quả vẫn ảnh hưởng được tới cược cũ.
+     *
+     * NULL = cược đặt trước khi có tính năng tỷ lệ riêng. Thanh toán rơi về mặc định
+     * engine, nên các cược đang chờ lúc triển khai vẫn trả đúng như cũ.
+     */
+    @Column(name = "odds")
+    private BigDecimal odds;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private BetStatus status = BetStatus.PENDING;
@@ -70,6 +83,19 @@ public class Bet {
 
     public Bet(UUID roundId, UUID tableId, UUID userId, BetType betType, String selection,
                BigDecimal stake, String idempotencyKey) {
+        this(roundId, tableId, userId, betType, selection, stake, idempotencyKey, null);
+    }
+
+    /**
+     * Dạng đầy đủ có chốt odds.
+     *
+     * Dạng cũ ở trên được giữ lại và ủy quyền xuống đây với `odds = null`, để các chỗ
+     * đang tạo cược trong test không phải sửa đồng loạt.
+     *
+     * @param odds odds lợi hiệu lực, hoặc null để thanh toán dùng mặc định engine
+     */
+    public Bet(UUID roundId, UUID tableId, UUID userId, BetType betType, String selection,
+               BigDecimal stake, String idempotencyKey, BigDecimal odds) {
         this.roundId = roundId;
         this.tableId = tableId;
         this.userId = userId;
@@ -77,6 +103,7 @@ public class Bet {
         this.selection = selection == null ? "" : selection;
         this.stake = stake;
         this.idempotencyKey = idempotencyKey;
+        this.odds = odds;
         this.status = BetStatus.PENDING;
         this.payout = BigDecimal.ZERO;
     }
@@ -111,6 +138,7 @@ public class Bet {
     public BetType getBetType() { return betType; }
     public String getSelection() { return selection; }
     public BigDecimal getStake() { return stake; }
+    public BigDecimal getOdds() { return odds; }
     public BetStatus getStatus() { return status; }
     public BigDecimal getPayout() { return payout; }
     public String getIdempotencyKey() { return idempotencyKey; }

@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Cấu hình bảo mật: JWT resource server (HS256) + phân quyền theo vai trò.
@@ -76,14 +77,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
-                                                   SecurityProperties props) throws Exception {
+                                                   SecurityProperties props,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Endpoint auth công khai
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/admin/auth/**").permitAll()
                         // Xem banner & phát video/ảnh media công khai trên trang người chơi
                         .requestMatchers("/api/v1/banners/active", "/uploads/media/**").permitAll()
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
@@ -122,15 +125,13 @@ public class SecurityConfig {
                         // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK bị chặn ở đây.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")
                             .hasAnyRole("ADMIN", "FINANCE")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/approvals/*/approve")
-                            .hasAnyRole("ADMIN", "FINANCE")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/approvals/*/reject")
-                            .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/approve")
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/reject")
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/affiliate/commissions/run")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods/*/reveal")
                             .hasAnyRole("ADMIN", "FINANCE")
 
                         // Thao tác quản lý user (không chạm tiền): thêm SUPPORT.
@@ -139,6 +140,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/kyc")
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/reset")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/chat/**")
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
 
                         // Còn lại trong khu admin (chủ yếu GET tra cứu/báo cáo): mọi nhân sự

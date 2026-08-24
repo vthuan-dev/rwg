@@ -71,6 +71,10 @@ rwg:
   captcha:
     enforced: ${RWG_CAPTCHA_ENFORCED:true}
     provider: ${RWG_CAPTCHA_PROVIDER:dev}
+  cors:
+    # Danh sách origin được phép gọi API. RỖNG ở base: môi trường thật phải khai báo
+    # tường minh domain của khu quản trị. Profile dev mở cho localhost:3000.
+    allowed-origins: []
   websocket:
     allowed-origin-patterns: []
   rate-limit:
@@ -87,12 +91,6 @@ rwg:
     daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
   crypto:
     bank-enc-key: ${RWG_BANK_ENC_KEY}
-  admin:
-    # Hạn mức điều chỉnh ví. App NÀY là nơi thực sự xử lý các endpoint quản trị nên
-    # giá trị ở đây mới là giá trị có hiệu lực thực tế. Phải khớp với rwg-user-app
-    # để hành vi không khác nhau giữa hai app.
-    adjust-max-per-transaction: ${RWG_ADMIN_ADJUST_MAX:1000}
-    adjust-daily-max-per-admin: ${RWG_ADMIN_ADJUST_DAILY_MAX:10000}
   risk:
     # Dò đa tài khoản. App này KHÔNG đăng ký AuthController nên không tự dò được lúc
     # đăng ký, nhưng vẫn cần cấu hình để khu quản trị risk khởi động và để ngưỡng

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,8 +59,8 @@ class AdminUserManagementTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username":"%s","email":"%s@example.com","password":"%s"}
-                                """.formatted(username, username, PASSWORD)))
+                                {"username":"%s","password":"%s"}
+                                """.formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
         return login(username);
     }
@@ -339,7 +340,22 @@ class AdminUserManagementTest {
                 .andReturn();
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         assertThat(body.get("totalElements").asLong()).isEqualTo(1);
-        assertThat(body.get("content").get(0).get("username").asText()).isEqualTo(target);
+
+        JsonNode row = body.get("content").get(0);
+        assertThat(row.get("username").asText()).isEqualTo(target);
+
+        // Danh sách phải kèm số dư: bảng quản trị hiện cột này, không phải chỉ ở trang chi tiết.
+        // Người vừa đăng ký chưa có giao dịch nào nên số dư là 0, và backend trả "0.00" chứ
+        // không null — phía hiển thị không cần phân biệt "chưa có ví" với "số dư bằng không".
+        assertThat(row.hasNonNull("balance")).isTrue();
+        assertThat(new BigDecimal(row.get("balance").asText())).isEqualByComparingTo("0");
+        assertThat(row.get("currency").asText()).isNotBlank();
+
+        // Tiền PHẢI là chuỗi JSON, không phải số: Jackson tuần tự hoá BigDecimal thành số và
+        // JavaScript sẽ làm tròn sai ở các số lẻ khi đọc lại.
+        assertThat(row.get("balance").isTextual())
+                .as("balance phải là chuỗi JSON để không mất chính xác ở client")
+                .isTrue();
 
         // Cùng keyword nhưng status ACTIVE -> không khớp ai.
         MvcResult empty = mockMvc.perform(get("/api/v1/admin/users")

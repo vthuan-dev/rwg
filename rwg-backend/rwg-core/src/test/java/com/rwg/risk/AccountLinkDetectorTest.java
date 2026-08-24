@@ -58,8 +58,8 @@ class AccountLinkDetectorTest {
         MockHttpServletRequestBuilder builder = post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"username":"%s","email":"%s@example.com","password":"%s"}
-                        """.formatted(username, username, PASSWORD));
+                        {"username":"%s","password":"%s"}
+                        """.formatted(username, PASSWORD));
         if (ip != null) {
             builder = builder.with(request -> {
                 request.setRemoteAddr(ip);

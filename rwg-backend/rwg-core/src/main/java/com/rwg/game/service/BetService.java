@@ -43,18 +43,21 @@ public class BetService {
     private final BetRepository betRepository;
     private final WalletService walletService;
     private final GameEventBroadcaster broadcaster;
+    private final OddsResolver oddsResolver;
     private final Object[] lockStripes = new Object[LOCK_STRIPES];
 
     public BetService(GameTableRepository tableRepository,
                       GameRoundRepository roundRepository,
                       BetRepository betRepository,
                       WalletService walletService,
-                      GameEventBroadcaster broadcaster) {
+                      GameEventBroadcaster broadcaster,
+                      OddsResolver oddsResolver) {
         this.tableRepository = tableRepository;
         this.roundRepository = roundRepository;
         this.betRepository = betRepository;
         this.walletService = walletService;
         this.broadcaster = broadcaster;
+        this.oddsResolver = oddsResolver;
         for (int i = 0; i < LOCK_STRIPES; i++) {
             lockStripes[i] = new Object();
         }
@@ -125,8 +128,13 @@ public class BetService {
             Money balanceAfter = walletService.debit(userId, stake, WalletRefType.BET,
                     round.getId().toString(), idempotencyKey);
 
+            // Chốt odds hiệu lực vào bản ghi cược. Thanh toán đọc tại đây chứ không tra lại
+            // bảng tỷ lệ: người chơi đồng ý với con số họ thấy lúc đặt, nên đổi tỷ lệ sau đó
+            // không được phép ảnh hưởng tới cược đã nhận.
+            BigDecimal odds = oddsResolver.effectiveOdds(userId, table, betType, selection);
+
             Bet bet = betRepository.save(new Bet(round.getId(), tableId, userId,
-                    betType, selection, stake.amount(), idempotencyKey));
+                    betType, selection, stake.amount(), idempotencyKey, odds));
             broadcaster.recordBet(tableId, round.getId(), stake.amount());
             return toResponse(bet, balanceAfter);
         }

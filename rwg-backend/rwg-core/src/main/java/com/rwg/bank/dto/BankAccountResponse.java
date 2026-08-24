@@ -5,12 +5,13 @@ import com.rwg.bank.domain.BankAccount;
 import java.time.Instant;
 
 /**
- * Response tài khoản ngân hàng — CHỈ lộ thông tin ĐÃ MASK (****1234),
+ * Response phương thức nhận tiền — CHỈ lộ thông tin ĐÃ CHE,
  * KHÔNG BAO GIỜ lộ số tài khoản đầy đủ.
  */
 public record BankAccountResponse(
         String id,
         String bankCode,
+        /** Giữ cho client: "****1234". */
         String maskedAccountNumber,
         String holderName,
         boolean isDefault,

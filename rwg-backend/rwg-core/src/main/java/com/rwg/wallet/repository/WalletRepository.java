@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +24,15 @@ import java.util.UUID;
 public interface WalletRepository extends JpaRepository<Wallet, UUID> {
 
     Optional<Wallet> findByUserId(UUID userId);
+
+    /**
+     * Ví của NHIỀU người dùng trong MỘT truy vấn.
+     *
+     * Dùng cho danh sách người dùng ở khu quản trị: gọi {@code findByUserId} trong vòng lặp
+     * sẽ thành 20 lượt đi lại chỉ để vẽ một trang bảng. Trả List chứ không Map — phía gọi
+     * tự gom theo `userId` vì mỗi người dùng có tối đa một ví.
+     */
+    List<Wallet> findByUserIdIn(Collection<UUID> userIds);
 
     /**
      * Khóa row ví của user (SELECT ... FOR UPDATE) — serialize các thao tác cần

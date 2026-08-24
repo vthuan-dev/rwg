@@ -61,13 +61,25 @@ public final class RouletteEngine {
      * validation đúng/sai thuộc {@link #validSelection(BetType, String)} phía nhận cược.
      */
     public static Money payout(BetType type, String selection, int number, Money stake) {
+        return payout(type, selection, number, stake, null);
+    }
+
+    /**
+     * Payout với odds chỉ định.
+     *
+     * @param oddsOverride odds lợi đã chốt lúc đặt cược, hoặc null để dùng {@link #oddsFor}.
+     *     Cược đặt trước khi có tính năng tỷ lệ riêng có cột này null, nên phải rơi về
+     *     mặc định thay vì coi là odds 0 và trả trắng cho người thắng.
+     */
+    public static Money payout(BetType type, String selection, int number, Money stake,
+                               BigDecimal oddsOverride) {
         if (stake == null || !stake.isPositive()) {
             return Money.zero();
         }
         if (!isWin(type, selection, number)) {
             return Money.zero();
         }
-        return stake.winningPayoutAtOdds(oddsFor(type));
+        return stake.winningPayoutAtOdds(oddsOverride != null ? oddsOverride : oddsFor(type));
     }
 
     /** Cược có THẮNG với số vừa quay? Số 0 chỉ thắng straight-0. */

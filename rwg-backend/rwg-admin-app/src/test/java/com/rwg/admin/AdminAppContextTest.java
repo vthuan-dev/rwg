@@ -43,12 +43,28 @@ class AdminAppContextTest {
         assertThat(routes).anyMatch(route -> route.contains("/wallet/adjust"));
     }
 
+    /**
+     * Nhân sự quản trị PHẢI đăng nhập được ở app này. Trước đây không có route nào
+     * để lấy token nên toàn bộ khu quản trị không thể truy cập từ trình duyệt.
+     */
+    @Test
+    void backofficeAuthRoutesAreMapped() {
+        List<String> routes = mappedRoutes();
+
+        assertThat(routes).anyMatch(route -> route.contains("/api/v1/admin/auth/login"));
+        assertThat(routes).anyMatch(route -> route.contains("/api/v1/admin/auth/refresh"));
+        assertThat(routes).anyMatch(route -> route.contains("/api/v1/admin/auth/logout"));
+    }
+
     @Test
     void playerRoutesAreNotMapped() {
         List<String> routes = mappedRoutes();
 
         // Các route player phải bị loại (xem AdminApplication.excludeFilters).
+        // Hai đường dẫn "/api/v1/auth/login" và "/api/v1/admin/auth/login" KHÔNG chồng
+        // nhau về chuỗi con, nên assert dưới đây không bắt nhầm cửa đăng nhập nhân sự.
         assertThat(routes).noneMatch(route -> route.contains("/api/v1/auth/login"));
+        assertThat(routes).noneMatch(route -> route.contains("/api/v1/auth/register"));
         assertThat(routes).noneMatch(route -> route.contains("/api/v1/users/me"));
         assertThat(routes).noneMatch(route -> route.contains("/api/v1/wallet/deposits"));
         assertThat(routes).noneMatch(route -> route.contains("/api/v1/wallet/withdrawals"));
