@@ -160,17 +160,17 @@ class Kl28FlowTest {
 
     @Test
     void testKoreanLucky28Lifecycle() throws Exception {
-        runFlowForTable("33333333-4444-5555-6666-777777777777", "KL28", "Korean Lucky 28");
+        runFlowForTable("33333333-4444-5555-6666-777777777777", "KL28", "May m\u1eafn 28 H\u00e0n");
     }
 
     @Test
     void testLucky28Lifecycle() throws Exception {
-        runFlowForTable("44444444-5555-6666-7777-888888888888", "LUCKY28", "Lucky 28");
+        runFlowForTable("44444444-5555-6666-7777-888888888888", "LUCKY28", "May m\u1eafn 28");
     }
 
     @Test
     void testBritishLucky28Lifecycle() throws Exception {
-        runFlowForTable("55555555-6666-7777-8888-999999999999", "BRITISH_LUCKY28", "British Lucky 28");
+        runFlowForTable("55555555-6666-7777-8888-999999999999", "BRITISH_LUCKY28", "May m\u1eafn 28 Anh");
     }
 
     @Test
