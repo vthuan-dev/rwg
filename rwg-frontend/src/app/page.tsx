@@ -10,26 +10,15 @@ import { FooterInfo } from "@/components/home/FooterInfo";
 export default function Home() {
   return (
     <PlayerLayout>
-      <main className="flex flex-col w-full min-h-screen">
-        {/* Header */}
-        <Header username="jinbao01" />
-
-        {/* Hero Banner Carousel */}
+      {/* KHÔNG đặt min-h ở đây: MobileShell đã giữ min-h-dvh. Thêm nữa sẽ cộng dồn
+          chiều cao và sinh ra một khoảng trượt rỗng bằng chiều cao thanh dưới. */}
+      <main className="flex flex-col w-full grow">
+        <Header />
         <BannerCarousel />
-
-        {/* Marquee Announcement Ticker */}
         <MarqueeNotice />
-
-        {/* Quick Action Buttons 2x2 Grid */}
         <QuickActions />
-
-        {/* Game List Section 2x2 Grid */}
         <GameGrid />
-
-        {/* Language Switcher Bar */}
         <LanguageBar />
-
-        {/* Partner & Certification Footer Info */}
         <FooterInfo />
       </main>
     </PlayerLayout>

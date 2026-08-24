@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   Image as ImageIcon,
@@ -10,12 +10,14 @@ import {
   XCircle,
   Trash2,
   RefreshCw,
-  X,
   Plus,
   ExternalLink,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
 import { USER_BASE_URL } from "@/lib/constants";
+import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
+import { AdminModal } from "@/components/admin/AdminModal";
+import { useTranslation } from "@/context/LanguageContext";
 
 interface BannerItem {
   id: string;
@@ -28,9 +30,23 @@ interface BannerItem {
   createdAt: string;
 }
 
+/** Một trang ảnh quảng cáo, khớp `PageResponse` của backend. */
+interface BannerPage {
+  content: BannerItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
 export default function AdminBannersPage() {
+  const { t } = useTranslation();
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Upload Modal
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -41,42 +57,56 @@ export default function AdminBannersPage() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
-  const loadBanners = async () => {
-    setLoading(true);
+  /**
+   * Lấy một trang ảnh quảng cáo.
+   *
+   * Trả dữ liệu về thay vì tự đặt state: `setState` gọi đồng bộ trong thân effect gây
+   * chuỗi render liên tiếp và luật lint của dự án chặn.
+   */
+  const fetchBanners = useCallback(async (): Promise<BannerPage | null> => {
     try {
-      const data = await adminFetch("/admin/banners");
-      if (Array.isArray(data)) {
-        setBanners(data);
-      }
-    } catch {
-      setBanners([
-        {
-          id: "b-1",
-          title: "Tích Luỹ Phần Thưởng 2026",
-          mediaType: "IMAGE",
-          mediaUrl: "/images/banner_promo.jpg",
-          isActive: true,
-          sortOrder: 1,
-          createdAt: "2026-08-20T10:00:00Z",
-        },
-        {
-          id: "b-2",
-          title: "Your Gateway To Fortune",
-          mediaType: "IMAGE",
-          mediaUrl: "/images/banner_gateway.jpg",
-          isActive: true,
-          sortOrder: 2,
-          createdAt: "2026-08-20T11:00:00Z",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+      // Endpoint tra ve PageResponse {content, totalPages, ...}, KHONG phai mang.
+      // Truoc day code kiem tra Array.isArray nen moi response that deu bi bo qua.
+      const data = await adminFetch<BannerPage>(`/admin/banners?page=${page}&size=10`);
+      setLoadError("");
+      return data;
+    } catch (err) {
+      setLoadError((err as Error).message);
+      return null;
     }
-  };
+  }, [page]);
+
+  /** Đưa kết quả vào state. Dùng chung cho lần tải đầu và các lần tải lại. */
+  const applyResult = useCallback((data: BannerPage | null) => {
+    setBanners(data?.content ?? []);
+    setTotalPages(data?.totalPages || 1);
+  }, []);
 
   useEffect(() => {
-    loadBanners();
-  }, []);
+    // Cờ huỷ: người vận hành có thể đổi trang trước khi request xong, và ghi state vào
+    // component đã tháo là một cảnh báo React kèm rò bộ nhớ.
+    let cancelled = false;
+
+    (async () => {
+      // Đặt state bên trong hàm async, không ở thân effect — xem lý do ở trên.
+      setLoading(true);
+      const data = await fetchBanners();
+      if (cancelled) return;
+      applyResult(data);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchBanners, applyResult]);
+
+  /** Tải lại sau khi ghi. Gọi ngoài effect nên đặt state trực tiếp là được. */
+  const reload = useCallback(async () => {
+    setLoading(true);
+    applyResult(await fetchBanners());
+    setLoading(false);
+  }, [fetchBanners, applyResult]);
 
   const handleToggleStatus = async (banner: BannerItem) => {
     try {
@@ -84,32 +114,32 @@ export default function AdminBannersPage() {
         method: "PATCH",
         body: JSON.stringify({ active: !banner.isActive }),
       });
-      loadBanners();
-    } catch (err: any) {
-      alert(err.message || "Đổi trạng thái thất bại");
+      void reload();
+    } catch (err) {
+      alert((err as Error).message || t("banners.err_state_failed"));
     }
   };
 
   const handleDeleteBanner = async (id: string) => {
-    if (!confirm("Anh có chắc muốn xoá banner này khỏi hệ thống?")) return;
+    if (!confirm(t("banners.confirm_delete"))) return;
     try {
       await adminFetch(`/admin/banners/${id}`, {
         method: "DELETE",
       });
-      loadBanners();
-    } catch (err: any) {
-      alert(err.message || "Xoá banner thất bại");
+      void reload();
+    } catch (err) {
+      alert((err as Error).message || t("banners.err_delete_failed"));
     }
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      setUploadError("Vui lòng chọn file Video hoặc Ảnh!");
+      setUploadError(t("banners.err_media_required"));
       return;
     }
     if (!title.trim()) {
-      setUploadError("Vui lòng nhập tiêu đề banner!");
+      setUploadError(t("banners.err_title_required"));
       return;
     }
 
@@ -132,9 +162,9 @@ export default function AdminBannersPage() {
       setFile(null);
       setTitle("");
       setLinkUrl("");
-      loadBanners();
-    } catch (err: any) {
-      setUploadError(err.message || "Upload banner thất bại");
+      void reload();
+    } catch (err) {
+      setUploadError((err as Error).message || t("banners.err_upload_failed"));
     } finally {
       setUploadLoading(false);
     }
@@ -143,8 +173,8 @@ export default function AdminBannersPage() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
-        title="Quản lý Banner Video & Media Quảng cáo"
-        subtitle="Upload video MP4/ảnh khuyến mãi trang chủ, quản lý thứ tự hiển thị"
+        title={t("banners.title")}
+        subtitle={t("banners.subtitle")}
       />
 
       <div className="p-6 flex flex-col gap-6">
@@ -152,7 +182,9 @@ export default function AdminBannersPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-red-600" />
-            <span className="text-sm font-extrabold text-slate-900">Danh sách Banners Trang chủ ({banners.length})</span>
+            <span className="text-sm font-extrabold text-slate-900">
+              {t("banners.list_title", { count: banners.length })}
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -161,10 +193,10 @@ export default function AdminBannersPage() {
               className="bg-red-600 hover:bg-red-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Upload Banner Video / Ảnh Mới</span>
+              <span>{t("banners.btn_upload")}</span>
             </button>
             <button
-              onClick={loadBanners}
+              onClick={reload}
               className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 shadow-xs"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`} />
@@ -172,7 +204,13 @@ export default function AdminBannersPage() {
           </div>
         </div>
 
-        {/* Banners Grid */}
+        {loadError ? (
+          <AdminErrorState message={loadError} onRetry={reload} />
+        ) : banners.length === 0 && !loading ? (
+          <div className="bg-white border border-slate-200 rounded-2xl">
+            <AdminEmptyState message={t("banners.empty")} />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {banners.map((banner) => (
             <div
@@ -239,8 +277,8 @@ export default function AdminBannersPage() {
                 )}
 
                 <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                  <span>Ưu tiên: Sort #{banner.sortOrder}</span>
-                  <span>{new Date(banner.createdAt).toLocaleDateString("vi-VN")}</span>
+                  <span>{t("banners.priority", { order: banner.sortOrder })}</span>
+                  <span>{new Date(banner.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
 
@@ -251,106 +289,131 @@ export default function AdminBannersPage() {
                   className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-1 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Xoá Banner</span>
+                  <span>{t("banners.delete_btn")}</span>
                 </button>
               </div>
             </div>
           ))}
         </div>
+        )}
+
+        {totalPages > 1 && !loadError && (
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span className="font-medium">
+              {t("admin.states.page_of", { page: page + 1, total: totalPages })}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 disabled:opacity-40 hover:bg-slate-100 font-bold"
+              >
+                {t("admin.states.prev_page")}
+              </button>
+              <button
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 disabled:opacity-40 hover:bg-slate-100 font-bold"
+              >
+                {t("admin.states.next_page")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl relative">
-            <button
-              onClick={() => setShowUploadModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      <AdminModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        maxWidthClass="max-w-md"
+        title={
+          <div className="flex items-center gap-3 w-full">
+            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 shrink-0">
+              <Upload className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <h3 className="text-base font-extrabold text-slate-900 truncate">
+                {t("banners.modal_upload_title")}
+              </h3>
+              <span className="text-xs text-slate-500 font-medium truncate">
+                {t("banners.modal_upload_subtitle")}
+              </span>
+            </div>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          {uploadError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold animate-modal-panel-in">
+              {uploadError}
+            </div>
+          )}
 
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600">
-                <Upload className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <h3 className="text-base font-extrabold text-slate-900">Upload Banner Video / Ảnh Mới</h3>
-                <span className="text-xs text-slate-500 font-medium">Hỗ trợ file MP4, WebM, PNG, JPG, WebP</span>
-              </div>
+          <form onSubmit={handleUploadSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">{t("banners.field_file")}</label>
+              <input
+                type="file"
+                required
+                accept="video/mp4,video/webm,image/png,image/jpeg,image/webp"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-900 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 outline-none cursor-pointer"
+              />
             </div>
 
-            {uploadError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold">
-                {uploadError}
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">{t("banners.field_title")}</label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Vd: Hero Video Casino 2026"
+                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
+              />
+            </div>
 
-            <form onSubmit={handleUploadSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Chọn File Media (Video/Ảnh) *</label>
-                <input
-                  type="file"
-                  required
-                  accept="video/mp4,video/webm,image/png,image/jpeg,image/webp"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-900 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 outline-none cursor-pointer"
-                />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">{t("banners.field_link")}</label>
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://rwg.com/promo-hero"
+                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
+              />
+            </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Tiêu đề Banner *</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Vd: Hero Video Casino 2026"
-                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
-                />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-700">{t("banners.field_sort")}</label>
+              <input
+                type="number"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
+              />
+            </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Link Liên kết khi bấm (Tùy chọn)</label>
-                <input
-                  type="url"
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://rwg.com/promo-hero"
-                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Thứ tự Ưu tiên (Sort Order)</label>
-                <input
-                  type="number"
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowUploadModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploadLoading}
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors disabled:opacity-50"
-                >
-                  {uploadLoading ? "Đang Upload..." : "Xác nhận Upload Banner"}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
+              >
+                {t("admin.states.cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={uploadLoading}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors disabled:opacity-50"
+              >
+                {uploadLoading ? t("banners.uploading") : t("banners.btn_confirm_upload")}
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

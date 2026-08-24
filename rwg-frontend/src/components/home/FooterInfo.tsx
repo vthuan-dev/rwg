@@ -1,113 +1,133 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
+
+/**
+ * Logo phương thức thanh toán, thứ tự đúng như trang gốc
+ * (`footer_logo4` … `footer_logo13`).
+ *
+ * Ảnh gốc đều 400×400 PNG có kênh trong suốt, đã chuyển sang WebP với
+ * `alphaQuality: 100` — nén mạnh kênh alpha sẽ sinh viền răng cưa thấy rõ trên nền
+ * đen của trang.
+ */
+const PAYMENT_LOGOS = [
+  { src: "/element/footer_logo4.webp", alt: "USDT" },
+  { src: "/element/footer_logo5.webp", alt: "Bitcoin" },
+  { src: "/element/footer_logo6.webp", alt: "Ethereum" },
+  { src: "/element/footer_logo7.webp", alt: "J9" },
+  { src: "/element/footer_logo8.webp", alt: "BUSD" },
+  { src: "/element/footer_logo9.webp", alt: "XRP" },
+  { src: "/element/footer_logo10.webp", alt: "USDC" },
+  { src: "/element/footer_logo11.webp", alt: "Dogecoin" },
+  { src: "/element/footer_logo12.webp", alt: "TRON" },
+  { src: "/element/footer_logo13.webp", alt: "VISA" },
+];
+
+/**
+ * Nhà cung cấp trò chơi (`footer_logo15` … `footer_logo18`).
+ *
+ * Mỗi logo có tỷ lệ khác nhau nên phải truyền kích thước THẬT của từng ảnh, không
+ * dùng một cặp width/height chung: sai tỷ lệ là logo bị bóp méo.
+ */
+const PROVIDER_LOGOS = [
+  { src: "/element/footer_logo15.webp", alt: "Asia Gaming", width: 400, height: 260 },
+  { src: "/element/footer_logo16.webp", alt: "BGaming", width: 400, height: 169 },
+  { src: "/element/footer_logo17.webp", alt: "Evolution Gaming", width: 400, height: 264 },
+  { src: "/element/footer_logo18.webp", alt: "Microgaming", width: 400, height: 196 },
+];
 
 export const FooterInfo: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <footer className="w-full px-4 pt-4 pb-12 bg-[#0c0c0e] border-t border-[#1a1a1e] text-xs text-gray-400 flex flex-col gap-5">
-      {/* Hợp tác & Chứng nhận */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Hợp tác */}
-        <div>
-          <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
+    // KHÔNG thêm padding đáy để tránh thanh điều hướng: MobileShell đã chừa chỗ
+    // bằng biến --bottom-nav-total. Giữ cả hai sẽ hở gần 100px cuối trang.
+    <footer className="w-full px-5 pt-6 pb-4 flex flex-col gap-6">
+      {/* Hợp tác (1/3) + Chứng nhận (2/3), đúng tỷ lệ cột của trang gốc. */}
+      <div className="flex gap-x-6">
+        <div className="w-1/3">
+          <h2 className="mb-2 text-[0.625rem] font-bold text-white">
             {t("footer.partners")}
-          </h4>
-          <div className="flex items-center gap-2">
-            <div className="bg-[#18181c] border border-[#26262c] rounded-lg p-2 flex items-center justify-center gap-1">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center font-extrabold text-[10px] text-white">
-                FIBA
-              </div>
-              <div className="flex flex-col text-[9px] leading-tight font-semibold text-gray-200">
-                <span>FIBA</span>
-                <span className="text-[7px] text-gray-400">Basketball</span>
-              </div>
-            </div>
-          </div>
+          </h2>
+          <Image
+            alt="FIBA"
+            className="block w-full h-auto"
+            height={187}
+            src="/element/footer_logo_1.webp"
+            width={400}
+          />
         </div>
 
-        {/* Chứng nhận */}
-        <div>
-          <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
+        <div className="w-2/3">
+          <h2 className="text-[0.625rem] font-bold text-white">
             {t("footer.certifications")}
-          </h4>
-          <div className="flex items-center gap-2">
-            <div className="bg-[#18181c] border border-green-800/40 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-gray-200">
-                GC Curacao
-              </span>
-            </div>
-            <div className="w-7 h-7 rounded-full border border-gray-600 flex items-center justify-center font-bold text-[10px] text-gray-300">
-              18+
-            </div>
+          </h2>
+          {/* `items-start` để hai logo cao khác nhau vẫn thẳng mép trên, không bị
+              logo cao hơn đẩy logo kia xuống giữa. */}
+          <div className="mt-2 flex items-start gap-x-4">
+            <Image
+              alt="Gaming Curaçao"
+              className="h-auto w-[120px] max-w-full"
+              height={148}
+              src="/element/footer_logo_2.webp"
+              width={400}
+            />
+            <Image
+              alt="18+"
+              className="size-12 shrink-0"
+              height={400}
+              src="/element/footer_logo3.webp"
+              width={400}
+            />
           </div>
         </div>
       </div>
 
-      {/* Thanh toán trực tuyến */}
+      {/* Thanh toán trực tuyến: 7 cột như trang gốc, 3 logo còn lại tự xuống dòng. */}
       <div>
-        <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
+        <h2 className="mb-2 text-[0.625rem] font-bold text-white">
           {t("footer.online_payment")}
-        </h4>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Crypto icons */}
-          <div className="w-7 h-7 rounded-full bg-emerald-900/40 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 text-xs">
-            ₮
-          </div>
-          <div className="w-7 h-7 rounded-full bg-amber-900/40 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 text-xs">
-            ₿
-          </div>
-          <div className="w-7 h-7 rounded-full bg-blue-900/40 border border-blue-500/40 flex items-center justify-center font-bold text-blue-400 text-xs">
-            Ξ
-          </div>
-          <div className="w-7 h-7 rounded-full bg-purple-900/40 border border-purple-500/40 flex items-center justify-center font-bold text-purple-400 text-xs">
-            J9
-          </div>
-          <div className="w-7 h-7 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center font-bold text-gray-200 text-[10px]">
-            VISA
-          </div>
+        </h2>
+        {/* Kích thước cố định 36px thay vì `w-full`: khung có thể rộng tới 640px,
+            để logo giãn theo cột thì mỗi icon phình lên ~75px, gấp đôi thiết kế. */}
+        <div className="grid grid-cols-7 gap-3">
+          {PAYMENT_LOGOS.map((logo) => (
+            <Image
+              alt={logo.alt}
+              className="size-9"
+              height={400}
+              key={logo.src}
+              src={logo.src}
+              width={400}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Trò chơi Providers */}
+      {/* Nhà cung cấp trò chơi: 4 cột. */}
       <div>
-        <h4 className="text-[11px] font-bold text-gray-300 uppercase mb-2">
+        <h2 className="mb-2 text-[0.625rem] font-bold text-white">
           {t("footer.game_providers")}
-        </h4>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-[#151518] border border-[#242429] rounded-lg p-2 flex items-center gap-2">
-            <span className="font-extrabold text-red-500 text-xs">AG</span>
-            <span className="text-[10px] font-bold text-gray-300">
-              Asia Gaming
-            </span>
-          </div>
-          <div className="bg-[#151518] border border-[#242429] rounded-lg p-2 flex items-center gap-2">
-            <span className="font-extrabold text-amber-500 text-xs">BG</span>
-            <span className="text-[10px] font-bold text-gray-300">
-              BGaming
-            </span>
-          </div>
-          <div className="bg-[#151518] border border-[#242429] rounded-lg p-2 flex items-center gap-2">
-            <span className="font-extrabold text-blue-400 text-xs">EVO</span>
-            <span className="text-[10px] font-bold text-gray-300">
-              Evolution
-            </span>
-          </div>
-          <div className="bg-[#151518] border border-[#242429] rounded-lg p-2 flex items-center gap-2">
-            <span className="font-extrabold text-emerald-500 text-xs">MG</span>
-            <span className="text-[10px] font-bold text-gray-300">
-              Microgaming
-            </span>
-          </div>
+        </h2>
+        <div className="grid grid-cols-4 items-center gap-5">
+          {PROVIDER_LOGOS.map((logo) => (
+            // `max-h-16` (64px) + `max-w-full`: chặn theo CHIỀU CAO để bốn logo trông
+            // cân nhau về mặt quang học dù tỷ lệ khác nhau, đồng thời không tràn khỏi
+            // cột trên máy hẹp. Logo rộng nhất (Evolution, tỷ lệ 1.52) ở 64px cao chỉ
+            // rộng ~97px, vẫn vừa cột ~135px của khung 640px. Trên máy 375px cột co
+            // xuống ~72px nên `max-w-full` sẽ hạ chiều cao thực tế — đúng ý muốn.
+            <Image
+              alt={logo.alt}
+              className="mx-auto h-auto max-h-16 w-auto max-w-full"
+              height={logo.height}
+              key={logo.src}
+              src={logo.src}
+              width={logo.width}
+            />
+          ))}
         </div>
-      </div>
-
-      {/* Copyright */}
-      <div className="text-center text-[10px] text-gray-600 pt-2 border-t border-[#18181c]">
-        {t("footer.copyright")}
       </div>
     </footer>
   );

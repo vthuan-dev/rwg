@@ -3,9 +3,31 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, RotateCcw } from "lucide-react";
-import { setAdminToken, adminFetch } from "@/lib/adminApi";
+import { setAdminToken, setAdminRefreshToken, adminFetch } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
+
+/**
+ * Phản hồi đăng nhập, khớp `TokenResponse` của backend.
+ *
+ * Trường là `accessToken`/`refreshToken`, KHÔNG phải `token`.
+ */
+interface TokenResponse {
+  accessToken?: string;
+  refreshToken?: string;
+}
+
+/** Bộ ký tự của mã xác thực. Bỏ I, O, 0, 1 vì nhìn dễ lẫn nhau. */
+const CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/** Sinh một mã xác thực 5 ký tự. */
+function randomCaptcha(): string {
+  let code = "";
+  for (let i = 0; i < 5; i++) {
+    code += CAPTCHA_CHARS.charAt(Math.floor(Math.random() * CAPTCHA_CHARS.length));
+  }
+  return code;
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -14,7 +36,14 @@ export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
-  const [captchaCode, setCaptchaCode] = useState("");
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [captchaCode, setCaptchaCode] = useState<string>("");
+
+  useEffect(() => {
+    setIsMounted(true);
+    setCaptchaCode(randomCaptcha());
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,19 +52,11 @@ export default function AdminLoginPage() {
     setLocale("en");
   }, [setLocale]);
 
+  /** Sinh mã xác thực mới và xoá ô nhập. */
   const generateCaptcha = useCallback(() => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-    for (let i = 0; i < 5; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptchaCode(code);
+    setCaptchaCode(randomCaptcha());
     setCaptchaInput("");
   }, []);
-
-  useEffect(() => {
-    generateCaptcha();
-  }, [generateCaptcha]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,23 +74,32 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const data = await adminFetch("/auth/login", {
+      // Endpoint RIÊNG của khu quản trị. App admin cố tình không đăng ký
+      // /api/v1/auth/login (đó là cửa của người chơi) nên gọi vào đó sẽ nhận 404.
+      const data = await adminFetch<TokenResponse>("/admin/auth/login", {
         method: "POST",
+        // Backend nhận "identifier" (username HOẶC email), không phải "username".
         body: JSON.stringify({
-          username: username.trim(),
+          identifier: username.trim(),
           password: password.trim(),
         }),
+        // Ở trang này, 401 nghĩa là sai mật khẩu — không phải phiên hết hạn.
+        skipAuthRedirect: true,
       });
 
-      if (data && data.token) {
-        setAdminToken(data.token);
+      // TokenResponse trả về accessToken/refreshToken, KHÔNG có field "token".
+      if (data && data.accessToken) {
+        setAdminToken(data.accessToken);
+        if (data.refreshToken) {
+          setAdminRefreshToken(data.refreshToken);
+        }
         router.push(ADMIN_URL_PREFIX);
       } else {
         setError("Login failed. Invalid response from server.");
         generateCaptcha();
       }
-    } catch (err: any) {
-      setError(err.message || "Invalid username or password.");
+    } catch (err) {
+      setError((err as Error).message || "Invalid username or password.");
       generateCaptcha();
     } finally {
       setLoading(false);
@@ -99,7 +129,7 @@ export default function AdminLoginPage() {
               strokeWidth={2}
             />
             <h1 className="text-center text-[15px] font-semibold uppercase tracking-[0.14em] text-[#1e5fc4]">
-              RWG Backoffice
+              Admin
             </h1>
           </div>
 
@@ -154,7 +184,7 @@ export default function AdminLoginPage() {
               />
 
               <span className="select-none font-mono text-[15px] font-semibold tracking-[0.2em] text-slate-800">
-                {captchaCode}
+                {isMounted ? captchaCode : "•••••"}
               </span>
 
               <button

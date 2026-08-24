@@ -1,17 +1,27 @@
 "use client";
 
 import React from "react";
+import { MobileShell } from "@/components/layout/MobileShell";
 import { BottomNav } from "@/components/layout/BottomNav";
 
-export const PlayerLayout: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+/**
+ * Khung các trang khu người chơi đã đăng nhập: dùng chung `MobileShell` với hai
+ * trang xác thực, cộng thêm thanh điều hướng dưới.
+ *
+ * Khung tự chừa chỗ cho thanh dưới qua `.pb-bottom-nav` (xem MobileShell), nên
+ * các trang con KHÔNG cần tự thêm padding đáy.
+ *
+ * `header` chuyển thẳng xuống `MobileShell` để thanh tiêu đề nằm NGOÀI vùng nội dung
+ * cuộn. Đặt thanh bên trong `children` thì `sticky top-0` của nó dính theo vùng cuộn của
+ * trang chứ không theo khung, nên khi cuộn thanh sẽ trôi lên mất.
+ */
+export const PlayerLayout: React.FC<{
+  children: React.ReactNode;
+  header?: React.ReactNode;
+}> = ({ children, header }) => {
   return (
-    <div className="w-full flex justify-center bg-[#070709] min-h-screen">
-      <div className="w-full max-w-[500px] bg-[#0d0d0f] min-h-screen flex flex-col relative shadow-2xl pb-20 border-x border-[#1a1a1e]">
-        {children}
-        <BottomNav />
-      </div>
-    </div>
+    <MobileShell bottomNav={<BottomNav />} header={header}>
+      {children}
+    </MobileShell>
   );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   Gamepad2,
@@ -8,280 +8,510 @@ import {
   XCircle,
   RefreshCw,
   Sliders,
-  X,
   AlertCircle,
+  Power,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
+import { formatMoney } from "@/lib/money";
+import { isSuperAdmin, hasAnyRole } from "@/lib/adminIdentity";
+import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
+import { AdminModal } from "@/components/admin/AdminModal";
+import { useTranslation } from "@/context/LanguageContext";
+import { BaccaratSimulator } from "@/components/admin/BaccaratSimulator";
+import { RouletteSimulator } from "@/components/admin/RouletteSimulator";
+import { LotterySimulator } from "@/components/admin/LotterySimulator";
 
+/**
+ * Bàn chơi — khớp GameTableResponse của backend.
+ *
+ * Tên bàn là MỘT MAP đa ngôn ngữ (nameI18n), không phải một chuỗi. Hạn mức là
+ * chuỗi vì backend dùng BigDecimal. Trạng thái là "ACTIVE"/"DISABLED", không phải
+ * cờ boolean.
+ */
 interface GameTable {
   id: string;
-  name: string;
-  engineType: string;
-  active: boolean;
-  minBet: number;
-  maxBet: number;
-  updatedAt?: string;
+  gameType: string;
+  nameI18n: Record<string, string>;
+  status: "ACTIVE" | "DISABLED";
+  minBet: string;
+  maxBet: string;
+  currency: string;
 }
 
 export default function AdminGamesPage() {
+  const { locale, t } = useTranslation();
+  // Doi han muc cuoc la ADMIN-only; bat/tat ban mo cho ca RISK.
+  const canEditLimits = isSuperAdmin();
+  const canToggle = hasAnyRole(["ADMIN", "RISK"]);
+
   const [tables, setTables] = useState<GameTable[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  // Edit Limits Modal
   const [editTable, setEditTable] = useState<GameTable | null>(null);
-  const [minBet, setMinBet] = useState("1.0");
-  const [maxBet, setMaxBet] = useState("10000.0");
+  const [minBet, setMinBet] = useState("");
+  const [maxBet, setMaxBet] = useState("");
+  const [limitReason, setLimitReason] = useState("");
+
+  const [toggleTable, setToggleTable] = useState<GameTable | null>(null);
+  const [toggleReason, setToggleReason] = useState("");
+
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const loadTables = async () => {
-    setLoading(true);
-    try {
-      const data = await adminFetch("/admin/games/tables");
-      if (Array.isArray(data)) {
-        setTables(data);
-      }
-    } catch {
-      setTables([
-        {
-          id: "11111111-1111-1111-1111-111111111111",
-          name: "Lucky 28 Standard",
-          engineType: "KL28",
-          active: true,
-          minBet: 1.0,
-          maxBet: 10000.0,
-        },
-        {
-          id: "22222222-2222-2222-2222-222222222222",
-          name: "British Lucky 28 Vip",
-          engineType: "KL28",
-          active: true,
-          minBet: 5.0,
-          maxBet: 50000.0,
-        },
-        {
-          id: "33333333-3333-3333-3333-333333333333",
-          name: "Korean Lucky 28 Speed",
-          engineType: "KL28",
-          active: true,
-          minBet: 1.0,
-          maxBet: 20000.0,
-        },
-        {
-          id: "44444444-4444-4444-4444-444444444444",
-          name: "Taiwan Times Special",
-          engineType: "KL28",
-          active: true,
-          minBet: 10.0,
-          maxBet: 100000.0,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /** Tên bàn theo ngôn ngữ đang chọn, lùi về tiếng Anh rồi tới khoá đầu tiên. */
+  const tableName = (t: GameTable): string =>
+    t.nameI18n?.[locale] || t.nameI18n?.en || Object.values(t.nameI18n || {})[0] || t.gameType;
 
-  useEffect(() => {
-    loadTables();
+  /**
+   * Lấy danh sách bàn.
+   *
+   * Trả dữ liệu về thay vì tự đặt state: `setState` gọi đồng bộ trong thân effect gây
+   * chuỗi render liên tiếp và luật lint của dự án chặn.
+   *
+   * Trả `null` khi lỗi — KHÔNG trả mảng rỗng: bàn bịa đặt có thể khiến người vận hành
+   * tưởng đã tắt một bàn trong khi bàn thật vẫn nhận cược.
+   */
+  const fetchTables = useCallback(async (): Promise<GameTable[] | null> => {
+    try {
+      const data = await adminFetch<GameTable[]>("/admin/games/tables");
+      setLoadError("");
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      setLoadError((err as Error).message);
+      return null;
+    }
   }, []);
 
-  const handleToggleStatus = async (table: GameTable) => {
-    try {
-      await adminFetch(`/admin/games/tables/${table.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ active: !table.active }),
-      });
-      loadTables();
-    } catch (err: any) {
-      alert(err.message || "Đổi trạng thái bàn thất bại");
-    }
+  useEffect(() => {
+    // Cờ huỷ: người vận hành có thể rời trang trước khi request xong, và ghi state vào
+    // component đã tháo là một cảnh báo React kèm rò bộ nhớ.
+    let cancelled = false;
+
+    (async () => {
+      // Đặt state bên trong hàm async, không ở thân effect — xem lý do ở trên.
+      setLoading(true);
+      const data = await fetchTables();
+      if (cancelled) return;
+      setTables(data ?? []);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchTables]);
+
+  /** Tải lại từ nút bấm hoặc sau khi ghi. Gọi ngoài effect nên đặt state trực tiếp là được. */
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setTables((await fetchTables()) ?? []);
+    setLoading(false);
+  }, [fetchTables]);
+
+  const openToggle = (t: GameTable) => {
+    setToggleTable(t);
+    setToggleReason("");
+    setActionError("");
   };
 
-  const handleSaveLimits = async () => {
-    if (!editTable) return;
+  const openLimits = (t: GameTable) => {
+    setEditTable(t);
+    setMinBet(t.minBet);
+    setMaxBet(t.maxBet);
+    setLimitReason("");
+    setActionError("");
+  };
+
+  const submitToggle = async () => {
+    if (!toggleTable) return;
+    if (!toggleReason.trim()) {
+      setActionError(t("admin.games.err_toggle_reason"));
+      return;
+    }
     setActionLoading(true);
     setActionError("");
-
     try {
-      await adminFetch(`/admin/games/tables/${editTable.id}/limits`, {
+      // Backend nhan {status, reason}, KHONG phai {active}.
+      await adminFetch(`/admin/games/tables/${toggleTable.id}/status`, {
         method: "PATCH",
         body: JSON.stringify({
-          minBet: String(minBet),
-          maxBet: String(maxBet),
+          status: toggleTable.status === "ACTIVE" ? "DISABLED" : "ACTIVE",
+          reason: toggleReason.trim(),
         }),
       });
-
-      setEditTable(null);
-      loadTables();
-    } catch (err: any) {
-      setActionError(err.message || "Cập nhật hạn mức thất bại");
+      setToggleTable(null);
+      void reload();
+    } catch (err) {
+      setActionError((err as Error).message);
     } finally {
       setActionLoading(false);
     }
   };
 
+  const submitLimits = async () => {
+    if (!editTable) return;
+    if (!limitReason.trim()) {
+      setActionError(t("admin.games.err_limits_reason"));
+      return;
+    }
+    setActionLoading(true);
+    setActionError("");
+    try {
+      // Tien gui dang CHUOI; backend con doi them truong `reason`.
+      await adminFetch(`/admin/games/tables/${editTable.id}/limits`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          minBet: minBet.trim(),
+          maxBet: maxBet.trim(),
+          reason: limitReason.trim(),
+        }),
+      });
+      setEditTable(null);
+      void reload();
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const activeCount = tables.filter((t) => t.status === "ACTIVE").length;
+
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">
       <AdminHeader
-        title="Quản lý Bàn chơi Casino"
-        subtitle="Cấu hình sảnh Lucky 28, bật/tắt bàn khẩn cấp và chỉnh hạn mức cược"
+        title={t("admin.games.title")}
+        subtitle={t("admin.games.subtitle")}
       />
 
       <div className="p-6 flex flex-col gap-6">
-        {/* Action Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Gamepad2 className="w-5 h-5 text-red-600" />
-            <span className="text-sm font-extrabold text-slate-900">Danh sách Tất cả Bàn chơi ({tables.length})</span>
+            <Gamepad2 className="w-5 h-5 text-slate-700" />
+            <span className="text-sm font-extrabold text-slate-900">
+              {t("admin.games.active_tables_count", { active: activeCount, total: tables.length })}
+            </span>
           </div>
           <button
-            onClick={loadTables}
+            onClick={reload}
             className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 shadow-xs"
+            aria-label={t("admin.states.refresh")}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${loading ? "animate-spin text-red-600" : ""}`}
+            />
           </button>
         </div>
 
-        {/* Game Tables Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {tables.map((table) => (
-            <div
-              key={table.id}
-              className={`bg-white border rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all shadow-xs hover:shadow-md ${
-                table.active ? "border-slate-200" : "border-red-300 bg-red-50/30"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-extrabold text-slate-900">{table.name}</span>
-                    <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
-                      {table.engineType}
-                    </span>
+        {loadError ? (
+          <AdminErrorState message={loadError} onRetry={reload} />
+        ) : tables.length === 0 && !loading ? (
+          <div className="bg-white border border-slate-200 rounded-2xl">
+            <AdminEmptyState message={t("admin.games.empty")} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {tables.map((tbl, index) => {
+              let previewImage = "/images/tables/lottery.webp";
+              if (tbl.gameType === "ROULETTE") {
+                previewImage = "/images/tables/roulette.webp";
+              } else if (tbl.gameType === "BACCARAT") {
+                previewImage = "/images/tables/baccarat.webp";
+              }
+
+              return (
+                <div
+                  key={tbl.id}
+                  style={{ animationDelay: `${index * 60}ms` }}
+                  className="bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden shadow-xs animate-fade-in-up hover:shadow-lg hover:-translate-y-1 hover:border-slate-300 transition-all duration-300 ease-out"
+                >
+                  {/* Banner ảnh minh họa bàn chơi thật */}
+                  <div className="h-32 w-full relative overflow-hidden bg-slate-900 border-b border-slate-100 shrink-0">
+                    <img
+                      src={previewImage}
+                      alt={tableName(tbl)}
+                      className="w-full h-full object-cover opacity-90 transition-transform duration-500 hover:scale-105"
+                    />
+                    {/* Badge trạng thái nằm đè lên góc ảnh */}
+                    <div className="absolute top-3 right-3 select-none">
+                      {tbl.status === "ACTIVE" ? (
+                        <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-500 text-white shadow-sm flex items-center gap-1 shrink-0 backdrop-blur-xs">
+                          <CheckCircle2 className="w-3 h-3" /> ACTIVE
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-slate-600/90 text-white shadow-sm flex items-center gap-1 shrink-0 backdrop-blur-xs">
+                          <XCircle className="w-3 h-3" /> DISABLED
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400">{table.id}</span>
-                </div>
 
-                {/* Status Toggle Badge */}
-                <button
-                  onClick={() => handleToggleStatus(table)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    table.active
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                      : "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                  }`}
-                >
-                  {table.active ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Bàn đang BẬT
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-3.5 h-3.5" /> Bàn đã TẮT
-                    </>
-                  )}
-                </button>
-              </div>
+                  <div className="p-5 flex flex-col gap-4 flex-1">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-extrabold text-slate-900 leading-tight">
+                        {tableName(tbl)}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {tbl.gameType}
+                      </span>
+                    </div>
 
-              {/* Limits Information */}
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-                <div className="flex flex-col">
-                  <span className="text-slate-500 text-[10px] uppercase font-bold">Cược tối thiểu (Min)</span>
-                  <span className="text-slate-900 font-bold">${table.minBet.toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-slate-500 text-[10px] uppercase font-bold">Cược tối đa (Max)</span>
-                  <span className="text-amber-700 font-bold">${table.maxBet.toLocaleString()}</span>
-                </div>
-              </div>
+                    {tbl.gameType === "ROULETTE" && (
+                      <div className="w-full">
+                        <RouletteSimulator />
+                      </div>
+                    )}
+                    {tbl.gameType === "BACCARAT" && (
+                      <div className="w-full">
+                        <BaccaratSimulator />
+                      </div>
+                    )}
+                    {tbl.gameType !== "ROULETTE" && tbl.gameType !== "BACCARAT" && (
+                      <div className="w-full">
+                        <LotterySimulator />
+                      </div>
+                    )}
 
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    setEditTable(table);
-                    setMinBet(String(table.minBet));
-                    setMaxBet(String(table.maxBet));
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1.5 transition-colors"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Sửa Hạn mức Cược</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-0.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                          {t("admin.games.min_bet")}
+                        </span>
+                        <span className="text-sm font-extrabold text-slate-900 tabular-nums">
+                          {formatMoney(tbl.minBet)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                          {t("admin.games.max_bet")}
+                        </span>
+                        <span className="text-sm font-extrabold text-slate-900 tabular-nums">
+                          {formatMoney(tbl.maxBet)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 mt-auto">
+                      {canToggle && (
+                        <button
+                          onClick={() => openToggle(tbl)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                            tbl.status === "ACTIVE"
+                              ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                              : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                          }`}
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                          {tbl.status === "ACTIVE" ? t("admin.games.action_disable") : t("admin.games.action_enable")}
+                        </button>
+                      )}
+                      {canEditLimits && (
+                        <button
+                          onClick={() => openLimits(tbl)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors"
+                        >
+                          <Sliders className="w-3.5 h-3.5" />
+                          {t("admin.games.action_limits")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Modal Edit Limits */}
-      {editTable && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl relative">
-            <button
-              onClick={() => setEditTable(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
-                <Sliders className="w-5 h-5" />
+      {/* Modal bat/tat ban */}
+      <AdminModal
+        isOpen={!!toggleTable}
+        onClose={() => setToggleTable(null)}
+        maxWidthClass="max-w-md"
+        title={
+          toggleTable && (
+            <div className="flex items-center gap-3 w-full">
+              <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
+                <Power className="w-5 h-5" />
               </div>
-              <div className="flex flex-col">
-                <h3 className="text-base font-extrabold text-slate-900">Chỉnh Hạn mức Bàn chơi</h3>
-                <span className="text-xs text-slate-500 font-medium">{editTable.name}</span>
+              <div className="flex flex-col min-w-0">
+                <h3 className="text-base font-extrabold text-slate-900 truncate">
+                  {toggleTable.status === "ACTIVE" ? t("admin.games.action_disable") : t("admin.games.action_enable")}
+                </h3>
+                <span className="text-xs text-slate-500 font-medium truncate">
+                  {tableName(toggleTable)}
+                </span>
               </div>
             </div>
-
-            {actionError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                <span>{actionError}</span>
+          )
+        }
+      >
+        {toggleTable && (
+          <div className="flex flex-col gap-5">
+            {/* Backend dong ban o CUOI vong dang chay; noi ro de nguoi van hanh
+                khong tuong la huy vong giua dong. */}
+            {toggleTable.status === "ACTIVE" && (
+              <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-300 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-amber-800 font-semibold leading-relaxed">
+                  {t("admin.games.modal_toggle_warn")}
+                </span>
               </div>
             )}
 
-            <div className="flex flex-col gap-3">
+            {actionError && (
+              <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <span className="text-xs text-red-700 font-semibold">{actionError}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="toggle-reason"
+                className="text-[11px] font-bold text-slate-700 uppercase tracking-wide"
+              >
+                {t("admin.games.reason_label")} <span className="text-red-600 normal-case">{t("admin.games.reason_required_badge")}</span>
+              </label>
+              <textarea
+                id="toggle-reason"
+                rows={3}
+                value={toggleReason}
+                onChange={(e) => setToggleReason(e.target.value)}
+                placeholder={t("admin.games.toggle_placeholder")}
+                className="bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 outline-none resize-none font-medium"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setToggleTable(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
+              >
+                {t("admin.states.cancel")}
+              </button>
+              <button
+                onClick={submitToggle}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors disabled:opacity-50"
+              >
+                {actionLoading ? t("admin.states.saving") : t("admin.states.confirm")}
+              </button>
+            </div>
+          </div>
+        )}
+      </AdminModal>
+
+      {/* Modal han muc cuoc */}
+      <AdminModal
+        isOpen={!!editTable}
+        onClose={() => setEditTable(null)}
+        maxWidthClass="max-w-md"
+        title={
+          editTable && (
+            <div className="flex items-center gap-3 w-full">
+              <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h3 className="text-base font-extrabold text-slate-900 truncate">
+                  {t("admin.games.modal_limits_title")}
+                </h3>
+                <span className="text-xs text-slate-500 font-medium truncate">
+                  {tableName(editTable)}
+                </span>
+              </div>
+            </div>
+          )
+        }
+      >
+        {editTable && (
+          <div className="flex flex-col gap-5">
+            <div className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <AlertCircle className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+              <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                {t("admin.games.modal_limits_subtitle")}
+              </span>
+            </div>
+
+            {actionError && (
+              <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <span className="text-xs text-red-700 font-semibold">{actionError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Min Bet (USD)</label>
+                <label
+                  htmlFor="min-bet"
+                  className="text-[11px] font-bold text-slate-700 uppercase tracking-wide"
+                >
+                  {t("admin.games.min_label")}
+                </label>
                 <input
-                  type="number"
+                  id="min-bet"
+                  type="text"
+                  inputMode="decimal"
                   value={minBet}
                   onChange={(e) => setMinBet(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
+                  className="bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 outline-none tabular-nums"
                 />
               </div>
-
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Max Bet (USD)</label>
+                <label
+                  htmlFor="max-bet"
+                  className="text-[11px] font-bold text-slate-700 uppercase tracking-wide"
+                >
+                  {t("admin.games.max_label")}
+                </label>
                 <input
-                  type="number"
+                  id="max-bet"
+                  type="text"
+                  inputMode="decimal"
                   value={maxBet}
                   onChange={(e) => setMaxBet(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
+                  className="bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 outline-none tabular-nums"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="limit-reason"
+                className="text-[11px] font-bold text-slate-700 uppercase tracking-wide"
+              >
+                {t("admin.games.reason_label")} <span className="text-red-600 normal-case">{t("admin.games.reason_required_badge")}</span>
+              </label>
+              <textarea
+                id="limit-reason"
+                rows={2}
+                value={limitReason}
+                onChange={(e) => setLimitReason(e.target.value)}
+                placeholder={t("admin.games.limits_placeholder")}
+                className="bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 outline-none resize-none font-medium"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setEditTable(null)}
                 className="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200"
               >
-                Hủy
+                {t("admin.states.cancel")}
               </button>
               <button
-                onClick={handleSaveLimits}
+                onClick={submitLimits}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors disabled:opacity-50"
               >
-                {actionLoading ? "Đang lưu..." : "Xác nhận Lưu Hạn mức"}
+                {actionLoading ? t("admin.states.saving") : t("admin.states.confirm")}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminModal>
     </div>
   );
 }

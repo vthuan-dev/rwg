@@ -8,7 +8,11 @@ export type KycLevel = 'NONE' | 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3';
 export interface UserProfile {
   id: string;
   username: string;
-  email: string;
+  /**
+   * Luôn null với tài khoản người chơi: API đăng ký không nhận email.
+   * Chỉ có giá trị ở tài khoản nhân sự được tạo từ khu quản trị.
+   */
+  email: string | null;
   role: Role;
   kycLevel: KycLevel;
   locale: string;
