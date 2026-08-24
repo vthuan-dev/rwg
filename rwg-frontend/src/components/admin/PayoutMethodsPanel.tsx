@@ -54,6 +54,15 @@ const REVEAL_TTL_SEC = 60;
  * Mặc định CHỈ hiện phần đã che. Số đầy đủ phải bấm mới hiện, và mỗi lần bấm được
  * ghi vào nhật ký hệ thống — người vận hành được nói trước điều đó, không để họ phát
  * hiện sau.
+ *
+ * ĐÂY LÀ ĐƯỜNG DUY NHẤT để đổi tài khoản nhận tiền của người chơi: bên phía người chơi
+ * chỉ liên kết được MỘT tài khoản và không tự gỡ được. Không có phần thêm/gỡ ở đây thì
+ * ai gõ sai số tài khoản sẽ kẹt vĩnh viễn — tiền rút chạy vào số sai và cách duy nhất
+ * để cứu là sửa tay trong database.
+ *
+ * KHÔNG CÓ CHỨC NĂNG "SỬA": muốn đổi thì gỡ rồi thêm lại. Bản ghi cũ giữ trạng thái
+ * REMOVED nên lịch sử đổi tài khoản còn nguyên trong nhật ký. Sửa tại chỗ sẽ ghi đè số
+ * cũ và mất dấu — đúng lúc cần điều tra thì không còn gì để xem.
  */
 export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
   const { t } = useTranslation();
@@ -77,6 +86,19 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
   const [revealError, setRevealError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [bankLogoErrors, setBankLogoErrors] = useState<Record<string, boolean>>({});
+
+  /** Form thêm tài khoản hộ. */
+  const [addOpen, setAddOpen] = useState(false);
+  const [addBankCode, setAddBankCode] = useState("");
+  const [addHolder, setAddHolder] = useState("");
+  const [addNumber, setAddNumber] = useState("");
+  const [addReason, setAddReason] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [mutateError, setMutateError] = useState("");
+
+  /** id đang chờ xác nhận gỡ, và id đang gọi API gỡ. */
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   
   interface VietQRBank {
     id: number;
@@ -153,6 +175,64 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
     }
   };
 
+  /** Đã có tài khoản đang hoạt động hay chưa — danh sách gồm cả bản ghi REMOVED. */
+  const hasActive = methods.some((m) => m.status === "ACTIVE");
+
+  const doAdd = async () => {
+    // Lý do BẮT BUỘC: kiểm ở đây để không mất một vòng gọi mạng, nhưng backend
+    // cũng kiểm (@NotBlank) vì đây là luật của dữ liệu, không của giao diện.
+    if (!addReason.trim()) {
+      setMutateError(t("admin.users.payout.reason_required"));
+      return;
+    }
+
+    setAdding(true);
+    setMutateError("");
+    try {
+      await adminFetch(`/admin/users/${userId}/payout-methods`, {
+        method: "POST",
+        body: JSON.stringify({
+          bankCode: addBankCode.trim().toUpperCase(),
+          accountNumber: addNumber.trim(),
+          holderName: addHolder.trim(),
+          reason: addReason.trim(),
+        }),
+      });
+
+      setAddOpen(false);
+      setAddBankCode("");
+      setAddHolder("");
+      setAddNumber("");
+      setAddReason("");
+      load();
+    } catch (err: any) {
+      setMutateError(err.message || String(err));
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const doRemove = async (id: string) => {
+    setRemoveConfirmId(null);
+    setRemovingId(id);
+    setMutateError("");
+    try {
+      // Lý do qua QUERY PARAM chứ không qua body: DELETE có body là hợp lệ về mặt đặc
+      // tả nhưng nhiều tầng trung gian cắt bỏ nó — lý do sẽ biến mất khỏi nhật ký
+      // mà không báo gì.
+      const reason = encodeURIComponent(t("admin.users.payout.remove"));
+      await adminFetch(
+        `/admin/users/${userId}/payout-methods/${id}?reason=${reason}`,
+        { method: "DELETE" }
+      );
+      load();
+    } catch (err: any) {
+      setMutateError(err.message || String(err));
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   const copy = (id: string, text: string) => {
     void navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -205,13 +285,8 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
     );
   }
 
-  if (methods.length === 0) {
-    return (
-      <div className="py-10 text-center text-xs text-slate-500 font-medium">
-        {t("admin.users.payout.empty")}
-      </div>
-    );
-  }
+  // KHÔNG return sớm khi danh sách rỗng: form thêm phải dùng được đúng lúc chưa có
+  // tài khoản nào — đó mới là trường hợp cần nó nhất.
 
   return (
     <div className="flex flex-col gap-3">
@@ -228,6 +303,19 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
         <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <span className="text-xs text-red-700 font-semibold">{revealError}</span>
+        </div>
+      )}
+
+      {mutateError && (
+        <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <span className="text-xs text-red-700 font-semibold">{mutateError}</span>
+        </div>
+      )}
+
+      {methods.length === 0 && (
+        <div className="py-6 text-center text-xs text-slate-500 font-medium">
+          {t("admin.users.payout.empty")}
         </div>
       )}
 
@@ -403,9 +491,170 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
                 </div>
               </div>
             )}
+
+            {/* GỠ — chỉ với bản ghi đang hoạt động. Bản ghi đã gỡ không có gì để gỡ thêm. */}
+            {canReveal && !removed && (
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={() => setRemoveConfirmId(m.id)}
+                  disabled={removingId === m.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-white hover:bg-red-50 disabled:opacity-40 text-red-700 text-[10px] font-black active:scale-95 transition-all"
+                >
+                  {removingId === m.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  {removingId === m.id
+                    ? t("admin.users.payout.removing")
+                    : t("admin.users.payout.remove")}
+                </button>
+              </div>
+            )}
+
+            {/* Nói TRƯỚC hệ quả: người chơi sẽ không rút được tiền cho đến khi có
+                tài khoản mới. Đây không phải xác nhận hình thức — gỡ xong là chặn
+                đường rút tiền của người ta. */}
+            {removeConfirmId === m.id && (
+              <div className="flex flex-col gap-2.5 p-3.5 bg-red-50 border border-red-300 rounded-xl">
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-red-900 font-black">
+                      {t("admin.users.payout.remove_confirm_title")}
+                    </span>
+                    <span className="text-[11px] text-red-800 font-semibold leading-relaxed">
+                      {t("admin.users.payout.remove_confirm_note")}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setRemoveConfirmId(null)}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    {t("admin.users.payout.cancel")}
+                  </button>
+                  <button
+                    onClick={() => doRemove(m.id)}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition-colors"
+                  >
+                    {t("admin.users.payout.remove_confirm")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* THÊM TÀI KHOẢN HỘ */}
+      {!canReveal ? (
+        <div className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+          <ShieldOff className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+          <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
+            {t("admin.users.payout.no_add_permission")}
+          </span>
+        </div>
+      ) : hasActive ? (
+        // ĐÃ CÓ TÀI KHOẢN — không hiện form. Luật "mỗi người một tài khoản" áp cả
+        // cho admin: hai bản ghi cùng isDefault sẽ làm lúc rút tiền có hai ứng viên và
+        // kết quả phụ thuộc thứ tự trả về của DB.
+        <p className="px-3 py-2 text-[11px] text-slate-500 font-medium leading-relaxed">
+          {t("admin.users.payout.add_note")}
+        </p>
+      ) : addOpen ? (
+        <div className="flex flex-col gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <span className="text-xs font-black text-slate-900">
+            {t("admin.users.payout.add_title")}
+          </span>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {t("admin.users.payout.bank_code")}
+            </span>
+            <input
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+              maxLength={16}
+              onChange={(e) => setAddBankCode(e.target.value)}
+              value={addBankCode}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {t("admin.users.payout.holder_name")}
+            </span>
+            <input
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+              maxLength={100}
+              onChange={(e) => setAddHolder(e.target.value)}
+              value={addHolder}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {t("admin.users.payout.account_number_input")}
+            </span>
+            <input
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-none"
+              inputMode="numeric"
+              maxLength={32}
+              onChange={(e) => setAddNumber(e.target.value)}
+              value={addNumber}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {t("admin.users.payout.reason")}
+            </span>
+            <input
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+              maxLength={255}
+              onChange={(e) => setAddReason(e.target.value)}
+              placeholder={t("admin.users.payout.reason_placeholder")}
+              value={addReason}
+            />
+          </label>
+
+          <div className="flex items-center justify-end gap-2">
+            <button
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                setAddOpen(false);
+                setMutateError("");
+              }}
+            >
+              {t("admin.users.payout.cancel")}
+            </button>
+            <button
+              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-[11px] font-bold transition-colors"
+              disabled={
+                adding ||
+                !addBankCode.trim() ||
+                !addHolder.trim() ||
+                !addNumber.trim() ||
+                !addReason.trim()
+              }
+              onClick={() => void doAdd()}
+            >
+              {adding
+                ? t("admin.users.payout.adding")
+                : t("admin.users.payout.add_submit")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-black text-slate-700 transition-colors"
+          onClick={() => setAddOpen(true)}
+        >
+          <Landmark className="w-3.5 h-3.5" />
+          {t("admin.users.payout.add_title")}
+        </button>
+      )}
     </div>
   );
 };

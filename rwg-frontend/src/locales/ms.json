@@ -192,7 +192,24 @@
         "reveal": "Pendedahkan",
         "reveal_confirm": "Faham, dedahkan nombor akaun",
         "reveal_warning": "Untuk memastikan keselamatan data, tindakan mendedahkan nombor akaun penuh akan direkodkan dalam Lejar Audit Sistem.",
-        "section": "Kaedah Penerimaan"
+        "section": "Kaedah Penerimaan",
+        "add_title": "Tambah akaun bagi pemain",
+        "add_note": "Pemain hanya boleh memautkan satu akaun dan tidak boleh membuangnya sendiri. Untuk menukar, buang akaun lama dahulu, kemudian tambah yang baharu. Setiap tindakan direkodkan dalam log sistem.",
+        "bank_code": "Kod bank",
+        "holder_name": "Pemegang akaun",
+        "account_number_input": "Nombor akaun",
+        "reason": "Sebab",
+        "reason_placeholder": "cth: pemain melaporkan nombor salah melalui sembang",
+        "add_submit": "Tambah akaun",
+        "adding": "Menambah...",
+        "remove": "Buang akaun",
+        "removing": "Membuang...",
+        "remove_confirm_title": "Buang akaun pembayaran ini?",
+        "remove_confirm_note": "Pemain tidak akan dapat membuat pengeluaran sehingga akaun baharu ditambah. Tindakan ini direkodkan dalam log sistem.",
+        "remove_confirm": "Saya faham, buang akaun",
+        "cancel": "Batal",
+        "no_add_permission": "Anda tidak mempunyai kebenaran untuk menambah atau membuang akaun pembayaran pemain.",
+        "reason_required": "Sila masukkan sebab."
       },
       "role": {
         "cannot_self": "Tidak boleh melaraskan peranan sendiri.",
@@ -699,7 +716,12 @@
       "copy_link": "Salin pautan rujukan",
       "qr_alt": "Kod QR yang mengandungi pautan pendaftaran anda",
       "err_failed": "Gagal memuatkan kod rujukan. Sila cuba lagi."
-    }
+    },
+    "account_locked_title": "Akaun pembayaran telah dipautkan",
+    "account_locked_note": "Setiap akaun hanya boleh memautkan satu akaun bank. Untuk menukar atau membetulkan maklumat, sila hubungi khidmat pelanggan.",
+    "contact_support": "Hubungi khidmat pelanggan",
+    "already_linked": "Anda telah memautkan satu akaun bank. Sila hubungi khidmat pelanggan untuk menukarnya.",
+    "remove_forbidden": "Anda tidak boleh membuang akaun bank sendiri. Sila hubungi khidmat pelanggan."
   },
   "withdraw": {
     "title": "Pengeluaran",

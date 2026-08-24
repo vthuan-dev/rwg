@@ -17,6 +17,22 @@ public enum ErrorCode {
     WITHDRAWAL_PASSWORD_NOT_SET(HttpStatus.BAD_REQUEST, "Chưa đặt mật khẩu rút tiền"),
     BANK_ACCOUNT_REQUIRED(HttpStatus.BAD_REQUEST, "Cần có tài khoản ngân hàng mặc định"),
     WITHDRAWAL_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "Vượt hạn mức rút tiền"),
+    /**
+     * Sai MẬT KHẨU RÚT TIỀN (mật khẩu cấp hai), KHÔNG phải sai đăng nhập.
+     *
+     * VÌ SAO 400 CHỨ KHÔNG 401 — ĐÂY TẮNG LÀ MỘT LỖI THẬT ĐÃ GÂY HẬU QUẢ:
+     * trước đây chỗ này dùng {@link #INVALID_CREDENTIALS} (401). Frontend hiểu 401 là
+     * "phiên hết hạn" — {@code authedRequest} đi xoay vòng token và trang đẩy người
+     * dùng sang {@code /login}. Kết quả: gõ sai mật khẩu rút tiền thì BỊ ĐĂNG XUẤT.
+     *
+     * 401 có nghĩa "tôi không biết bạn là ai" — nói về danh tính của phiên. Nhưng sai
+     * mật khẩu cấp hai thì phiên VẪN HỢP LỆ hoàn toàn: token còn tốt, người dùng vẫn
+     * đạng đăng nhập. Frontend không sai — nó phản ứng đúng theo nghĩa của 401.
+     *
+     * CŨNG KHÔNG DÙNG 403: 403 nghĩa "bạn không có quyền làm việc này", nhưng người
+     * chơi CÓ quyền, chỉ là gõ sai. 400 "dữ liệu gửi lên không hợp lệ" mới đúng.
+     */
+    WITHDRAWAL_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "Mật khẩu rút tiền không đúng"),
 
     // 400 - admin backoffice (chặng 3)
     ADMIN_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "Thao tác này bắt buộc có lý do"),
@@ -49,6 +65,18 @@ public enum ErrorCode {
     // 404 / 409
     NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài nguyên"),
     CONFLICT(HttpStatus.CONFLICT, "Dữ liệu đã tồn tại"),
+    /**
+     * Người chơi đã có một tài khoản ngân hàng đang hoạt động.
+     *
+     * MỖI NGƯỜI CHỈ MỘT TÀI KHOẢN: để đổi thì phải qua CSKH. Đổi được số tài khoản
+     * nhận tiền là chuyển được toàn bộ tiền rút sang chỗ khác, nên thao tác này cần có
+     * người thật xác nhận thay vì để tự làm trong phiên có thể đã bị chiếm.
+     */
+    BANK_ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT,
+            "Đã có tài khoản ngân hàng, liên hệ CSKH để đổi"),
+    /** Người chơi KHÔNG được tự gỡ tài khoản nhận tiền — phải qua CSKH. */
+    BANK_ACCOUNT_REMOVE_FORBIDDEN(HttpStatus.CONFLICT,
+            "Không thể tự gỡ tài khoản, liên hệ CSKH"),
 
     // 423 / 429
     ACCOUNT_LOCKED(HttpStatus.LOCKED, "Tài khoản tạm khóa do đăng nhập sai quá nhiều lần"),

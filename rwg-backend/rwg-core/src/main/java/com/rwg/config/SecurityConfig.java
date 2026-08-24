@@ -133,6 +133,19 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods/*/reveal")
                             .hasAnyRole("ADMIN", "FINANCE")
+                        // THÊM / GỠ tài khoản nhận tiền hộ người chơi.
+                        //
+                        // ĐẶT Ở ĐÂY, TRƯỚC RULE CHUNG /api/v1/admin/** Ở DƯỚI: Spring lấy
+                        // matcher KHỚP ĐẦU TIÊN. Nếu để rơi vào rule chung thì cả bốn vai
+                        // trò đều qua được và SUPPORT sẽ đổi được tài khoản nhận tiền của
+                        // người chơi — tức chuyển được tiền của người khác về tài khoản mình.
+                        //
+                        // POST khớp chính xác ".../payout-methods" (không có đuôi) nên KHÔNG
+                        // đè lên matcher reveal ở trên; dù có thì reveal đã đứng trước.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods")
+                            .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*/payout-methods/*")
+                            .hasAnyRole("ADMIN", "FINANCE")
 
                         // Thao tác quản lý user (không chạm tiền): thêm SUPPORT.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/status")

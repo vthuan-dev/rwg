@@ -119,9 +119,9 @@ public class WithdrawalService {
                         Map.of("retryAfterSeconds", after.retryAfterSeconds()));
             }
             // Ngưỡng captcha (captchaRequired) KHÔNG áp dụng cho endpoint này.
-            throw new ApiException(ErrorCode.INVALID_CREDENTIALS,
-                    ErrorCode.INVALID_CREDENTIALS.defaultMessage(),
-                    null, "error.invalid_credentials.withdrawal_password_mismatch");
+            // 400, KHÔNG 401 — từng khiến người chơi gõ sai mật khẩu rút tiền thì bị
+            // đăng xuất giữa lúc tạo lệnh rút. Xem javadoc WITHDRAWAL_PASSWORD_MISMATCH.
+            throw new ApiException(ErrorCode.WITHDRAWAL_PASSWORD_MISMATCH);
         }
         loginRateLimiter.reset(ip, limitKey);
 

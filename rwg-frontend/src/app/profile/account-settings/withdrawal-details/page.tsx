@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { TopNavigationBar } from "@/components/layout/TopNavigationBar";
@@ -19,7 +20,6 @@ import {
   banks,
   findBank,
   getPlayerToken,
-  removeBankAccount,
   type BankAccount,
   type BankOption,
 } from "@/lib/playerApi";
@@ -30,12 +30,17 @@ import {
  * Bốn ô theo đúng bản gốc: tên ngân hàng, chủ tài khoản, số tài khoản, mật khẩu rút tiền.
  *
  * THÊM PHẦN "TÀI KHOẢN ĐÃ LIÊN KẾT" mà bản gốc không có. Lý do: không có nó thì người dùng
- * bấm Lưu xong không biết đã lưu được chưa, không thấy tài khoản nào đang là mặc định để
- * nhận tiền, và không gỡ được tài khoản gõ sai. Rút tiền luôn chuyển vào tài khoản mặc
- * định, nên việc thấy rõ nó là quan trọng chứ không phải tiện lợi thêm.
+ * bấm Lưu xong không biết đã lưu được chưa, và không thấy tài khoản nào đang nhận tiền.
+ * Rút tiền luôn chuyển vào tài khoản mặc định, nên việc thấy rõ nó là quan trọng.
  *
- * MẬT KHẨU RÚT LÀ BẮT BUỘC: đổi được tài khoản nhận tiền là chuyển hướng được toàn bộ tiền
- * rút, nên backend đòi xác nhận lại (xem `BankAccountService.requireWithdrawalPassword`).
+ * MỖI NGƯỜI MỘT TÀI KHOẢN, KHÔNG TỰ GỠ ĐƯỢC:
+ * Đã liên kết thì trang ẨN HẲN FORM và không hiện nút xoá; muốn đổi thì liên hệ CSKH.
+ * Luật thật nằm ở `BankAccountService` bên backend (409 BANK_ACCOUNT_ALREADY_LINKED /
+ * BANK_ACCOUNT_REMOVE_FORBIDDEN) — phần ẩn ở đây CHỈ để người dùng khỏi gõ xong mới
+ * nhận lỗi, KHÔNG phải là biện pháp bảo vệ.
+ *
+ * MẬT KHẨU RÚT LÀ BẮT BUỘC khi thêm: đổi được tài khoản nhận tiền là chuyển hướng được
+ * toàn bộ tiền rút, nên backend đòi xác nhận lại.
  */
 export default function WithdrawalDetailsPage() {
   const router = useRouter();
@@ -56,7 +61,6 @@ export default function WithdrawalDetailsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const reloadAccounts = useCallback(async () => {
     const list = await bankAccounts();
@@ -139,37 +143,32 @@ export default function WithdrawalDetailsPage() {
         setSaved(true);
         await reloadAccounts();
       } catch (error) {
+        // KHÔNG đẩy sang /login ở đây nữa.
+        //
+        // Trước đây nhánh này bắt 401 và đăng xuất người dùng. Nhưng backend từng trả 401
+        // cho "sai mật khẩu rút tiền", nên gõ sai một lần là bị văng ra trang đăng nhập —
+        // vừa mất dữ liệu đang gõ, vừa trông như hệ thống lỗi. Backend giờ trả 400 cho
+        // trường hợp đó (WITHDRAWAL_PASSWORD_MISMATCH).
+        //
+        // 401 thật sự ở đây chỉ còn nghĩa "token hết hạn", mà `authedRequest` đã tự xoay
+        // vòng token; nếu xoay vòng cũng thất bại thì `useEffect` lúc tải trang sẽ xử lý.
         setSaveError(describeError(error, t));
-        if (error instanceof ApiError && error.status === 401) {
-          router.replace("/login");
-        }
       } finally {
         setSaving(false);
       }
     };
 
     void save();
-  }, [accountNumber, bankCode, holderName, reloadAccounts, router, t, withdrawalPassword]);
+  }, [accountNumber, bankCode, holderName, reloadAccounts, t, withdrawalPassword]);
 
-  const handleRemove = useCallback(
-    (id: string) => {
-      const remove = async () => {
-        setRemovingId(id);
-        setSaveError(null);
-        try {
-          await removeBankAccount(id);
-          await reloadAccounts();
-        } catch (error) {
-          setSaveError(describeError(error, t));
-        } finally {
-          setRemovingId(null);
-        }
-      };
-
-      void remove();
-    },
-    [reloadAccounts, t]
-  );
+  /**
+   * ĐÃ có tài khoản đang hoạt động hay chưa.
+   *
+   * Danh sách từ {@code GET /wallet/me/bank-accounts} CHỈ trả bản ghi ACTIVE (xem
+   * {@code findByUserIdAndStatusOrderByCreatedAtAsc} bên backend), nên ở đây chỉ cần
+   * đếm — không phải lọc theo status một lần nữa.
+   */
+  const hasLinkedAccount = accounts.length > 0;
 
   const canSave =
     Boolean(bankCode.trim()) &&
@@ -191,6 +190,32 @@ export default function WithdrawalDetailsPage() {
       <main className="flex grow flex-col px-5 py-4">
         {loading ? (
           <p className="mt-[50px] text-center text-[#8b8b8b]">{t("asset.loading")}</p>
+        ) : hasLinkedAccount ? (
+          // ĐÃ LIÊN KẾT — ẨN HẲN FORM.
+          //
+          // Không để form ở đó rồi vô hiệu hoá nút Lưu: người dùng sẽ gõ hết bốn ô
+          // rồi mới phát hiện không bấm được, mà không hiểu vì sao. Ẩn hẳn + nói rõ
+          // phải làm gì tiếp là câu trả lời đúng.
+          <>
+            <LinkedAccounts accounts={accounts} bankList={bankList} />
+
+            <section className="mt-8 bg-[#1f1f1f] px-4 py-5">
+              <h2 className="text-[0.9375rem] text-[#d0d5da]">
+                {t("profile.account_locked_title")}
+              </h2>
+              <p className="mt-2 text-[0.8125rem] leading-[1.25rem] text-[#8b8b8b]">
+                {t("profile.account_locked_note")}
+              </p>
+
+              <Link
+                className="mt-4 inline-flex h-11 items-center justify-center bg-[#c8102e] px-6 text-[0.875rem] font-semibold text-white transition-opacity hover:opacity-90"
+                href="/profile/contact-us"
+                id="withdrawal-contact-support"
+              >
+                {t("profile.contact_support")}
+              </Link>
+            </section>
+          </>
         ) : (
           <>
             <div className="flex flex-col gap-y-5">
@@ -262,12 +287,7 @@ export default function WithdrawalDetailsPage() {
               </SubmitButton>
             </div>
 
-            <LinkedAccounts
-              accounts={accounts}
-              bankList={bankList}
-              onRemove={handleRemove}
-              removingId={removingId}
-            />
+            <LinkedAccounts accounts={accounts} bankList={bankList} />
           </>
         )}
       </main>
@@ -278,19 +298,17 @@ export default function WithdrawalDetailsPage() {
 /**
  * Danh sách phương thức nhận tiền đã liên kết.
  *
- * Hiện dấu mặc định rõ ràng: tiền rút LUÔN chuyển vào phương thức mặc định, nên người dùng
- * có nhiều tài khoản mà không biết cái nào đang nhận tiền là một chỗ dễ mất tiền.
+ * Hiện dấu mặc định rõ ràng: tiền rút LUÔN chuyển vào phương thức này.
+ *
+ * KHÔNG CÓ NÚT XOÁ: người chơi không tự gỡ được tài khoản nhận tiền (backend trả 409).
+ * Để nút ở đó rồi báo lỗi khi bấm là cách chắc chắn làm người dùng tưởng hệ thống hỏng.
  */
 function LinkedAccounts({
   accounts,
   bankList,
-  onRemove,
-  removingId,
 }: {
   accounts: BankAccount[];
   bankList: BankOption[];
-  onRemove: (id: string) => void;
-  removingId: string | null;
 }) {
   const { t } = useTranslation();
 
@@ -342,17 +360,6 @@ function LinkedAccounts({
                     {t("profile.default_account")}
                   </span>
                 ) : null}
-
-                <button
-                  className="text-[0.75rem] text-[#fe1616] disabled:opacity-50"
-                  disabled={removingId === account.id}
-                  onClick={() => onRemove(account.id)}
-                  type="button"
-                >
-                  {removingId === account.id
-                    ? t("profile.removing")
-                    : t("profile.remove")}
-                </button>
               </li>
             );
           })}
@@ -378,8 +385,19 @@ function describeError(
   if (error.code === "WITHDRAWAL_PASSWORD_NOT_SET") {
     return t("profile.withdrawal_password_not_set");
   }
-  if (error.code === "INVALID_CREDENTIALS") {
+  // WITHDRAWAL_PASSWORD_MISMATCH là mã hiện tại. GIỮ CẢ INVALID_CREDENTIALS để không
+  // vỡ nếu frontend deploy trước backend — hai bên không lên cùng lúc.
+  if (
+    error.code === "WITHDRAWAL_PASSWORD_MISMATCH" ||
+    error.code === "INVALID_CREDENTIALS"
+  ) {
     return t("profile.withdrawal_password_wrong");
+  }
+  if (error.code === "BANK_ACCOUNT_ALREADY_LINKED") {
+    return t("profile.already_linked");
+  }
+  if (error.code === "BANK_ACCOUNT_REMOVE_FORBIDDEN") {
+    return t("profile.remove_forbidden");
   }
   return error.message || t("profile.save_failed");
 }

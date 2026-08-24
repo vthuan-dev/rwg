@@ -192,7 +192,24 @@
         "reveal": "번호 표시",
         "reveal_confirm": "확인했습니다, 계좌 번호 표시",
         "reveal_warning": "데이터 보안을 위해, 전체 계좌 번호를 조회하는 작업은 시스템 감사 로그에 기록됩니다.",
-        "section": "출금 수단"
+        "section": "출금 수단",
+        "add_title": "허용자 대식 계좌 추가",
+        "add_note": "회원은 하나의 계좌만 연결할 수 있으며 직접 삭제할 수 없습니다. 변경하려면 기존 계좌를 삭제한 후 새 계좌를 추가하십시오. 모든 작업은 샜스템 로기에 기록됩니다.",
+        "bank_code": "은행 코드",
+        "holder_name": "예금주",
+        "account_number_input": "계좌번호",
+        "reason": "사유",
+        "reason_placeholder": "예: 회원이 채팅으로 계좌번호 오류를 알림",
+        "add_submit": "계좌 추가",
+        "adding": "추가 중...",
+        "remove": "계좌 삭제",
+        "removing": "삭제 중...",
+        "remove_confirm_title": "이 수령 계좌를 삭제하시겜습니까?",
+        "remove_confirm_note": "새 계좌를 추가하기 전에는 회원이 입숙을 할 수 없습니다. 이 작업은 샜스템 로기에 기록됩니다.",
+        "remove_confirm": "이해했습니다, 계좌 삭제",
+        "cancel": "추소",
+        "no_add_permission": "회원의 수령 계좌를 추가 또는 삭제할 권한이 없습니다.",
+        "reason_required": "사유를 입력해 주십시오."
       },
       "role": {
         "cannot_self": "본인의 역할을 변경할 수 없습니다.",
@@ -699,7 +716,12 @@
       "copy_link": "추천 링크 복사",
       "qr_alt": "가입 링크가 포함된 QR 코드",
       "err_failed": "추천 코드를 불러오지 못했습니다. 다시 시도해 주세요."
-    }
+    },
+    "account_locked_title": "수령 계정 연결됨",
+    "account_locked_note": "계정당 하나의 은행 계좌만 연결할 수 있습니다. 변경 또는 수정이 필요하시면 고객지원으로 문의해 주십시오.",
+    "contact_support": "고객지원 문의",
+    "already_linked": "이미 은행 계좌가 연결되었습니다. 변경은 고객지원으로 문의해 주십시오.",
+    "remove_forbidden": "은행 계좌를 직접 삭제할 수 없습니다. 고객지원으로 문의해 주십시오."
   },
   "withdraw": {
     "title": "출금",

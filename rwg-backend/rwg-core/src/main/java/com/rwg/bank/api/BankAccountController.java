@@ -42,7 +42,8 @@ public class BankAccountController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Thêm tài khoản ngân hàng (mã hóa số TK, mask 4 số cuối)")
+    @Operation(summary = "Thêm tài khoản ngân hàng — CHỈ ĐƯỢC MỘT. "
+            + "Đã có tài khoản thì trả 409, phải liên hệ CSKH để đổi")
     public BankAccountResponse add(@AuthenticationPrincipal Jwt jwt,
                                    @Valid @RequestBody BankAccountRequest request,
                                    HttpServletRequest httpRequest) {
@@ -58,7 +59,8 @@ public class BankAccountController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Gỡ tài khoản ngân hàng (soft delete)")
+    @Operation(summary = "LUÔN trả 409 — người chơi không tự gỡ được tài khoản nhận tiền. "
+            + "Giữ route để client cũ nhận lỗi có nghĩa thay vì 404")
     public void remove(@AuthenticationPrincipal Jwt jwt,
                        @PathVariable UUID id,
                        HttpServletRequest httpRequest) {

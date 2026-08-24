@@ -343,8 +343,10 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.defaultMessage(),
                         null, "error.not_found.user"));
         if (!passwordEncoder.matches(request.loginPassword(), user.getPasswordHash())) {
-            throw new ApiException(ErrorCode.INVALID_CREDENTIALS,
-                    ErrorCode.INVALID_CREDENTIALS.defaultMessage(),
+            // 400, KHÔNG 401: đây là xác nhận lại mật khẩu trong phiên ĐANG HỢP LỆ,
+            // không phải đăng nhập. 401 sẽ khiến frontend đăng xuất người dùng.
+            throw new ApiException(ErrorCode.WITHDRAWAL_PASSWORD_MISMATCH,
+                    ErrorCode.WITHDRAWAL_PASSWORD_MISMATCH.defaultMessage(),
                     null, "error.invalid_credentials.withdrawal_password");
         }
         validatePasswordBytes(request.newWithdrawalPassword());
@@ -425,8 +427,9 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.defaultMessage(),
                         null, "error.not_found.user"));
         if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
-            throw new ApiException(ErrorCode.INVALID_CREDENTIALS,
-                    ErrorCode.INVALID_CREDENTIALS.defaultMessage(),
+            // 400, KHÔNG 401 — cùng lý do: phiên vẫn hợp lệ, chỉ gõ sai mật khẩu cũ.
+            throw new ApiException(ErrorCode.WITHDRAWAL_PASSWORD_MISMATCH,
+                    ErrorCode.WITHDRAWAL_PASSWORD_MISMATCH.defaultMessage(),
                     null, "error.invalid_credentials.old_password");
         }
         validatePasswordBytes(request.newPassword());

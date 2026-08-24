@@ -192,7 +192,24 @@
         "reveal": "Reveal",
         "reveal_confirm": "Understood, reveal account number",
         "reveal_warning": "To ensure data security, revealing the full account number will be logged in the System Audit Trail.",
-        "section": "Payout Methods"
+        "section": "Payout Methods",
+        "add_title": "Add account on behalf of player",
+        "add_note": "Players can link only one account and cannot remove it themselves. To change it, remove the old one first, then add the new one. Every action is written to the audit log.",
+        "bank_code": "Bank code",
+        "holder_name": "Account holder",
+        "account_number_input": "Account number",
+        "reason": "Reason",
+        "reason_placeholder": "e.g. player reported a wrong number via chat",
+        "add_submit": "Add account",
+        "adding": "Adding...",
+        "remove": "Remove account",
+        "removing": "Removing...",
+        "remove_confirm_title": "Remove this payout account?",
+        "remove_confirm_note": "The player will not be able to withdraw until a new account is added. This action is written to the audit log.",
+        "remove_confirm": "I understand, remove the account",
+        "cancel": "Cancel",
+        "no_add_permission": "You do not have permission to add or remove player payout accounts.",
+        "reason_required": "Please enter a reason."
       },
       "role": {
         "cannot_self": "Cannot change your own role.",
@@ -699,7 +716,12 @@
       "copy_link": "Copy referral link",
       "qr_alt": "QR code containing your registration link",
       "err_failed": "Could not load your referral code. Please try again."
-    }
+    },
+    "account_locked_title": "Payout account linked",
+    "account_locked_note": "Each account can link only one bank account. To change or correct the details, please contact customer support.",
+    "contact_support": "Contact support",
+    "already_linked": "A bank account is already linked. Please contact customer support to change it.",
+    "remove_forbidden": "You cannot remove your own bank account. Please contact customer support."
   },
   "withdraw": {
     "title": "Withdraw",

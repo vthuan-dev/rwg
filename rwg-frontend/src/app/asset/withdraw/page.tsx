@@ -298,7 +298,12 @@ export default function WithdrawPage() {
     if (err.code === "WITHDRAWAL_PASSWORD_NOT_SET") {
       return t("withdraw.err_password_not_set");
     }
-    if (err.code === "INVALID_CREDENTIALS") {
+    // WITHDRAWAL_PASSWORD_MISMATCH là mã hiện tại (400). GIỮ CẢ INVALID_CREDENTIALS
+    // để không vỡ nếu frontend deploy trước backend.
+    if (
+      err.code === "WITHDRAWAL_PASSWORD_MISMATCH" ||
+      err.code === "INVALID_CREDENTIALS"
+    ) {
       return t("withdraw.err_wrong_password");
     }
     if (err.code === "INSUFFICIENT_BALANCE") {
@@ -347,7 +352,11 @@ export default function WithdrawPage() {
       // Mật khẩu bị từ chối ở bước gửi lệnh dù kiểm ngầm đã báo đúng: xảy ra khi admin reset
       // mật khẩu rút đúng trong lúc người chơi đang ở trang này. Phải xóa cache và tắt đèn nút,
       // không thì nút vẫn sáng và họ bấm lại — mỗi lần bấm ăn thêm một lượt chống dò.
-      if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") {
+      if (
+        err instanceof ApiError &&
+        (err.code === "WITHDRAWAL_PASSWORD_MISMATCH" ||
+          err.code === "INVALID_CREDENTIALS")
+      ) {
         verifiedCache.current.delete(withdrawalPassword);
         setPasswordCheck("invalid");
       }

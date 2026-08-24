@@ -167,8 +167,17 @@ class WithdrawalFlowTest {
                 .andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_NOT_SET"));
     }
 
+    /**
+     * Sai mật khẩu rút tiền phải trả 400, KHÔNG được trả 401.
+     *
+     * ĐÂY LÀ TEST CANH MỘT LỖI THẬT ĐÃ XẢY RA: trước đây chỗ này trả 401, và
+     * frontend hiểu 401 là "phiên hết hạn" nên đẩy người dùng sang trang đăng nhập.
+     * Kết quả: gõ sai mật khẩu rút tiền thì bị đăng xuất giữa lúc tạo lệnh rút.
+     *
+     * Test này khóa chặt mã trạng thái để không ai vô tình đổi lại về 401.
+     */
     @Test
-    void wrongWithdrawalPasswordReturns401() throws Exception {
+    void wrongWithdrawalPasswordReturns400NotUnauthorized() throws Exception {
         String username = unique("wdwrongpw");
         JsonNode tokens = registerAndLogin(username);
         String bearer = "Bearer " + tokens.get("accessToken").asText();
@@ -176,8 +185,8 @@ class WithdrawalFlowTest {
         setWithdrawalPassword(bearer);
 
         requestWithdrawal(bearer, "30", "999999")
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_MISMATCH"));
     }
 
     @Test

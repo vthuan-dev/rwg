@@ -192,7 +192,24 @@
         "reveal": "Hiện số",
         "reveal_confirm": "Tôi đã hiểu, giải mã số tài khoản",
         "reveal_warning": "Để đảm bảo an toàn thông tin, hành động xem số tài khoản đầy đủ này sẽ được ghi lại trong Nhật ký Hệ thống.",
-        "section": "Phương thức nhận tiền"
+        "section": "Phương thức nhận tiền",
+        "add_title": "Thêm tài khoản hộ người chơi",
+        "add_note": "Người chơi chỉ liên kết được một tài khoản và không tự gỡ được. Muốn đổi thì gỡ cái cũ trước rồi thêm cái mới. Mọi thao tác đều ghi vào Nhật ký Hệ thống.",
+        "bank_code": "Mã ngân hàng",
+        "holder_name": "Tên chủ tài khoản",
+        "account_number_input": "Số tài khoản",
+        "reason": "Lý do",
+        "reason_placeholder": "Ví dụ: khách báo sai số qua chat",
+        "add_submit": "Thêm tài khoản",
+        "adding": "Đang thêm...",
+        "remove": "Gỡ tài khoản",
+        "removing": "Đang gỡ...",
+        "remove_confirm_title": "Gỡ tài khoản nhận tiền này?",
+        "remove_confirm_note": "Người chơi sẽ không rút được tiền cho đến khi có tài khoản mới. Thao tác ghi vào Nhật ký Hệ thống.",
+        "remove_confirm": "Tôi đã hiểu, gỡ tài khoản",
+        "cancel": "Huỷ",
+        "no_add_permission": "Bạn không có quyền thêm hoặc gỡ tài khoản nhận tiền của người chơi.",
+        "reason_required": "Vui lòng nhập lý do."
       },
       "role": {
         "cannot_self": "Không thể tự thay đổi vai trò của bản thân.",
@@ -699,7 +716,12 @@
       "copy_link": "Sao chép liên kết giới thiệu",
       "qr_alt": "Mã QR chứa liên kết đăng ký của bạn",
       "err_failed": "Không tải được mã giới thiệu. Vui lòng thử lại."
-    }
+    },
+    "account_locked_title": "Tài khoản nhận tiền đã liên kết",
+    "account_locked_note": "Mỗi tài khoản chỉ liên kết được một tài khoản ngân hàng. Cần đổi hoặc sửa thông tin, vui lòng liên hệ CSKH để được hỗ trợ.",
+    "contact_support": "Liên hệ CSKH",
+    "already_linked": "Bạn đã liên kết một tài khoản ngân hàng. Vui lòng liên hệ CSKH để đổi.",
+    "remove_forbidden": "Bạn không thể tự gỡ tài khoản ngân hàng. Vui lòng liên hệ CSKH."
   },
   "withdraw": {
     "title": "Rút tiền",

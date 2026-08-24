@@ -192,7 +192,24 @@
         "reveal": "显示完整号码",
         "reveal_confirm": "我已了解，显示账号",
         "reveal_warning": "为确保数据安全，查看完整账号的操作将被记录在系统审计日志中。",
-        "section": "收款方式"
+        "section": "收款方式",
+        "add_title": "代玩家添加账户",
+        "add_note": "玩家只能绑定一个账户且无法自行解绑。如需更换，请先解绑旧账户再添加新账户。所有操作均记入系统日志。",
+        "bank_code": "银行代码",
+        "holder_name": "账户持有人",
+        "account_number_input": "银行账号",
+        "reason": "原因",
+        "reason_placeholder": "例：玩家通过聊天反馈账号错误",
+        "add_submit": "添加账户",
+        "adding": "添加中...",
+        "remove": "解绑账户",
+        "removing": "解绑中...",
+        "remove_confirm_title": "确认解绑此收款账户？",
+        "remove_confirm_note": "在添加新账户之前，玩家无法提款。此操作将记入系统日志。",
+        "remove_confirm": "我已了解，解绑账户",
+        "cancel": "取消",
+        "no_add_permission": "您无权添加或解绑玩家的收款账户。",
+        "reason_required": "请填写原因。"
       },
       "role": {
         "cannot_self": "无法修改自己的角色。",
@@ -699,7 +716,12 @@
       "copy_link": "复制推荐链接",
       "qr_alt": "包含您注册链接的二维码",
       "err_failed": "无法加载推荐码，请重试。"
-    }
+    },
+    "account_locked_title": "已绑定收款账户",
+    "account_locked_note": "每个账号只能绑定一个银行账户。如需更改或修正信息，请联系客服。",
+    "contact_support": "联系客服",
+    "already_linked": "您已绑定一个银行账户，如需更改请联系客服。",
+    "remove_forbidden": "您无法自行解绑银行账户，请联系客服。"
   },
   "withdraw": {
     "title": "取款",
