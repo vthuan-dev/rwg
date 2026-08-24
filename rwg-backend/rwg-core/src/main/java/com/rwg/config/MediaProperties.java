@@ -60,7 +60,36 @@ public record MediaProperties(
         int chatUploadLimitPerWindow,
 
         /** Cửa sổ tính hạn mức tải tệp. */
-        Duration chatUploadWindow
+        Duration chatUploadWindow,
+
+        /**
+         * Số banner tối đa được phép tồn tại.
+         *
+         * ĐẾM CẢ BANNER ĐANG TẮT, không chỉ banner ACTIVE: trần này sinh ra để giới hạn
+         * số tệp trên đĩa, mà tệp của banner đang tắt vẫn chiếm chỗ y như tệp đang bật.
+         * Nếu chỉ đếm ACTIVE thì tắt hết đi là tải lên được vô hạn.
+         */
+        int bannerMaxCount,
+
+        /**
+         * Dung lượng tối đa một ảnh banner, tính theo byte.
+         *
+         * Hai ảnh banner hiện có là WebP ~168 KB, nên 10MB rất thoải mái kể cả khi người
+         * vận hành tải thẳng ảnh PNG chưa nén từ thiết kế.
+         */
+        long bannerMaxImageBytes,
+
+        /**
+         * Dung lượng tối đa một video banner, tính theo byte.
+         *
+         * 50MB: hai video hiện có là 4.2MB và 2.2MB, nên mức này còn dư nhiều cho video
+         * dài hơn hoặc nét hơn về sau, đồng thời vẫn chặn được việc làm đầy đĩa.
+         *
+         * PHẢI NHỎ HƠN {@code spring.servlet.multipart.max-file-size}: giới hạn của
+         * Spring ném MaxUploadSizeExceededException ở tầng servlet với thông báo khó
+         * hiểu, còn giới hạn ở đây trả lỗi nói rõ mức tối đa.
+         */
+        long bannerMaxVideoBytes
 ) {
 
     public MediaProperties {
@@ -68,10 +97,23 @@ public record MediaProperties(
         if (chatMaxFileSizeBytes <= 0) chatMaxFileSizeBytes = 10L * 1024 * 1024;
         if (chatUploadLimitPerWindow <= 0) chatUploadLimitPerWindow = 10;
         if (chatUploadWindow == null) chatUploadWindow = Duration.ofMinutes(1);
+        if (bannerMaxCount <= 0) bannerMaxCount = 4;
+        if (bannerMaxImageBytes <= 0) bannerMaxImageBytes = 10L * 1024 * 1024;
+        if (bannerMaxVideoBytes <= 0) bannerMaxVideoBytes = 50L * 1024 * 1024;
     }
 
     /** Dung lượng tối đa hiển thị cho người dùng, dạng "10MB". */
     public String chatMaxFileSizeLabel() {
         return (chatMaxFileSizeBytes / (1024 * 1024)) + "MB";
+    }
+
+    /** Trần ảnh banner dạng "10MB". */
+    public String bannerMaxImageLabel() {
+        return (bannerMaxImageBytes / (1024 * 1024)) + "MB";
+    }
+
+    /** Trần video banner dạng "50MB". */
+    public String bannerMaxVideoLabel() {
+        return (bannerMaxVideoBytes / (1024 * 1024)) + "MB";
     }
 }

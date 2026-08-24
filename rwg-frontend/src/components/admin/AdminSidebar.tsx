@@ -12,7 +12,7 @@ import {
   ShieldAlert,
   Network,
   Image as ImageIcon,
-  Activity,
+  BookText,
   Headphones,
   LogOut,
 } from "lucide-react";
@@ -114,6 +114,13 @@ export const AdminSidebar: React.FC = () => {
           label: t("admin.nav.affiliates"),
           icon: Network,
         },
+        // SỔ SÁCH Ở NHÓM TÀI CHÍNH, không ở nhóm cấu hình hệ thống: đối chiếu
+        // sổ sách là việc tài chính làm thường xuyên, không phải một thiết lập.
+        {
+          href: `${ADMIN_URL_PREFIX}/ledger`,
+          label: t("admin.nav.ledger"),
+          icon: BookText,
+        },
       ],
     },
     {
@@ -133,11 +140,6 @@ export const AdminSidebar: React.FC = () => {
           href: `${ADMIN_URL_PREFIX}/banners`,
           label: t("admin.nav.banners"),
           icon: ImageIcon,
-        },
-        {
-          href: `${ADMIN_URL_PREFIX}/audit`,
-          label: t("admin.nav.audit"),
-          icon: Activity,
         },
       ],
     },

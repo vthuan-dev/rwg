@@ -1,5 +1,6 @@
 package com.rwg.banner.api;
 
+import com.rwg.banner.dto.BannerLimitsResponse;
 import com.rwg.banner.dto.BannerResponse;
 import com.rwg.banner.dto.UpdateBannerStatusRequest;
 import com.rwg.banner.service.BannerService;
@@ -42,14 +43,29 @@ public class AdminBannerController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Tải file Video (MP4/WebM) hoặc Ảnh (PNG/JPG) làm Banner quảng cáo mới")
+    @Operation(summary = "Tải tệp Video (MP4/WebM) hoặc Ảnh (PNG/JPG/WebP) làm banner mới")
     public BannerResponse uploadBanner(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("title") String title,
+            // TUỲ CHỌN: biểu mẫu ở khu quản trị chỉ còn tệp + thứ tự. Để trống thì
+            // BannerService suy tiêu đề từ tên tệp (cột title là NOT NULL).
+            @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "linkUrl", required = false) String linkUrl,
             @RequestParam(value = "sortOrder", required = false, defaultValue = "0") Integer sortOrder
     ) {
         return bannerService.createBanner(file, title, linkUrl, sortOrder);
+    }
+
+    /**
+     * Giịi hạn hiện hành để khu quản trị hiển thị và kiểm trước.
+     *
+     * KHÔNG để frontend gán cứng số 4: nếu gán cứng thì khi đổi {@code rwg.media.banner-max-count}
+     * ở backend, frontend vẫn tắt nút theo con số cũ — hai nguồn sự thật cho cùng một
+     * giới hạn, và người vận hành thấy nút bị tắt mà server vẫn nhận thêm.
+     */
+    @GetMapping("/limits")
+    @Operation(summary = "Giới hạn số lượng và dung lượng banner")
+    public BannerLimitsResponse limits() {
+        return bannerService.limits();
     }
 
     @GetMapping

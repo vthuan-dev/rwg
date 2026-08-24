@@ -40,6 +40,27 @@ interface BannerPage {
   last: boolean;
 }
 
+/**
+ * Giới hạn đọc từ server, khớp {@code BannerLimitsResponse}.
+ *
+ * KHÔNG gán cứng số 4 và các mức dung lượng ở đây: đổi cấu hình ở backend mà
+ * frontend vẫn tắt nút theo con số cũ là hai nguồn sự thật cho cùng một giới hạn.
+ */
+interface BannerLimits {
+  maxCount: number;
+  currentCount: number;
+  maxImageBytes: number;
+  maxVideoBytes: number;
+}
+
+/** Dung lượng dạng "4.2MB" để hiện trong thông báo lỗi. */
+const formatBytes = (bytes: number): string => {
+  const mb = bytes / (1024 * 1024);
+  // Một chữ số thập phân cho tệp nhỏ hơn 10MB (4.2MB dễ đọc hơn 4MB), làm tròn
+  // với tệp lớn hơn (50MB đủ rõ, 50.0MB chỉ thêm nhiễu).
+  return mb < 10 ? `${mb.toFixed(1)}MB` : `${Math.round(mb)}MB`;
+};
+
 export default function AdminBannersPage() {
   const { t } = useTranslation();
   const [banners, setBanners] = useState<BannerItem[]>([]);
@@ -48,11 +69,17 @@ export default function AdminBannersPage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  /**
+   * Giới hạn từ server. `null` khi chưa tải xong.
+   *
+   * Chưa biết giới hạn thì KHÔNG tắt nút: tắt sẵn rồi mới biết là còn chỗ sẽ
+   * làm người vận hành tưởng hệ thống hỏng. Server vẫn chặn đúng nếu thật đã đủ.
+   */
+  const [limits, setLimits] = useState<BannerLimits | null>(null);
+
   // Upload Modal
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
   const [sortOrder, setSortOrder] = useState("0");
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -76,6 +103,15 @@ export default function AdminBannersPage() {
     }
   }, [page]);
 
+  /** Đọc giới hạn từ server. Lỗi thì bỏ qua: giới hạn thật vẫn được server áp. */
+  const fetchLimits = useCallback(async (): Promise<BannerLimits | null> => {
+    try {
+      return await adminFetch<BannerLimits>("/admin/banners/limits");
+    } catch {
+      return null;
+    }
+  }, []);
+
   /** Đưa kết quả vào state. Dùng chung cho lần tải đầu và các lần tải lại. */
   const applyResult = useCallback((data: BannerPage | null) => {
     setBanners(data?.content ?? []);
@@ -90,23 +126,32 @@ export default function AdminBannersPage() {
     (async () => {
       // Đặt state bên trong hàm async, không ở thân effect — xem lý do ở trên.
       setLoading(true);
-      const data = await fetchBanners();
+      // Song song: hai request độc lập, chạy nối tiếp chỉ làm chậm gấp đôi.
+      const [data, lim] = await Promise.all([fetchBanners(), fetchLimits()]);
       if (cancelled) return;
       applyResult(data);
+      if (lim) setLimits(lim);
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [fetchBanners, applyResult]);
+  }, [fetchBanners, fetchLimits, applyResult]);
 
   /** Tải lại sau khi ghi. Gọi ngoài effect nên đặt state trực tiếp là được. */
   const reload = useCallback(async () => {
     setLoading(true);
-    applyResult(await fetchBanners());
+    const [data, lim] = await Promise.all([fetchBanners(), fetchLimits()]);
+    applyResult(data);
+    // TẢI LẠI CẢ GIỚI HẠN, không chỉ danh sách: sau khi xoá hoặc thêm một banner thì
+    // `currentCount` đã khác, mà nó quyết định nút tải lên bật hay tắt.
+    if (lim) setLimits(lim);
     setLoading(false);
-  }, [fetchBanners, applyResult]);
+  }, [fetchBanners, fetchLimits, applyResult]);
+
+  /** Đã đủ trần chưa. Chưa biết giới hạn thì coi như còn chỗ — xem chú thích `limits`. */
+  const atMaxCount = limits !== null && limits.currentCount >= limits.maxCount;
 
   const handleToggleStatus = async (banner: BannerItem) => {
     try {
@@ -138,9 +183,22 @@ export default function AdminBannersPage() {
       setUploadError(t("banners.err_media_required"));
       return;
     }
-    if (!title.trim()) {
-      setUploadError(t("banners.err_title_required"));
-      return;
+
+    // KIỂM DUNG LƯỢNG NGAY TẠI TRÌNH DUYỆT trước khi gửi. Server vẫn kiểm lại (đây
+      // chỉ là tiện lợi, không phải bảo vệ), nhưng tải lên 60MB rồi mới nhận lỗi là
+      // chờ vô ích trên mạng chậm.
+    if (limits) {
+      const isVideo = file.type.startsWith("video/");
+      const maxBytes = isVideo ? limits.maxVideoBytes : limits.maxImageBytes;
+      if (file.size > maxBytes) {
+        setUploadError(
+          t("banners.err_too_large", {
+            size: formatBytes(file.size),
+            max: formatBytes(maxBytes),
+          })
+        );
+        return;
+      }
     }
 
     setUploadLoading(true);
@@ -149,8 +207,8 @@ export default function AdminBannersPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("title", title.trim());
-      if (linkUrl.trim()) formData.append("linkUrl", linkUrl.trim());
+      // KHÔNG gửi `title`: backend suy tiêu đề từ tên tệp. Biểu mẫu chỉ còn tệp +
+      // thứ tự hiển thị theo yêu cầu vận hành.
       formData.append("sortOrder", sortOrder);
 
       await adminFetch("/admin/banners/upload", {
@@ -160,8 +218,7 @@ export default function AdminBannersPage() {
 
       setShowUploadModal(false);
       setFile(null);
-      setTitle("");
-      setLinkUrl("");
+      setSortOrder("0");
       void reload();
     } catch (err) {
       setUploadError((err as Error).message || t("banners.err_upload_failed"));
@@ -188,9 +245,26 @@ export default function AdminBannersPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Nhãn số lượng ĐỨNG NGOÀI nút, không phải tooltip: người vận hành cần
+                thấy còn bao nhiêu chỗ TRƯỚC khi bấm, và khi nút bị tắt thì tooltip trên
+                phần tử disabled không hiện được trên nhiều trình duyệt. */}
+            {limits && (
+              <span
+                className={`text-[11px] font-bold tabular-nums ${
+                  atMaxCount ? "text-red-600" : "text-slate-500"
+                }`}
+              >
+                {t("banners.count_badge", {
+                  current: limits.currentCount,
+                  max: limits.maxCount,
+                })}
+              </span>
+            )}
             <button
               onClick={() => setShowUploadModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+              disabled={atMaxCount}
+              title={atMaxCount ? t("banners.max_reached", { max: limits?.maxCount ?? 0 }) : undefined}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>{t("banners.btn_upload")}</span>
@@ -360,30 +434,22 @@ export default function AdminBannersPage() {
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-900 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 outline-none cursor-pointer"
               />
+              {/* NÓI TRƯỚC mức tối đa thay vì để người dùng chọn tệp rồi mới báo lỗi. */}
+              {limits && (
+                <span className="text-[11px] text-slate-500 font-medium">
+                  {t("banners.hint_limits", {
+                    image: formatBytes(limits.maxImageBytes),
+                    video: formatBytes(limits.maxVideoBytes),
+                  })}
+                  {" · "}
+                  {t("banners.title_from_filename")}
+                </span>
+              )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">{t("banners.field_title")}</label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Vd: Hero Video Casino 2026"
-                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">{t("banners.field_link")}</label>
-              <input
-                type="url"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://rwg.com/promo-hero"
-                className="bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-semibold"
-              />
-            </div>
+            {/* KHÔNG CÒN trường "Tiêu đề" và "Đường dẫn khi bấm vào": biểu mẫu chỉ
+                cần tệp + thứ tự. Tiêu đề do backend suy từ tên tệp (cột title là
+                NOT NULL) và chỉ hiện trong danh sách quản trị, người chơi không đọc thấy. */}
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-700">{t("banners.field_sort")}</label>

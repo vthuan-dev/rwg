@@ -67,6 +67,14 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * phiên STOMP: hai app dùng chung JWT_SECRET nên thiếu cấu hình đó thì token PLAYER cũng
  * kết nối được vào broker của khu quản trị.
  *
+ * DANH SÁCH basePackages LÀ THỦ CÔNG: thêm một package mới vào {@code com.rwg} mà
+ * quên khai báo ở đây thì controller trong đó KHÔNG ĐƯỢC ĐĂNG KÝ và mọi route
+ * của nó trả 404 — không có lỗi khi khởi động, không có cảnh báo nào.
+ *
+ * TỆ HƠN NỮA, TEST KHÔNG BẮT ĐƯỢC LỖI NÀY: context test trong {@code rwg-core}
+ * quét toàn bộ {@code com.rwg}, nên một endpoint có thể có test xanh mà vẫn 404
+ * khi chạy thật. Đã xảy ra đúng như vậy với {@code com.rwg.report}.
+ *
  * Quy ước bắt buộc: xem DECISIONS.md ở root repository.
  */
 @SpringBootConfiguration
@@ -89,7 +97,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.banner",
                 "com.rwg.media",
                 "com.rwg.notification",
-                "com.rwg.chat"
+                "com.rwg.chat",
+                // Báo cáo sổ sách — CHỈ có Ở ĐÂY, không ở app người chơi.
+                "com.rwg.report"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,

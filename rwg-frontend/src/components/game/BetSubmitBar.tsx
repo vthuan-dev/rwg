@@ -30,8 +30,16 @@ export interface BetSubmitBarProps {
  * tử `fixed` bám theo khung nhìn chứ không theo khung cha — thiếu giới hạn này thì trên
  * màn hình rộng thanh sẽ kéo dài hết chiều ngang trong khi nội dung nằm gọn ở giữa.
  *
- * `pb-[var(--safe-bottom)]` chừa chỗ cho thanh gesture của iPhone, không thì nút Đặt
- * cược nằm ngay dưới vạch kéo và rất dễ bấm nhầm sang thao tác hệ thống.
+ * KHÔNG DÙNG `bottom-0`: thanh điều hướng dưới (`BottomNav`) cũng `fixed bottom-0`
+ * và có `z-50` — cao hơn `z-40` ở đây — nên nó ĐÈ LÊN nút "Đặt cược". Dịch thanh
+ * này lên đúng chiều cao thanh điều hướng bằng `bottom-[var(--bottom-nav-total)]`.
+ *
+ * TẠI SAO KHÔNG NÂNG `z-index` của form lên trên 50: lúc đó form sẽ che thanh
+ * điều hướng, và người chơi không bấm được để rời trang cược. Hai thanh phải
+ * XẾP CHỒNG theo chiều dọc, không phải tranh nhau cùng một vị trí.
+ *
+ * KHÔNG CẦN `--safe-bottom` nữa: `--bottom-nav-total` đã gồm vùng an toàn, và thanh
+ * điều hướng nằm giữa form và vạch kéo của iPhone nên nút không thể sát vạch.
  */
 export const BetSubmitBar: React.FC<BetSubmitBarProps> = ({
   stake,
@@ -72,7 +80,7 @@ export const BetSubmitBar: React.FC<BetSubmitBarProps> = ({
 
   return (
     <form
-      className="fixed bottom-0 left-1/2 z-40 flex w-full -translate-x-1/2 flex-col bg-black p-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:max-w-[640px]"
+      className="fixed bottom-[var(--bottom-nav-total)] left-1/2 z-40 flex w-full -translate-x-1/2 flex-col border-t border-white/5 bg-black p-5 sm:max-w-[640px]"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) onSubmit();

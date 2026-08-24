@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -303,6 +304,76 @@ class AdminRoleSeparationTest {
                                 """))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/admin/approvals").header("Authorization", admin))
+                .andExpect(status().isOk());
+    }
+
+    // ===== SỔ SÁCH: chỉ ADMIN + FINANCE =====
+
+    @Test
+    @DisplayName("Sổ sách người chơi: ADMIN và FINANCE đọc được, SUPPORT và RISK bị chặn")
+    void ledgerReportRestrictedToAdminAndFinance() throws Exception {
+        UUID playerId = fundedPlayerId();
+        String path = "/api/v1/admin/reports/players/" + playerId + "/ledger";
+
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.ADMIN)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.FINANCE)))
+                .andExpect(status().isOk());
+
+        // Báo cáo này phơi ra toàn bộ lịch sử tiền của một người chơi. SUPPORT
+        // và RISK không có nghiệp vụ nào cần tới nó.
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.SUPPORT)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.RISK)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("File CSV sổ sách cũng bị chặn đúng như bản JSON")
+    void ledgerCsvHasSameRestriction() throws Exception {
+        // ĐƯỜNG RIÊNG NÊN DỄ SÓT: một matcher viết hẹp thành
+        // "/reports/players/*/ledger" sẽ bỏ sót ".csv" và toàn bộ dữ liệu vẫn rò ra
+        // qua đường đó.
+        String path = "/api/v1/admin/reports/players/" + fundedPlayerId() + "/ledger.csv";
+
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.SUPPORT)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(path).header("Authorization", staffBearer(UserRole.ADMIN)))
+                .andExpect(status().isOk());
+    }
+
+    // ===== BANNER: chỉ ADMIN được GHI =====
+
+    @Test
+    @DisplayName("Xoá banner: chỉ ADMIN, các vai trò khác bị chặn")
+    void bannerWriteRestrictedToAdmin() throws Exception {
+        // Banner hiển thị trên trang chủ CÔNG KHAI nên tải/xoá banner là đặt nội dung
+        // trước mặt mọi khách truy cập. Trước khi có matcher riêng, thao tác này rơi
+        // vào matcher chung nên SUPPORT và RISK đều làm được.
+        //
+        // Dùng một id không tồn tại: ở đây chỉ kiểm TẦNG PHÂN QUYỀN, và 403 phải đến
+        // TRƯỚC khi controller chạy. Vai trò hợp lệ sẽ nhận 404 — cũng là bằng chứng
+        // rằng nó đã qua được tầng bảo mật.
+        String path = "/api/v1/admin/banners/" + UUID.randomUUID();
+
+        mockMvc.perform(delete(path).header("Authorization", staffBearer(UserRole.SUPPORT)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete(path).header("Authorization", staffBearer(UserRole.RISK)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete(path).header("Authorization", staffBearer(UserRole.FINANCE)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete(path).header("Authorization", staffBearer(UserRole.ADMIN)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Đọc danh sách banner vẫn mở cho mọi nhân sự quản trị")
+    void bannerReadStillOpenToAllStaff() throws Exception {
+        // Chỉ SIẾT thao tác GHI. Siết luôn GET sẽ làm SUPPORT không xem được banner
+        // đang chạy khi người chơi hỏi về một chương trình khuyến mãi.
+        mockMvc.perform(get("/api/v1/admin/banners")
+                        .header("Authorization", staffBearer(UserRole.SUPPORT)))
                 .andExpect(status().isOk());
     }
 }

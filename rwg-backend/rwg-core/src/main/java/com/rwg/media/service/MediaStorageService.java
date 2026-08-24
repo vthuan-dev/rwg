@@ -150,6 +150,38 @@ public class MediaStorageService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Định dạng file không hợp lệ. Chỉ chấp nhận Video (MP4, WebM) hoặc Ảnh (PNG, JPG, WebP)");
         }
 
+        // Trần dung lượng theo TẮNG LOẠI, không một mức chung: video lớn hơn ảnh cả một
+        // bậc độ lớn (4.2MB so với 168KB), nên một mức chung hoặc quá chật cho video
+        // hoặc quá rộng cho ảnh.
+        long maxBytes = mediaType == BannerMediaType.VIDEO
+                ? mediaProperties.bannerMaxVideoBytes()
+                : mediaProperties.bannerMaxImageBytes();
+        String maxLabel = mediaType == BannerMediaType.VIDEO
+                ? mediaProperties.bannerMaxVideoLabel()
+                : mediaProperties.bannerMaxImageLabel();
+        if (file.getSize() > maxBytes) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    "Tệp vượt quá dung lượng tối đa " + maxLabel,
+                    Map.of("maxSizeBytes", maxBytes),
+                    "error.banner.media.too_large", maxLabel);
+        }
+
+        // KIỂM NỘI DUNG THẬT, không chỉ tin Content-Type và đuôi tệp — cả hai đều do
+        // client khai. Trước đây đặt tên tệp thành "payload.mp4" là qua được, bất kể nội
+        // dung bên trong là gì, và tệp đó sẽ nằm trên đĩa server dưới một cái tên vô hại.
+        //
+        // Mức độ nguy hiểm thấp hơn chat (tệp được phục vụ tĩnh chứ không thực thi),
+        // nhưng một tệp không phải video nằm trong banner sẽ thành ô đen trên trang chủ
+        // của MỌI người chơi, và người vận hành không biết vì sao.
+        boolean contentOk = mediaType == BannerMediaType.VIDEO
+                ? looksLikeVideo(file)
+                : looksLikeImage(file);
+        if (!contentOk) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    "Nội dung tệp không khớp định dạng đã khai", null,
+                    "error.banner.media.bad_type");
+        }
+
         String filename = UUID.randomUUID() + extension;
         return new StoredMediaResult(copyToDisk(file, filename), mediaType);
     }
@@ -269,6 +301,37 @@ public class MediaStorageService {
      * nên một tệp 10MB dựng có chủ ý (decompression bomb) sẽ ngốn hàng trăm MB heap.
      * Đọc 12 byte đủ để biết đây có phải ảnh hay không.
      */
+    /**
+     * Đọc vài byte đầu tệp và đối chiếu chữ ký định dạng video.
+     *
+     * MP4 (và cả họ ISO-BMFF: M4V, MOV): 4 byte đầu là độ dài box, rồi đến chữ
+     * {@code ftyp} ở offset 4. KHÔNG kiểm 4 byte đầu vì chúng là số độ dài, khác nhau
+     * ở mỗi tệp.
+     *
+     * WebM (và Matroska nói chung): 4 byte đầu là EBML magic {@code 1A 45 DF A3}.
+     *
+     * KHÔNG giải mã video để xác thực: giải mã một tệp 50MB tốn hàng trăm MB bộ nhớ
+     * và nhiều giây CPU. 12 byte đủ để biết đây có phải container video hay không.
+     */
+    private static boolean looksLikeVideo(MultipartFile file) {
+        byte[] head = new byte[MAGIC_BYTES_LENGTH];
+        int read;
+        try (InputStream in = file.getInputStream()) {
+            read = in.readNBytes(head, 0, MAGIC_BYTES_LENGTH);
+        } catch (IOException cannotRead) {
+            return false;
+        }
+
+        // WebM / Matroska: EBML magic ngay ở đầu tệp.
+        if (startsWith(head, read, new byte[]{(byte) 0x1A, 0x45, (byte) 0xDF, (byte) 0xA3})) {
+            return true;
+        }
+
+        // MP4 / ISO-BMFF: "ftyp" ở offset 4.
+        return read >= 8
+                && head[4] == 'f' && head[5] == 't' && head[6] == 'y' && head[7] == 'p';
+    }
+
     private static boolean looksLikeImage(MultipartFile file) {
         byte[] head = new byte[MAGIC_BYTES_LENGTH];
         int read;

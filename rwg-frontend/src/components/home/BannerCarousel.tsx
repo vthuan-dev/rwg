@@ -13,45 +13,24 @@ interface BannerItem {
 }
 
 /**
- * BỐN slide cố định của trang chủ, đúng thứ tự này: hai video rồi hai ảnh.
+ * BẢNG DUY NHẤT còn gán cứng: banner dự phòng khi API lỗi hoặc chưa có banner nào.
  *
- * Đây KHÔNG phải banner dự phòng. Trước đây hai ảnh chỉ hiện khi backend chưa có
- * dữ liệu và bị thay sạch ngay khi có — nay cả bốn luôn có mặt, banner từ khu quản
- * trị được nối thêm vào SAU.
+ * TRƯỚC ĐÂY Ở ĐÂY CÓ BỐN SLIDE gán cứng luôn hiện trước banner từ backend. Hệ
+ * quả: khu quản trị không thấy và không quản lý được bốn slide đó — danh sách banner
+ * luôn hiện "0" trong khi trang chủ vẫn chạy 4 slide. Bốn banner đó giờ nằm trong DB
+ * (migration V20260824_04), nên mọi banner đều đến từ MỘT nguồn: API.
  *
- * Hai video: 1248×704, H.264, 5.04 giây, `moov` nằm TRƯỚC `mdat` nên trình duyệt
- * phát được ngay khi tải xong phần đầu, không phải chờ hết file.
- * Hai ảnh: 1280×714 WebP, khoảng 165 KB mỗi cái.
+ * VẪN GIỮ MỘT ẢNH dự phòng: bỏ hẳn thì khi backend chết, chỗ này thành khung đen
+ * trên trang chủ — trông như web hỏng hơn là thiếu quảng cáo. Dùng ảnh chứ không
+ * dùng video: ảnh 165 KB tải xong gần như tức thì, còn video 4.2MB trong tình huống
+ * hệ thống đang có vấn đề thì chỉ làm chậm thêm.
  */
-const HOME_BANNERS: BannerItem[] = [
-  {
-    id: "intro-video-1",
-    title: "Resorts World Genting",
-    mediaType: "VIDEO",
-    mediaUrl: "/element/home-banner-video-wording.mp4",
-  },
-  {
-    id: "intro-video-2",
-    title: "Resorts World Genting",
-    mediaType: "VIDEO",
-    mediaUrl: "/element/home-banner-video-wording2.mp4",
-  },
-  {
-    id: "banner-promo",
-    title: "Tích Luỹ Phần Thưởng 2026",
-    mediaType: "IMAGE",
-    mediaUrl: "/images/banner_promo.webp",
-  },
-  {
-    id: "banner-gateway",
-    title: "Your Gateway To Fortune",
-    mediaType: "IMAGE",
-    mediaUrl: "/images/banner_gateway.webp",
-  },
-];
-
-/** Tập `mediaUrl` của bốn slide trên, dùng để lọc trùng với dữ liệu backend. */
-const HOME_BANNER_URLS = new Set(HOME_BANNERS.map((b) => b.mediaUrl));
+const FALLBACK_BANNER: BannerItem = {
+  id: "fallback-gateway",
+  title: "Resorts World Genting",
+  mediaType: "IMAGE",
+  mediaUrl: "/images/banner_gateway.webp",
+};
 
 /** Banner rộng bằng khung nội dung, tối đa 640px. */
 const BANNER_SIZES = "(max-width: 640px) 100vw, 640px";
@@ -69,7 +48,14 @@ const SWIPE_THRESHOLD_PX = 40;
 const AUTOPLAY_MS = 5000;
 
 export const BannerCarousel: React.FC = () => {
-  const [banners, setBanners] = useState<BannerItem[]>(HOME_BANNERS);
+  /**
+   * `null` = CHƯA tải xong, `[]` = tải xong nhưng không có banner nào.
+   *
+   * Phân biệt hai trạng thái này để không hiện ảnh dự phòng rồi thay ngay bằng
+   * banner thật sau vài trăm ms — một cú nhảy ảnh nhìn rất rẻ. Trong lúc chờ,
+   * khung vẫn chiếm đúng chỗ (aspect-[16/9]) nên không có hiện tượng nhảy layout.
+   */
+  const [banners, setBanners] = useState<BannerItem[] | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -78,55 +64,65 @@ export const BannerCarousel: React.FC = () => {
     const fetchBanners = async () => {
       try {
         const res = await fetch(`${USER_API_BASE_URL}/banners/active`);
-        if (res.ok) {
-          const data: BannerItem[] = await res.json();
-          if (data && data.length > 0) {
-            const remote = data.map((b) => ({
-              ...b,
-              mediaUrl: b.mediaUrl.startsWith("/uploads")
-                ? `${USER_BASE_URL}${b.mediaUrl}`
-                : b.mediaUrl,
-            }));
-            // Bốn slide cố định luôn đứng trước banner từ backend. Lọc theo `mediaUrl`
-            // để nếu ai đó tải đúng một trong bốn file này lên khu quản trị thì nó
-            // không hiện hai lần.
-            setBanners([
-              ...HOME_BANNERS,
-              ...remote.filter((b) => !HOME_BANNER_URLS.has(b.mediaUrl)),
-            ]);
-          }
+        if (!res.ok) {
+          setBanners([]);
+          return;
         }
+        const data: BannerItem[] = await res.json();
+        setBanners(
+          (data ?? []).map((b) => ({
+            ...b,
+            // Chỉ tệp do khu quản trị TẢI LÊN mới cần tiền tố domain của backend
+            // (chúng nằm dưới /uploads và do backend phục vụ). Banner seed từ
+            // migration trỏ vào thư mục public của frontend nên giữ nguyên đường dẫn
+            // — Next.js phục vụ trực tiếp, không qua backend.
+            mediaUrl: b.mediaUrl.startsWith("/uploads")
+              ? `${USER_BASE_URL}${b.mediaUrl}`
+              : b.mediaUrl,
+          }))
+        );
       } catch {
-        // Giữ bốn slide cố định khi backend chưa chạy.
+        // Backend chưa chạy hoặc mạng lỗi: đánh dấu đã tải xong với danh sách rỗng
+        // để ảnh dự phòng được hiện, thay vì đứng mãi ở trạng thái đang tải.
+        setBanners([]);
       }
     };
     fetchBanners();
   }, []);
 
-  const activeBanner = banners[currentIndex] || HOME_BANNERS[0];
-  const activeIsVideo = activeBanner.mediaType === "VIDEO";
+  /**
+   * Danh sách thực sự được hiển thị.
+   *
+   * Tải xong mà không có banner nào thì dùng ảnh dự phòng. Đang tải thì rỗng — phần
+   * render bên dưới chỉ vẽ khung đen giữ chỗ.
+   */
+  const visibleBanners =
+    banners === null ? [] : banners.length > 0 ? banners : [FALLBACK_BANNER];
+
+  const activeBanner = visibleBanners[currentIndex] ?? visibleBanners[0];
+  const activeIsVideo = activeBanner?.mediaType === "VIDEO";
 
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (visibleBanners.length <= 1) return;
     // Banner video KHÔNG dùng đồng hồ: nó tự chuyển khi phát xong (`onEnded`). Video
     // mở đầu dài 5.04 giây, sát ngay trên mốc 5 giây của đồng hồ — để đồng hồ chạy
     // thì nó cắt đúng khung cuối, mà khung cuối mới là chỗ chữ hiện đầy đủ.
     if (activeIsVideo) return;
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length);
+      setCurrentIndex((prev) => (prev + 1) % visibleBanners.length);
     }, AUTOPLAY_MS);
     return () => clearInterval(timer);
     // currentIndex nằm trong deps để đồng hồ được đặt lại sau khi người dùng vuốt
     // tay — không thì banner vừa vuốt tới có thể bị đổi ngay sau đó vài trăm ms.
-  }, [banners.length, currentIndex, activeIsVideo]);
+  }, [visibleBanners.length, currentIndex, activeIsVideo]);
 
   const goTo = useCallback(
     (index: number) => {
-      const count = banners.length;
+      const count = visibleBanners.length;
       if (count === 0) return;
       setCurrentIndex(((index % count) + count) % count);
     },
-    [banners.length]
+    [visibleBanners.length]
   );
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -147,6 +143,17 @@ export const BannerCarousel: React.FC = () => {
     if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) <= Math.abs(dy)) return;
     goTo(currentIndex + (dx < 0 ? 1 : -1));
   };
+
+  // ĐANG TẢI: vẽ khung đen ĐÚNG KÍCH THƯỚC thay vì không vẽ gì. Không vẽ thì khi
+  // dữ liệu về, phần nội dung bên dưới bị đẩy xuống một đoạn — đúng lúc người
+  // dùng có thể đang chạm vào một nút nào đó.
+  if (banners === null) {
+    return (
+      <section className="w-full my-3" aria-busy="true">
+        <div className="relative w-full aspect-[16/9] overflow-hidden bg-black" />
+      </section>
+    );
+  }
 
   return (
     // KHÔNG có `px-4`: banner trải hết chiều rộng khung, sát hai viền như trang gốc.
@@ -170,9 +177,9 @@ export const BannerCarousel: React.FC = () => {
             muted
             // Chạy một lần rồi chuyển slide. Chỉ lặp lại khi đây là banner duy nhất —
             // không lặp thì khung cuối đứng im mãi.
-            loop={banners.length <= 1}
+            loop={visibleBanners.length <= 1}
             onEnded={() => {
-              if (banners.length > 1) goTo(currentIndex + 1);
+              if (visibleBanners.length > 1) goTo(currentIndex + 1);
             }}
             playsInline
             // `auto` để video sẵn sàng ngay: đây là slide ĐẦU TIÊN, người dùng thấy nó
@@ -191,9 +198,9 @@ export const BannerCarousel: React.FC = () => {
           />
         )}
 
-        {banners.length > 1 && (
+        {visibleBanners.length > 1 && (
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center z-10">
-            {banners.map((banner, idx) => (
+            {visibleBanners.map((banner, idx) => (
               <button
                 key={banner.id}
                 type="button"

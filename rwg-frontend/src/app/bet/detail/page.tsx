@@ -529,8 +529,15 @@ function BetDetailContent() {
               ]}
             />
 
-            {/* Chừa chỗ cho thanh đáy cố định, không thì nó che mất lưới cược. */}
-            <div aria-hidden="true" className="h-56" />
+            {/* Chừa chỗ cho thanh đặt cược cố định, không thì nó che mất lưới cược.
+                14rem là chiều cao thực của thanh (ô nhập + hai dòng tổng + nút), cộng
+                thêm `--bottom-nav-total` vì thanh đặt cược giờ nằm TRÊN thanh điều hướng
+                chứ không đè lên nó. Thiếu phần cộng này thì hàng cược cuối cùng vẫn
+                bị khuất đúng 56px. */}
+            <div
+              aria-hidden="true"
+              className="h-[calc(14rem+var(--bottom-nav-total))]"
+            />
           </div>
         ) : null}
       </main>

@@ -54,6 +54,23 @@ class AdminBannerApiTest {
     @Autowired
     private BannerRepository bannerRepository;
 
+    /**
+     * Byte đầu tệp MP4 hợp lệ: 4 byte độ dài box, rồi "ftyp", rồi brand.
+     *
+     * PHẢI LÀ BYTE THẬT chứ không phải chuỗi bất kỳ: {@code MediaStorageService} giờ
+     * kiểm chữ ký nội dung, nên "dummy mp4 video bytes" bị từ chối — đúng như mong đợi.
+     */
+    private static final byte[] MP4_HEADER = {
+            0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'm', 'p', '4', '2',
+            0x00, 0x00, 0x00, 0x00
+    };
+
+    /** Byte đầu tệp PNG hợp lệ: {@code 89 50 4E 47} = 0x89 + "PNG". */
+    private static final byte[] PNG_HEADER = {
+            (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00, 0x00
+    };
+
     private String adminToken;
 
     @BeforeEach
@@ -101,7 +118,7 @@ class AdminBannerApiTest {
                 "file",
                 "promo_hero.mp4",
                 "video/mp4",
-                "dummy mp4 video bytes".getBytes()
+                MP4_HEADER
         );
 
         mockMvc.perform(multipart("/api/v1/admin/banners/upload")
@@ -128,7 +145,7 @@ class AdminBannerApiTest {
                 "file",
                 "banner.png",
                 "image/png",
-                "dummy png bytes".getBytes()
+                PNG_HEADER
         );
 
         mockMvc.perform(multipart("/api/v1/admin/banners/upload")
@@ -198,5 +215,104 @@ class AdminBannerApiTest {
                 .andExpect(status().isNoContent());
 
         assertThat(bannerRepository.findById(banner.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Từ chối tệp đặt tên .mp4 nhưng nội dung không phải video")
+    void rejectFakeVideoContent() throws Exception {
+        // ĐÂY LÀ LỖ HỎNG TRƯỚC KHI SỬA: đặt tên tệp thành .mp4 và khai
+        // Content-Type video/mp4 là qua được, bất kể nội dung thật là gì. Cả hai thứ
+        // đó đều do client khai nên không thể tin.
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "payload.mp4",
+                "video/mp4",
+                "Đây hoàn toàn là văn bản, không phải video".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isBadRequest());
+
+        assertThat(bannerRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Không truyền title thì tiêu đề lấy từ tên tệp")
+    void titleFallsBackToFilename() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "hero-casino-2026.mp4",
+                "video/mp4",
+                MP4_HEADER
+        );
+
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isCreated())
+                // Tên tệp bỏ đuôi, không phải tên kèm đuôi.
+                .andExpect(jsonPath("$.title").value("hero-casino-2026"));
+    }
+
+    @Test
+    @DisplayName("Từ chối banner thứ 5 khi đã đủ trần 4")
+    void rejectUploadBeyondMaxCount() throws Exception {
+        // ĐẦY SẴN 4 banner bằng repository thay vì tải lên 4 lần: nhanh hơn và không
+        // để lại 4 tệp thật trên đĩa của máy chạy test.
+        for (int i = 1; i <= 4; i++) {
+            bannerRepository.save(new Banner(
+                    "Banner " + i, BannerMediaType.IMAGE, "/uploads/media/seed" + i + ".png", null, i));
+        }
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "thu-nam.png", "image/png", PNG_HEADER);
+
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isBadRequest());
+
+        // VẪN ĐÚNG 4, không thành 5.
+        assertThat(bannerRepository.findAll()).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("Trần đếm CẢ banner đang tắt")
+    void maxCountIncludesInactiveBanners() throws Exception {
+        // TẮT HẾT 4 banner rồi thử tải thêm: nếu trần chỉ đếm banner ACTIVE thì lần
+        // tải này sẽ thành công, và ai cũng có thể tải vô hạn bằng cách tắt hết đi.
+        for (int i = 1; i <= 4; i++) {
+            Banner b = new Banner(
+                    "Banner " + i, BannerMediaType.IMAGE, "/uploads/media/off" + i + ".png", null, i);
+            b.setActive(false);
+            bannerRepository.save(b);
+        }
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "them-nua.png", "image/png", PNG_HEADER);
+
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isBadRequest());
+
+        assertThat(bannerRepository.findAll()).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("Endpoint /limits trả đúng trần và số đang có")
+    void limitsEndpointReturnsCurrentState() throws Exception {
+        bannerRepository.save(new Banner(
+                "Một banner", BannerMediaType.IMAGE, "/uploads/media/one.png", null, 1));
+
+        mockMvc.perform(get("/api/v1/admin/banners/limits")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.maxCount").value(4))
+                .andExpect(jsonPath("$.currentCount").value(1))
+                .andExpect(jsonPath("$.maxImageBytes").value(10L * 1024 * 1024))
+                .andExpect(jsonPath("$.maxVideoBytes").value(50L * 1024 * 1024));
     }
 }

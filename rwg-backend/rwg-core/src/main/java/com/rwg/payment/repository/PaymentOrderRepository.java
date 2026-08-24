@@ -146,4 +146,48 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
 
     /** Đếm lệnh của MỘT user theo loại + trạng thái (vd lệnh rút đang chờ duyệt). */
     long countByUserIdAndTypeAndStatus(UUID userId, PaymentType type, PaymentStatus status);
+
+    /**
+     * Tổng tiền của MỘT user theo loại + trạng thái TRONG MỘT KHOẢNG — sổ sách tháng.
+     *
+     * Khác {@link #sumAmountByUserAndTypeAndStatus} ở chỗ có giới hạn thời gian: hàm kia
+     * tính toàn bộ lịch sử, dùng cho màn chi tiết người dùng.
+     *
+     * LƯU Ý VỀ TRẠNG THÁI HOÀN TẤT — KHÁC NHAU GIỮA NẠP VÀ RÚT:
+     * nạp hoàn tất là {@code SUCCESS}, rút hoàn tất là {@code SETTLED}. Truyền sai sẽ ra
+     * tổng bằng 0 mà KHÔNG có lỗi nào — không được đoán, xem
+     * {@code AdminDashboardService}.
+     *
+     * Khoảng nửa mở {@code [from, to)}.
+     */
+    @Query("select coalesce(sum(o.amount), 0) from PaymentOrder o "
+            + "where o.userId = :userId and o.type = :type and o.status = :status "
+            + "and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumAmountByUserTypeStatusInRange(@Param("userId") UUID userId,
+                                                @Param("type") PaymentType type,
+                                                @Param("status") PaymentStatus status,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to);
+
+    /** Một dòng tổng tiền theo từng người chơi. */
+    interface PlayerAmount {
+        UUID getUserId();
+        BigDecimal getTotal();
+    }
+
+    /**
+     * Tổng tiền theo loại + trạng thái, nhóm theo từng người chơi — bảng tổng quan sổ sách.
+     *
+     * Nhắc lại cái bẫy: nạp hoàn tất là {@code SUCCESS}, rút hoàn tất là
+     * {@code SETTLED}. Truyền sai sẽ ra tổng bằng 0 mà không có lỗi nào.
+     */
+    @Query("select o.userId as userId, coalesce(sum(o.amount), 0) as total "
+            + "from PaymentOrder o "
+            + "where o.type = :type and o.status = :status "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "group by o.userId")
+    List<PlayerAmount> sumByPlayerTypeStatus(@Param("type") PaymentType type,
+                                             @Param("status") PaymentStatus status,
+                                             @Param("from") Instant from,
+                                             @Param("to") Instant to);
 }

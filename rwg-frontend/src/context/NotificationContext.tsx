@@ -65,6 +65,30 @@ export const useNotification = () => useContext(NotificationContext);
  */
 export const CHAT_EVENT = "chat_event";
 
+/**
+ * Đường dẫn của khu quản trị.
+ *
+ * KHÔNG dùng `ADMIN_URL_PREFIX` (`/admin/${secret}`): đường dẫn bí mật đổi được qua
+ * biến môi trường, còn tiền tố `/admin` thì không. So với tiền tố ngắn nên đúng với
+ * mọi giá trị secret.
+ */
+const ADMIN_PATH_PREFIX = "/admin";
+
+/**
+ * Trang hiện tại có thuộc khu quản trị không.
+ *
+ * Provider này nằm ở layout gốc nên chạy trên MỌI trang, kể cả `/admin/*`. Nhân sự
+ * quản trị KHÔNG có token người chơi (họ dùng `rwg_admin_token` riêng), nên mở
+ * WebSocket ở đây hoặc không nối được, hoặc nối bằng token người chơi còn sót trong
+ * localStorage rồi bị interceptor từ chối vì lệch `audience`. Cả hai đều vô ích và đều
+ * để lại lỗi đỏ trong Console của người vận hành.
+ *
+ * Khu quản trị có socket riêng: `useAdminChatSocket` nối vào app 8081.
+ */
+const onAdminArea = (): boolean =>
+  typeof window !== "undefined" &&
+  window.location.pathname.startsWith(ADMIN_PATH_PREFIX);
+
 const getWsUrl = () => {
   const base = WS_BASE_URL;
   return base.replace(/^http/, "ws");
@@ -157,6 +181,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   // Connect / Disconnect WebSocket
   const setupWebSocket = useCallback(() => {
     if (typeof window === "undefined") return;
+
+    // Khu quản trị: không mở socket người chơi. Xem `onAdminArea`.
+    if (onAdminArea()) return;
 
     // Disconnect old client if exists
     if (stompClientRef.current) {
@@ -299,6 +326,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [addToast, formatNotificationText, refreshUnreadCount, t]);
 
   useEffect(() => {
+    // Khu quản trị không dùng gì trong provider này: không đếm chưa đọc, không socket.
+    // Hai lần gọi API bên dưới chỉ trả 401 và làm ồn Network tab của nhân sự.
+    if (onAdminArea()) return;
+
     // Tải đếm chưa đọc lúc đầu
     void refreshUnreadCount();
     void refreshChatUnreadCount();

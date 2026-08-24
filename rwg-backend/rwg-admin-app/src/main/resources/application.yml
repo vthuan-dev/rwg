@@ -17,6 +17,23 @@ spring:
     open-in-view: false
     properties:
       hibernate.type.preferred_uuid_jdbc_type: CHAR
+  servlet:
+    multipart:
+      # TẢI TỆP (banner video + ảnh đính kèm chat).
+      #
+      # KHÔNG ĐƯỢC Bỏ: mặc định của Spring Boot là 1MB, mà video banner hiện tại
+      # là 4.2MB — thiếu khối này thì mọi lần tải video lên đều thất bại với
+      # MaxUploadSizeExceededException ở tầng servlet, trước khi mã ứng dụng kịp chạy.
+      #
+      # ĐẶT CAO HƠN `rwg.media.banner-max-video-bytes` (50MB) một chút, có chủ ý:
+      # tệp vượt trần sẽ bị TẦNG ỨNG DỤNG từ chối (có khoá dịch, nói rõ mức tối đa)
+      # chứ không phải tầng servlet. Đặt bằng nhau thì tệp đúng 50MB rơi vào vùng
+      # tranh chấp giữa hai tầng và thông báo lỗi trở thành không xác định.
+      #
+      # max-request-size lớn hơn max-file-size vì một request multipart còn chứa các
+      # trường khác (title, sortOrder) và phần ranh giới (boundary) ngoài bản thân tệp.
+      max-file-size: ${RWG_MAX_UPLOAD_SIZE:60MB}
+      max-request-size: ${RWG_MAX_REQUEST_SIZE:64MB}
   flyway:
     # ADMIN KHÔNG chạy migration: rwg-user-app sở hữu schema (tránh migrate trùng trên DB dùng chung).
     enabled: false

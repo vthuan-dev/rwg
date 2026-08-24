@@ -144,6 +144,24 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/chat/**")
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
 
+                        // SỔ SÁCH NGƯỜI CHƠI: chỉ ADMIN + FINANCE.
+                        //
+                        // Báo cáo này phơi ra TOÀN BỘ lịch sử tiền của một người chơi — số dư,
+                        // tiền nạp, tiền rút, thắng thua từng game. SUPPORT và RISK không có
+                        // nghiệp vụ nào cần tới nó, nên không để rơi vào matcher chung bên dưới.
+                        .requestMatchers("/api/v1/admin/reports/**")
+                            .hasAnyRole("ADMIN", "FINANCE")
+
+                        // BANNER TRANG CHỦ: chỉ ADMIN được GHI.
+                        //
+                        // Banner hiển thị trên trang chủ CÔNG KHAI, nên tải ảnh lên đây là đặt
+                        // nội dung trước mặt mọi khách truy cập. Trước đây thao tác này rơi vào
+                        // matcher chung nên SUPPORT và RISK đều tải và xoá được — rộng hơn mọi
+                        // thao tác ghi khác trong khu quản trị. GET vẫn mở cho cả bốn vai trò.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/banners/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/banners/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/banners/**").hasRole("ADMIN")
+
                         // Còn lại trong khu admin (chủ yếu GET tra cứu/báo cáo): mọi nhân sự
                         // quản trị, gồm RISK chỉ đọc. Các POST/PATCH ghi đã bị chặn hẹp ở trên.
                         .requestMatchers("/api/v1/admin/**")
@@ -152,8 +170,25 @@ public class SecurityConfig {
                         // Health + docs công khai
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // WebSocket handshake /ws KHÔNG còn permitAll (Phase c): handshake phải kèm JWT;
-                        // STOMP CONNECT xác thực tiếp bởi WsAuthChannelInterceptor.
+                        // WebSocket handshake /ws MỞ Ở TẦNG HTTP. Xác thực diễn ra ở STOMP CONNECT,
+                        // do WsAuthChannelInterceptor đảm nhiệm.
+                        //
+                        // TẠI SAO KHÔNG ĐÒI JWT NGAY Ở HANDSHAKE (đã từng làm và phải bỏ): handshake
+                        // chỉ nhận token qua HTTP header, mà `new WebSocket(url)` của trình duyệt KHÔNG
+                        // CHẤP NHẬN header tự đặt — đó là giới hạn của chính chuẩn WebSocket, không
+                        // phải thiếu sót cấu hình. Hệ quả: MỌI trình duyệt nhận 401 tại handshake, nên
+                        // chat hỗ trợ, thông báo thời gian thực và cập nhật số dư đều không hoạt động,
+                        // dù token trong localStorage hoàn toàn hợp lệ.
+                        //
+                        // MỞ HANDSHAKE KHÔNG LÀM MẤT LỚP BẢO VỆ NÀO. Nó chỉ cho phép MỞ socket. Không
+                        // có token hợp lệ ở frame CONNECT thì interceptor ném MessageDeliveryException,
+                        // client nhận ERROR và bị ngắt — không có phiên STOMP, không nhận được một byte
+                        // dữ liệu nào. Interceptor cũng vẫn kiểm `audience` (chặn token PLAYER mở phiên
+                        // trên broker quản trị) và vẫn chặn SUBSCRIBE vào `/topic/admin`.
+                        //
+                        // Chặn origin vẫn hiệu lực qua `rwg.websocket.allowed-origin-patterns` (xem
+                        // WebSocketConfig), nên trang web lạ không mở được socket này.
+                        .requestMatchers("/ws", "/ws/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth

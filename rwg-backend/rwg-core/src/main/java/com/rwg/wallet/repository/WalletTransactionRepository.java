@@ -67,4 +67,69 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     @Query("select coalesce(sum(t.debit), 0) from WalletTransaction t where t.walletId = :walletId and t.refType = :refType")
     BigDecimal sumDebitByWalletIdAndRefType(@Param("walletId") UUID walletId, @Param("refType") WalletRefType refType);
+
+    /**
+     * Tổng tiền admin CỘNG tay vào một ví trong khoảng nửa mở {@code [from, to)}.
+     *
+     * TÁCH RIÊNG khỏi tiền nạp qua cổng, không gộp thành một cột "Nạp": về kế toán đây
+     * là hai loại hoàn toàn khác nhau — một là tiền thật vào hệ thống, một là tiền do
+     * admin tạo ra. Trên dữ liệu dev thực tế, tiền admin cộng tay đang gấp gần 6 lần
+     * tiền nạp thật — gộp lại sẽ che mất đúng điều sổ sách cần thấy nhất.
+     */
+    @Query("select coalesce(sum(t.credit), 0) from WalletTransaction t "
+            + "where t.walletId = :walletId and t.refType = :refType "
+            + "and t.createdAt >= :from and t.createdAt < :to")
+    BigDecimal sumCreditInRange(@Param("walletId") UUID walletId,
+                                @Param("refType") WalletRefType refType,
+                                @Param("from") Instant from,
+                                @Param("to") Instant to);
+
+    /** Tổng tiền bị TRỪ khỏi ví theo loại tham chiếu, trong khoảng nửa mở. */
+    @Query("select coalesce(sum(t.debit), 0) from WalletTransaction t "
+            + "where t.walletId = :walletId and t.refType = :refType "
+            + "and t.createdAt >= :from and t.createdAt < :to")
+    BigDecimal sumDebitInRange(@Param("walletId") UUID walletId,
+                               @Param("refType") WalletRefType refType,
+                               @Param("from") Instant from,
+                               @Param("to") Instant to);
+
+    /**
+     * Số dư ngay TRƯỚC thời điểm {@code before} — số dư đầu kỳ của báo cáo.
+     *
+     * LẤY TỪ {@code balance_after} CỦA DÒNG LEDGER GẦN NHẤT chứ không cộng dồn toàn bộ
+     * lịch sử: cộng dồn sẽ quét mọi dòng từ đầu đến mốc đó, và chi phí tăng dần theo
+     * tuổi của tài khoản. {@code balance_after} đã là số dư tích luỹ tại thời điểm đó.
+     *
+     * Trả về danh sách vì JPQL không có LIMIT — tầng trên lấy phần tử đầu tiên.
+     * Rỗng nghĩa là ví chưa có giao dịch nào trước mốc đó, tức số dư đầu kỳ bằng 0.
+     */
+    @Query("select t.balanceAfter from WalletTransaction t "
+            + "where t.walletId = :walletId and t.createdAt < :before "
+            + "order by t.createdAt desc")
+    List<BigDecimal> findBalanceBefore(@Param("walletId") UUID walletId,
+                                       @Param("before") Instant before,
+                                       Pageable pageable);
+
+    /** Một dòng điều chỉnh tổng hợp theo từng người chơi. */
+    interface PlayerAdjustment {
+        UUID getUserId();
+        BigDecimal getTotalCredit();
+        BigDecimal getTotalDebit();
+    }
+
+    /**
+     * Tổng tiền admin điều chỉnh thủ công, nhóm theo từng người chơi.
+     *
+     * PHẢI JOIN {@code Wallet}: bảng ledger khoá theo {@code wallet_id}, không có cột
+     * {@code user_id} nào để nhóm trực tiếp.
+     */
+    @Query("select w.userId as userId, "
+            + "coalesce(sum(t.credit), 0) as totalCredit, "
+            + "coalesce(sum(t.debit), 0) as totalDebit "
+            + "from WalletTransaction t join Wallet w on w.id = t.walletId "
+            + "where t.refType = com.rwg.wallet.domain.WalletRefType.ADJUSTMENT "
+            + "and t.createdAt >= :from and t.createdAt < :to "
+            + "group by w.userId")
+    List<PlayerAdjustment> sumAdjustmentsByPlayer(@Param("from") Instant from,
+                                                  @Param("to") Instant to);
 }
