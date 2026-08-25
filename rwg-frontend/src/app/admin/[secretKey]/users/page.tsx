@@ -1007,7 +1007,7 @@ export default function AdminUsersPage() {
                         setDeleteOk(false);
                         setDeleteError("");
                       }}
-                      placeholder="Mã xác nhận bảo mật (171204)..."
+                      placeholder="Mã xác nhận bảo mật..."
                       className="flex-1 bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
                     />
                     <button
