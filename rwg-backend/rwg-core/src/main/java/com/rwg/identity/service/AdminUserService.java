@@ -156,16 +156,19 @@ public class AdminUserService {
     // ===== ĐỌC =====
 
     /**
-     * Tìm kiếm user; mọi filter optional (null/blank = bỏ qua).
+     * Tìm kiếm tài khoản KHÁCH; mọi filter optional (null/blank = bỏ qua).
      *
      * Kèm số dư ví của từng dòng: người vận hành cần thấy số dư ngay trên bảng để biết nên
      * mở tài khoản nào, thay vì phải bấm vào từng người mới biết.
+     *
+     * KHÔNG nhận filter vai trò: truy vấn ở repository đã gắt PLAYER (xem
+     * {@code UserRepository.searchForAdmin}). Nhân sự không bao giờ có mặt trong danh
+     * sách này, nên một tham số role chỉ tạo ảo giác là lọc được.
      */
     @Transactional(readOnly = true)
-    public PageResponse<AdminUserListItemResponse> search(String status, String role, String keyword,
+    public PageResponse<AdminUserListItemResponse> search(String status, String keyword,
                                                           int page, int size) {
         UserStatus statusFilter = status == null || status.isBlank() ? null : parseStatus(status);
-        UserRole roleFilter = role == null || role.isBlank() ? null : parseRole(role);
         // Wildcard được thêm Ở ĐÂY (repository nhận pattern hoàn chỉnh) và escape các
         // ký tự đặc biệt của LIKE để keyword người dùng không đổi ngữ nghĩa truy vấn.
         String keywordFilter = keyword == null || keyword.isBlank()
@@ -178,7 +181,7 @@ public class AdminUserService {
                 // họ biết họ đang tìm gì. Khi tìm theo keyword cũng hiện CLOSED để
                 // không bỏ sót kết quả. Chỉ ẩn khi duyệt danh sách không filter.
                 statusFilter == null && (keyword == null || keyword.isBlank()),
-                roleFilter, keywordFilter,
+                keywordFilter,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         // MỘT truy vấn cho toàn bộ ví của trang, không phải mỗi dòng một lượt: với size mặc

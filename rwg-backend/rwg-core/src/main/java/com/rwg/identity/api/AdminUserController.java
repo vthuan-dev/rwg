@@ -55,14 +55,13 @@ public class AdminUserController {
     }
 
     @GetMapping
-    @Operation(summary = "Danh sách user kèm số dư ví, filter theo status/role/keyword (username hoặc email)")
+    @Operation(summary = "Danh sách tài khoản KHÁCH (PLAYER) kèm số dư ví, filter theo status/keyword (username hoặc email)")
     public PageResponse<AdminUserListItemResponse> search(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String role,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return adminUserService.search(status, role, keyword, page, Math.min(size, MAX_PAGE_SIZE));
+        return adminUserService.search(status, keyword, page, Math.min(size, MAX_PAGE_SIZE));
     }
 
     @GetMapping("/{id}")

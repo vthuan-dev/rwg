@@ -369,6 +369,64 @@ class AdminUserManagementTest {
                 .get("totalElements").asLong()).isZero();
     }
 
+    /**
+     * Danh sách người dùng khu quản trị CHỈ chứa tài khoản khách.
+     *
+     * Trang này là nơi khóa/đổi mật khẩu/điều chỉnh ví/XÓA tài khoản, nên để một dòng
+     * nhân sự lọt vào là mở đường cho việc bấm nhầm gây hậu quả trên chính đồng nghiệp.
+     * Kiểm ở tầng API vì đó là nơi thật sự chặn — lọc ở giao diện thì ai gọi thẳng API
+     * vẫn lấy được danh sách nhân sự.
+     */
+    @Test
+    void adminUserListContainsOnlyPlayers() throws Exception {
+        AdminActor admin = admin();
+
+        // Một khách bình thường.
+        String player = unique("onlyplayer");
+        registerAndLogin(player);
+
+        // Một nhân sự SUPPORT — không được xuất hiện trong danh sách.
+        String staff = unique("onlystaff");
+        registerAndLogin(staff);
+        User staffUser = userRepository.findByUsername(staff).orElseThrow();
+        staffUser.setRole(UserRole.SUPPORT);
+        userRepository.save(staffUser);
+
+        // Tìm theo tên khách -> thấy.
+        MvcResult playerResult = mockMvc.perform(get("/api/v1/admin/users")
+                        .header("Authorization", admin.bearer())
+                        .param("keyword", player))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode playerBody = objectMapper.readTree(playerResult.getResponse().getContentAsString());
+        assertThat(playerBody.get("totalElements").asLong()).isEqualTo(1);
+        assertThat(playerBody.get("content").get(0).get("role").asText()).isEqualTo("PLAYER");
+
+        // Tìm theo tên nhân sự -> KHÔNG thấy, dù tài khoản đó tồn tại và đang ACTIVE.
+        MvcResult staffResult = mockMvc.perform(get("/api/v1/admin/users")
+                        .header("Authorization", admin.bearer())
+                        .param("keyword", staff))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(staffResult.getResponse().getContentAsString())
+                .get("totalElements").asLong()).isZero();
+
+        // Duyệt danh sách không filter: mọi dòng đều là PLAYER, kể cả chính admin đang
+        // gọi cũng không tự hiện ra.
+        MvcResult all = mockMvc.perform(get("/api/v1/admin/users")
+                        .header("Authorization", admin.bearer())
+                        .param("size", "100"))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode content = objectMapper.readTree(all.getResponse().getContentAsString()).get("content");
+        assertThat(content).isNotEmpty();
+        for (JsonNode row : content) {
+            assertThat(row.get("role").asText())
+                    .as("danh sách quản trị chỉ được chứa tài khoản khách")
+                    .isEqualTo("PLAYER");
+        }
+    }
+
     @Test
     void userDetailReportsOwnFinancialsNotGlobalTotals() throws Exception {
         // User A nạp 100, user B nạp 500. Chi tiết của A phải hiện 100 (KHÔNG phải 600).

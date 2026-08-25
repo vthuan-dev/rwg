@@ -187,7 +187,6 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
 
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [detail, setDetail] = useState<UserDetail | null>(null);
@@ -259,7 +258,6 @@ export default function AdminUsersPage() {
       // Backend nhan tham so `keyword` (AdminUserController.search), khong phai `search`.
       if (search) query += `&keyword=${encodeURIComponent(search)}`;
       if (statusFilter) query += `&status=${statusFilter}`;
-      if (roleFilter) query += `&role=${roleFilter}`;
 
       const data = await adminFetch<PageResponse<UserItem>>(query);
       setLoadError("");
@@ -269,7 +267,7 @@ export default function AdminUsersPage() {
       setLoadError((err as Error).message);
       return null;
     }
-  }, [page, search, statusFilter, roleFilter]);
+  }, [page, search, statusFilter]);
 
   /** Đưa kết quả vào state. Dùng chung cho lần tải đầu và các lần tải lại. */
   const applyResult = useCallback((data: PageResponse<UserItem> | null) => {
@@ -425,7 +423,7 @@ export default function AdminUsersPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, roleFilter]);
+  }, [page, statusFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,22 +504,6 @@ export default function AdminUsersPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-              <Shield className="w-3.5 h-3.5 text-slate-500" />
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
-              >
-                <option value="" className="bg-white text-slate-900">{t("admin.users.all_roles")}</option>
-                <option value="PLAYER" className="bg-white text-slate-900">PLAYER</option>
-                <option value="SUPPORT" className="bg-white text-slate-900">SUPPORT</option>
-                <option value="FINANCE" className="bg-white text-slate-900">FINANCE</option>
-                <option value="RISK" className="bg-white text-slate-900">RISK</option>
-                <option value="ADMIN" className="bg-white text-slate-900">ADMIN</option>
-              </select>
-            </div>
-
             <button
               onClick={reload}
               className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-colors shadow-xs"
@@ -541,7 +523,6 @@ export default function AdminUsersPage() {
                 <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
                   <th className="py-3.5 px-4">{t("admin.users.table_username")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_email")}</th>
-                  <th className="py-3.5 px-4">{t("admin.users.table_role")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_status")}</th>
                   <th className="py-3.5 px-4 text-right">{t("admin.users.table_balance")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_created")}</th>
@@ -552,7 +533,7 @@ export default function AdminUsersPage() {
                 {users.length === 0 && !loading && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={6}
                       className="py-12 text-center text-xs text-slate-500 font-medium"
                     >
                       {t("admin.users.empty_filtered")}
@@ -569,11 +550,6 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-3.5 px-4 font-medium text-slate-700">
                       {u.email ?? <span className="text-slate-300">&mdash;</span>}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
-                        {u.role}
-                      </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {u.status === "ACTIVE" && (
