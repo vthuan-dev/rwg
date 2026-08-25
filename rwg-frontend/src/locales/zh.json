@@ -420,7 +420,11 @@
           "SETTLED": "已批准",
           "VOIDED": "已拒绝"
         }
-      }
+      },
+      "select_messages": "选择消息",
+      "selected_count": "已选择: {count}",
+      "delete_selected": "删除所选消息",
+      "cancel": "取消"
     },
     "login": {
       "title": "RWG 管理后台",

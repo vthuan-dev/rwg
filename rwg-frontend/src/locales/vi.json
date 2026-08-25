@@ -420,7 +420,11 @@
           "SETTLED": "Đã duyệt",
           "VOIDED": "Đã từ chối"
         }
-      }
+      },
+      "select_messages": "Chọn tin nhắn",
+      "selected_count": "Đã chọn: {count}",
+      "delete_selected": "Xóa đã chọn",
+      "cancel": "Hủy"
     },
     "login": {
       "title": "RWG Admin Suite",

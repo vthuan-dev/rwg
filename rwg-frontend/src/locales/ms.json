@@ -420,7 +420,11 @@
           "SETTLED": "Diluluskan",
           "VOIDED": "Ditolak"
         }
-      }
+      },
+      "select_messages": "Pilih mesej",
+      "selected_count": "Dipilih: {count}",
+      "delete_selected": "Padam yang dipilih",
+      "cancel": "Batal"
     },
     "login": {
       "title": "RWG Admin Suite",

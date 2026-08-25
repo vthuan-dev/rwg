@@ -420,7 +420,11 @@
           "SETTLED": "承認済み",
           "VOIDED": "却下済み"
         }
-      }
+      },
+      "select_messages": "メッセージを選択",
+      "selected_count": "選択中: {count}",
+      "delete_selected": "選択したメッセージを削除",
+      "cancel": "キャンセル"
     },
     "login": {
       "title": "RWG Admin Suite",

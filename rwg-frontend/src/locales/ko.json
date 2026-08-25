@@ -420,7 +420,11 @@
           "SETTLED": "승인됨",
           "VOIDED": "거절됨"
         }
-      }
+      },
+      "select_messages": "메시지 선택",
+      "selected_count": "선택됨: {count}",
+      "delete_selected": "선택된 메시지 삭제",
+      "cancel": "취소"
     },
     "login": {
       "title": "RWG Admin Suite",

@@ -420,7 +420,11 @@
           "SETTLED": "Approved",
           "VOIDED": "Rejected"
         }
-      }
+      },
+      "select_messages": "Select messages",
+      "selected_count": "Selected: {count}",
+      "delete_selected": "Delete selected",
+      "cancel": "Cancel"
     },
     "login": {
       "title": "RWG Admin Suite",
