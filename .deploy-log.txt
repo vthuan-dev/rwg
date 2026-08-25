@@ -1,0 +1,45 @@
+########## 1. BIEN MOI TRUONG ##########
+   NEXT_PUBLIC_USER_API_URL = https://gentingcasino.pw/api/v1
+   NEXT_PUBLIC_ADMIN_SECRET_PATH = 2026
+   NEXT_PUBLIC_USER_BASE_URL = https://gentingcasino.pw
+   NEXT_PUBLIC_WS_URL = https://gentingcasino.pw/ws
+   NEXT_PUBLIC_ADMIN_BASE_URL = https://gentingcasino.pw/admin-api
+   NEXT_PUBLIC_SITE_URL = https://gentingcasino.pw
+   NEXT_PUBLIC_ADMIN_API_URL = https://gentingcasino.pw/admin-api/v1
+   NEXT_PUBLIC_ADMIN_WS_URL = https://gentingcasino.pw/ws
+
+########## 2. BUILD ##########
+   Γö£ Γùï /profile/contact-us
+   Γö£ Γùï /profile/invitation
+   Γöö Γùï /profile/security-center
+   
+   
+   Γùï  (Static)   prerendered as static content
+   ╞Æ  (Dynamic)  server-rendered on demand
+   
+
+########## 3. KIEM BUNDLE (chan loi sot bien lap lai) ##########
+   OK khong con localhost:8080
+   OK khong con localhost:8081
+   OK khong con localhost:3000
+   OK khong con localhost:9080
+   OK bundle co gentingcasino.pw
+
+########## 4. DONG GOI ##########
+   .next: 321 MB
+   goi: 80.7 MB
+
+########## 5. TAI LEN ##########
+.deploy-fe.tar.gz         | 82587 kB | 2664.1 kB/s | ETA: 00:00:00 | 100%
+
+########## 6. TRIEN KHAI TREN VPS ##########
+   .next tren VPS: 330 MB
+
+added 82 packages in 21s
+   LEN SAU 2 GIAY
+   rwg-web: active
+
+########## 7. KIEM TU BEN NGOAI ##########
+   https://gentingcasino.pw/ -> HTTP 200
+   https://gentingcasino.pw/login -> HTTP 200
+   https://gentingcasino.pw/admin/2026/login -> HTTP 200

@@ -5,6 +5,7 @@ import com.rwg.common.web.ClientAddresses;
 import com.rwg.identity.dto.AdminUserDetailResponse;
 import com.rwg.identity.dto.ChangeUserRoleRequest;
 import com.rwg.identity.dto.ChangeUserStatusRequest;
+import com.rwg.identity.dto.DeleteUserRequest;
 import com.rwg.identity.dto.UpdateKycLevelRequest;
 import com.rwg.identity.dto.AdminUserListItemResponse;
 import com.rwg.identity.dto.UserResponse;
@@ -16,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -32,8 +35,9 @@ import java.util.UUID;
  * (enforce tập trung trong SecurityConfig — không dựa annotation từng method).
  * Controller này bị loại khỏi rwg-user-app (xem RwgApplication.excludeFilters).
  *
- * KHÔNG có endpoint xóa cứng user: wallets có FK ON DELETE RESTRICT và ledger là
- * nguồn sự thật tài chính — "xóa" là PATCH status=CLOSED.
+ * Xóa tài khoản (DELETE /{id}) có hai đường tự chọn: xóa hẳn cho tài khoản sạch,
+ * chốt CLOSED cho tài khoản có sổ sách tài chính — xóa cứng sẽ thất bại vì FK
+ * ON DELETE RESTRICT. Cần mã xác nhận trong thân request.
  */
 @RestController
 @RequestMapping("/api/v1/admin/users")
@@ -97,12 +101,50 @@ public class AdminUserController {
                 ClientAddresses.clientIp(httpRequest));
     }
 
+    @PostMapping("/{id}/password/change")
+    @Operation(summary = "Admin tự đổi Mật khẩu đăng nhập (cấp 1) cho người chơi")
+    public UserResponse overrideLoginPassword(@PathVariable UUID id,
+                                              @Valid @RequestBody com.rwg.identity.dto.AdminOverridePasswordRequest request,
+                                              @AuthenticationPrincipal Jwt jwt,
+                                              HttpServletRequest httpRequest) {
+        return adminUserService.overrideLoginPassword(id, request.newPassword(),
+                UUID.fromString(jwt.getSubject()), ClientAddresses.clientIp(httpRequest));
+    }
+
+    @PostMapping("/{id}/withdrawal-password/change")
+    @Operation(summary = "Admin tự đổi Mật khẩu rút tiền 6 số (cấp 2) cho người chơi")
+    public UserResponse overrideWithdrawalPassword(@PathVariable UUID id,
+                                                   @Valid @RequestBody com.rwg.identity.dto.AdminOverrideWithdrawalPasswordRequest request,
+                                                   @AuthenticationPrincipal Jwt jwt,
+                                                   HttpServletRequest httpRequest) {
+        return adminUserService.overrideWithdrawalPassword(id, request.newPin(),
+                UUID.fromString(jwt.getSubject()), ClientAddresses.clientIp(httpRequest));
+    }
+
     @PostMapping("/{id}/withdrawal-password/reset")
-    @Operation(summary = "XÓA mật khẩu rút tiền để user tự đặt lại (admin KHÔNG đặt thay user)")
+    @Operation(summary = "XÓA mật khẩu rút tiền để user tự đặt lại")
     public UserResponse resetWithdrawalPassword(@PathVariable UUID id,
                                                 @AuthenticationPrincipal Jwt jwt,
                                                 HttpServletRequest httpRequest) {
         return adminUserService.resetWithdrawalPassword(id, UUID.fromString(jwt.getSubject()),
                 ClientAddresses.clientIp(httpRequest));
+    }
+
+    /**
+     * XÓA TÀI KHOẢN người chơi — thao tác KHÔNG HOÀN TÁC ĐƯỢC.
+     *
+     * Cần mã xác nhận trong thân request (không phải tham số URL — URL đi vào log nginx).
+     * Hệ thống tự chọn: xóa hẳn nếu tài khoản sạch, chốt CLOSED nếu có sổ sách.
+     * Response trả đường đã đi (“HARD_DELETE” hoặc “SOFT_DELETE”) để frontend hiện đúng thông báo.
+     */
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa tài khoản người chơi (cần mã xác nhận). Không hoàn tác được.")
+    public Map<String, String> deleteUser(@PathVariable UUID id,
+                                          @Valid @RequestBody DeleteUserRequest request,
+                                          @AuthenticationPrincipal Jwt jwt,
+                                          HttpServletRequest httpRequest) {
+        String method = adminUserService.deleteUser(id, UUID.fromString(jwt.getSubject()),
+                request, ClientAddresses.clientIp(httpRequest));
+        return Map.of("method", method);
     }
 }

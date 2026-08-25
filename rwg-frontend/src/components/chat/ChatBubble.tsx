@@ -95,10 +95,20 @@ export const ChatBubble: React.FC<{
         </div>
       )}
 
-      <div className={`flex max-w-[78%] flex-col ${isMine ? "items-end" : "items-start"}`}>
+      {/* Bong bong CHI CO ANH duoc rong hon bong bong chu.
+          78% la gioi han hop ly cho CHU: dong qua dai thi mat kho doi dong. Anh
+          khong co van de do - cang rong cang de xem, dac biet la anh khuyen mai co
+          bang so lieu chu nho. 92% vua du chua cho cot avatar 32px. */}
+      <div
+        className={[
+          "flex flex-col",
+          hasImage && !hasText ? "max-w-[92%]" : "max-w-[78%]",
+          isMine ? "items-end" : "items-start",
+        ].join(" ")}
+      >
         {showSender && !isMine && (
           <span className="mb-1 ps-0.5 text-[0.625rem] font-semibold tracking-wide text-[#8b8b93]">
-            {message.senderUsername ?? t("chat.staff")}
+            {t("chat.staff")}
           </span>
         )}
 

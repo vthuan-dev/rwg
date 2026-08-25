@@ -4,6 +4,13 @@ import com.rwg.common.ApiException;
 import com.rwg.common.ErrorCode;
 import com.rwg.common.PageResponse;
 import com.rwg.common.money.Money;
+import com.rwg.affiliate.repository.CommissionRunRepository;
+import com.rwg.affiliate.repository.ReferralCodeRepository;
+import com.rwg.affiliate.repository.UserRelationRepository;
+import com.rwg.bank.repository.BankAccountRepository;
+import com.rwg.game.repository.BetRepository;
+import com.rwg.game.repository.UserGameOddsRepository;
+import com.rwg.game.service.GameEventRelay;
 import com.rwg.identity.domain.KycLevel;
 import com.rwg.identity.domain.User;
 import com.rwg.identity.domain.UserRole;
@@ -12,12 +19,17 @@ import com.rwg.identity.dto.AdminUserDetailResponse;
 import com.rwg.identity.dto.AdminUserListItemResponse;
 import com.rwg.identity.dto.ChangeUserRoleRequest;
 import com.rwg.identity.dto.ChangeUserStatusRequest;
+import com.rwg.identity.dto.DeleteUserRequest;
 import com.rwg.identity.dto.UpdateKycLevelRequest;
 import com.rwg.identity.dto.UserResponse;
+import com.rwg.identity.repository.AdminApprovalRequestRepository;
 import com.rwg.identity.repository.UserRepository;
+import com.rwg.identity.service.AdminDestructivePinService;
 import com.rwg.payment.domain.PaymentStatus;
 import com.rwg.payment.domain.PaymentType;
 import com.rwg.payment.repository.PaymentOrderRepository;
+import com.rwg.risk.repository.AccountLinkRepository;
+import com.rwg.risk.repository.AccountSignalRepository;
 import com.rwg.wallet.domain.Wallet;
 import com.rwg.wallet.domain.WalletRefType;
 import com.rwg.wallet.repository.WalletRepository;
@@ -39,9 +51,9 @@ import java.util.stream.Collectors;
  * /api/v1/admin/** nên đã được SecurityConfig chặn bằng hasRole("ADMIN") — service
  * KHÔNG tự kiểm tra quyền lần nữa, nhưng LUÔN kiểm tra các quy tắc nghiệp vụ:
  *
- * 1. THU HỒI SESSION: mọi thay đổi làm user rời trạng thái ACTIVE, hoặc đổi role,
- *    đều gọi refreshTokenStore.revokeAllForUser() — access token cũ vẫn còn hiệu lực
- *    tối đa 15 phút (JWT stateless) nhưng KHÔNG thể refresh để kéo dài phiên.
+ * 1. THU HỒI SESSION: mọi thay đổi làm user rời trạng thái ACTIVE, hoặc đổi role, hoặc
+ *    đặt lại mật khẩu đều gọi {@link #revokeSessions} — xem chú thích của hàm đó để
+ *    biết vì sao riêng việc thu hồi refresh token là KHÔNG ĐỦ.
  * 2. BANNED LÀ VĨNH VIỄN: không có đường quay lại ACTIVE qua API.
  * 3. KHÔNG TỰ SỬA MÌNH: admin không thể tự khóa / tự hạ quyền (tránh tự khóa mình
  *    ra khỏi hệ thống và tránh lách quy trình 4 mắt).
@@ -55,23 +67,90 @@ public class AdminUserService {
 
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
-    private final PaymentOrderRepository paymentOrderRepository;
-    private final RefreshTokenStore refreshTokenStore;
-    private final AuditTrailService audit;
     private final WalletTransactionRepository transactionRepository;
+    private final PaymentOrderRepository paymentOrderRepository;
+    private final BetRepository betRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final ReferralCodeRepository referralCodeRepository;
+    private final UserRelationRepository userRelationRepository;
+    private final CommissionRunRepository commissionRunRepository;
+    private final AccountLinkRepository accountLinkRepository;
+    private final AccountSignalRepository accountSignalRepository;
+    private final AdminApprovalRequestRepository approvalRequestRepository;
+    private final UserGameOddsRepository userGameOddsRepository;
+    private final RefreshTokenStore refreshTokenStore;
+    private final SessionRevocationStore sessionRevocationStore;
+    private final GameEventRelay gameEventRelay;
+    private final AuditTrailService audit;
+    private final AdminDestructivePinService pinService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public AdminUserService(UserRepository userRepository,
                             WalletRepository walletRepository,
+                            WalletTransactionRepository transactionRepository,
                             PaymentOrderRepository paymentOrderRepository,
+                            BetRepository betRepository,
+                            BankAccountRepository bankAccountRepository,
+                            ReferralCodeRepository referralCodeRepository,
+                            UserRelationRepository userRelationRepository,
+                            CommissionRunRepository commissionRunRepository,
+                            AccountLinkRepository accountLinkRepository,
+                            AccountSignalRepository accountSignalRepository,
+                            AdminApprovalRequestRepository approvalRequestRepository,
+                            UserGameOddsRepository userGameOddsRepository,
                             RefreshTokenStore refreshTokenStore,
+                            SessionRevocationStore sessionRevocationStore,
+                            GameEventRelay gameEventRelay,
                             AuditTrailService audit,
-                            WalletTransactionRepository transactionRepository) {
+                            AdminDestructivePinService pinService,
+                            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.walletRepository = walletRepository;
-        this.paymentOrderRepository = paymentOrderRepository;
-        this.refreshTokenStore = refreshTokenStore;
-        this.audit = audit;
         this.transactionRepository = transactionRepository;
+        this.paymentOrderRepository = paymentOrderRepository;
+        this.betRepository = betRepository;
+        this.bankAccountRepository = bankAccountRepository;
+        this.referralCodeRepository = referralCodeRepository;
+        this.userRelationRepository = userRelationRepository;
+        this.commissionRunRepository = commissionRunRepository;
+        this.accountLinkRepository = accountLinkRepository;
+        this.accountSignalRepository = accountSignalRepository;
+        this.approvalRequestRepository = approvalRequestRepository;
+        this.userGameOddsRepository = userGameOddsRepository;
+        this.refreshTokenStore = refreshTokenStore;
+        this.sessionRevocationStore = sessionRevocationStore;
+        this.gameEventRelay = gameEventRelay;
+        this.audit = audit;
+        this.pinService = pinService;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /**
+     * ĐẨY NGƯỜI DÙNG RA KHỎI HỆ THỐNG ngay lập tức, trên mọi thiết bị.
+     *
+     * Gồm ba việc, và cả ba đều cần:
+     *
+     * 1. {@code revokeAllForUser} — chặn GIA HẠN phiên.
+     * 2. {@code revokeBefore} — chặn chính access token đang cầm. Đây là việc THIẾU trước
+     *    đây: JWT không trạng thái nên server không tra cứu gì khi xác thực, và một tài
+     *    khoản vừa bị khóa vẫn gọi API bình thường tới 15 phút — đủ để đặt thêm rất
+     *    nhiều vòng cược. Xem {@link SessionRevocationStore}.
+     * 3. {@code publishSessionRevoked} — đá họ khỏi MÀN HÌNH ngay, thay vì để họ bấm tiếp
+     *    trên một giao diện mà mọi lời gọi API đằng sau đều đã bị từ chối.
+     *
+     * Việc (2) là lớp bảo vệ thật, việc (3) chỉ là trải nghiệm — ai chặn WebSocket vẫn bị
+     * (2) chặn, họ chỉ không được đá ra ngay trên màn hình.
+     *
+     * Gọi BÊN TRONG giao dịch, tức hai việc đầu ghi vào Redis TRƯỚC khi giao dịch commit.
+     * Nếu giao dịch rollback thì người dùng bị đăng xuất oan một lần — họ đăng nhập lại
+     * được ngay vì trạng thái trong cơ sở dữ liệu không đổi. Chiều ngược lại (commit xong
+     * mới thu hồi, rồi bước thu hồi thất bại) sẽ để một tài khoản ĐÃ bị khóa vẫn cược
+     * tiếp — tệ hơn hẳn.
+     */
+    private void revokeSessions(UUID userId) {
+        refreshTokenStore.revokeAllForUser(userId);
+        sessionRevocationStore.revokeBefore(userId);
+        gameEventRelay.publishSessionRevoked(userId);
     }
 
     // ===== ĐỌC =====
@@ -93,7 +172,13 @@ public class AdminUserService {
                 ? null
                 : "%" + escapeLike(keyword.trim().toLowerCase()) + "%";
 
-        Page<User> found = userRepository.searchForAdmin(statusFilter, roleFilter, keywordFilter,
+        Page<User> found = userRepository.searchForAdmin(
+                statusFilter,
+                // Khi admin chủ động lọc theo status cụ thể thì không ẩn CLOSED nữa —
+                // họ biết họ đang tìm gì. Khi tìm theo keyword cũng hiện CLOSED để
+                // không bỏ sót kết quả. Chỉ ẩn khi duyệt danh sách không filter.
+                statusFilter == null && (keyword == null || keyword.isBlank()),
+                roleFilter, keywordFilter,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         // MỘT truy vấn cho toàn bộ ví của trang, không phải mỗi dòng một lượt: với size mặc
@@ -195,9 +280,9 @@ public class AdminUserService {
         user.setStatus(to);
         userRepository.save(user);
 
-        // Rời ACTIVE -> đẩy user khỏi hệ thống: refresh token không dùng được nữa.
+        // Rời ACTIVE -> đẩy user khỏi hệ thống NGAY, không chỉ chặn gia hạn phiên.
         if (to != UserStatus.ACTIVE) {
-            refreshTokenStore.revokeAllForUser(userId);
+            revokeSessions(userId);
         }
 
         audit.record(adminId, null, AuditTrailService.ADMIN_USER_STATUS_CHANGED,
@@ -225,7 +310,7 @@ public class AdminUserService {
 
         user.setRole(to);
         userRepository.save(user);
-        refreshTokenStore.revokeAllForUser(userId);
+        revokeSessions(userId);
 
         audit.record(adminId, null, AuditTrailService.ADMIN_USER_ROLE_CHANGED,
                 "USER", userId.toString(),
@@ -250,6 +335,47 @@ public class AdminUserService {
     }
 
     /**
+     * Admin tự đặt lại MẬT KHẨU ĐĂNG NHẬP (Cấp 1) cho người chơi.
+     */
+    @Transactional
+    public UserResponse overrideLoginPassword(UUID userId, String newPassword, UUID adminId, String ip) {
+        User user = requireUser(userId);
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Mật khẩu mới phải từ 6 ký tự trở lên",
+                    Map.of("field", "newPassword"), "validation.password.length");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword.trim()));
+        userRepository.save(user);
+
+        // Thu hồi phiên để buộc user đăng nhập lại bằng mật khẩu mới.
+        revokeSessions(user.getId());
+
+        audit.record(adminId, null, "ADMIN_PASSWORD_OVERRIDE",
+                "USER", userId.toString(), null, ip);
+        return AuthService.toResponse(user);
+    }
+
+    /**
+     * Admin tự đặt lại MẬT KHẨU RÚT TIỀN (PIN 6 số - Cấp 2) cho người chơi.
+     */
+    @Transactional
+    public UserResponse overrideWithdrawalPassword(UUID userId, String newPin, UUID adminId, String ip) {
+        User user = requireUser(userId);
+        if (newPin == null || !newPin.matches("^\\d{6}$")) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Mã PIN rút tiền phải gồm đúng 6 chữ số",
+                    Map.of("field", "newPin"), "validation.pin.length");
+        }
+
+        user.setWithdrawalPasswordHash(passwordEncoder.encode(newPin));
+        userRepository.save(user);
+
+        audit.record(adminId, null, "ADMIN_WITHDRAWAL_PASSWORD_OVERRIDE",
+                "USER", userId.toString(), null, ip);
+        return AuthService.toResponse(user);
+    }
+
+    /**
      * XÓA mật khẩu rút tiền để user tự đặt lại (hỗ trợ user quên mật khẩu).
      * Admin KHÔNG được đặt mật khẩu thay user — nếu cho phép, admin sẽ có thể tự
      * đặt rồi rút tiền của user đó.
@@ -263,6 +389,105 @@ public class AdminUserService {
         audit.record(adminId, null, AuditTrailService.ADMIN_WITHDRAWAL_PASSWORD_RESET,
                 "USER", userId.toString(), null, ip);
         return AuthService.toResponse(user);
+    }
+
+    /**
+     * XÓA tài khoản người chơi — thao tác KHÔNG HOÀN TÁC.
+     *
+     * <h2>HAI ĐƯỜNG, HỆ THỐNG TỰ CHỌN</h2>
+     * <ol>
+     *   <li><b>Tài khoản SẠCH</b> (chưa từng có ví, giao dịch, cược, hoa hồng, liên kết
+     *       nghi vấn, hay đề nghị phê duyệt nào): xóa hẳn khỏi cơ sở dữ liệu. Áp dụng
+     *       cho tài khoản test hoặc đăng ký xong bỏ không dùng.</li>
+     *   <li><b>Tài khoản có dấu vết</b>: chuyển {@code CLOSED} (đá phiên ngay, không đăng
+     *       nhập được nữa, ẩn khỏi danh sách mặc định). Sổ sách tài chính và lịch sử giao
+     *       dịch còn nguyên cho mục đích kiểm toán và giải quyết khiếu nại.</li>
+     * </ol>
+     *
+     * Kiểm tra sự sạch sẽ theo thứ tự TỪ NHANH ĐẾN CHẬM: nếu một phép kiểm rẻ tiền đã
+     * khẳng định có dấu vết thì không cần chạy các phép kiểm đắt hơn.
+     *
+     * @param request mang mã xác nhận {@code confirmPin} — sai thì bị chặn và bộ đếm tăng.
+     * @return chuỗi mô tả đường đã chọn, để frontend hiện đúng thông báo.
+     */
+    @Transactional
+    public String deleteUser(UUID userId, UUID adminId, DeleteUserRequest request, String ip) {
+        requireNotSelf(userId, adminId);
+        pinService.verify(adminId, request.confirmPin());
+
+        User user = requireUser(userId);
+        String username = user.getUsername();
+
+        // Đá phiên ngay — dù sẽ xóa hẳn hay chỉ đóng, người đó không được dùng hệ thống nữa.
+        revokeSessions(userId);
+
+        boolean isClean = isCleanAccount(userId);
+
+        if (isClean) {
+            // XÓA HẲN: thứ tự quan trọng — xóa bản con TRƯỚC bản cha (users).
+            // Không có FK ON DELETE CASCADE nào giúp ở đây vì mọi FK đều RESTRICT.
+            userGameOddsRepository.deleteByUserId(userId);
+            bankAccountRepository.deleteByUserId(userId);
+            referralCodeRepository.deleteByUserId(userId);
+            userRelationRepository.deleteByAncestorIdOrDescendantId(userId, userId);
+            commissionRunRepository.deleteByAgentId(userId);
+            accountLinkRepository.deleteByUserAIdOrUserBId(userId, userId);
+            accountSignalRepository.deleteByUserId(userId);
+            approvalRequestRepository.deleteByTargetUserId(userId);
+            // Notifications dùng ON DELETE CASCADE — tự xóa khi user bị xóa.
+            // Chat conversations dùng ON DELETE CASCADE — tự xóa khi user bị xóa.
+            // Wallet chưa có transaction nào → xóa ví trước khi xóa user.
+            walletRepository.findByUserId(userId).ifPresent(w -> walletRepository.delete(w));
+            userRepository.deleteById(userId);
+
+            audit.record(adminId, null, AuditTrailService.ADMIN_USER_DELETED,
+                    "USER", userId.toString(),
+                    Map.of("username", username, "method", "HARD_DELETE",
+                           "reason", "no_financial_trail"), ip);
+            return "HARD_DELETE";
+        } else {
+            // ĐÓNG TÀI KHOẢN: ẩn khỏi danh sách, không đăng nhập được, sổ sách còn nguyên.
+            user.setStatus(UserStatus.CLOSED);
+            userRepository.save(user);
+
+            audit.record(adminId, null, AuditTrailService.ADMIN_USER_DELETED,
+                    "USER", userId.toString(),
+                    Map.of("username", username, "method", "SOFT_DELETE",
+                           "reason", "has_financial_trail"), ip);
+            return "SOFT_DELETE";
+        }
+    }
+
+    /**
+     * Kiểm tra tài khoản có "sạch" không — tức chưa từng có dấu vết tài chính hay điều tra.
+     *
+     * Thứ tự kiểm TỪ NHANH ĐẾN CHẬM (phép kiểm ví/giao dịch rẻ hơn quét toàn bộ bảng):
+     * một phép kiểm trả không sạch thì thoát sớm, không chạy tiếp.
+     *
+     * THÊM BẢNG MỚI? Thêm phép kiểm ở đây. Nếu quên thì tài khoản có dấu vết vẫn bị xóa
+     * cứng và mất dữ liệu — không có cơ chế nào phát hiện lúc chạy thật.
+     */
+    private boolean isCleanAccount(UUID userId) {
+        // Ví: hầu hết tài khoản có ví (tạo khi đăng ký). Kiểm trước.
+        var wallet = walletRepository.findByUserId(userId).orElse(null);
+        if (wallet != null && transactionRepository.countByWalletId(wallet.getId()) > 0) {
+            return false;
+        }
+        // Lệnh nạp/rút.
+        if (paymentOrderRepository.countByUserId(userId) > 0) return false;
+        // Lệnh cược.
+        if (betRepository.countByUserId(userId) > 0) return false;
+        // Hoa hồng đại lý.
+        if (commissionRunRepository.countByAgentId(userId) > 0) return false;
+        // Tài khoản ngân hàng (kể cả đã gỡ — là đầu mối điều tra).
+        if (bankAccountRepository.countByUserId(userId) > 0) return false;
+        // Liên kết đa tài khoản.
+        if (accountLinkRepository.countByUserAIdOrUserBId(userId, userId) > 0) return false;
+        // Đề nghị phê duyệt.
+        if (approvalRequestRepository.countByTargetUserId(userId) > 0) return false;
+        // Quan hệ tuyến đại lý.
+        if (userRelationRepository.countByAncestorIdOrDescendantId(userId, userId) > 0) return false;
+        return true;
     }
 
     // ===== helpers =====

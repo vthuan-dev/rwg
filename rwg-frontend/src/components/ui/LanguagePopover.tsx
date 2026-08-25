@@ -62,8 +62,11 @@ export const LanguagePopover: React.FC = () => {
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <i className="icon-icon50 size-5 text-[1.25rem] text-primary" />
-        <div className="text-white">{LOCALE_LABELS[locale] ?? locale}</div>
+        {/* Vàng thay cho đỏ/trắng để khớp với logo phía trên. Dùng biến
+            `--gold` chứ không viết mã màu trực tiếp: đổi sắc vàng thì sửa một
+            chỗ trong globals.css, không phải đi tìm từng thành phần. */}
+        <i className="icon-icon50 size-5 text-[1.25rem] text-[var(--gold)]" />
+        <div className="text-[var(--gold)]">{LOCALE_LABELS[locale] ?? locale}</div>
       </button>
 
       {open ? (

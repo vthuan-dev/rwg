@@ -85,6 +85,37 @@ public class ChatRelayConfig {
         return container;
     }
 
+    @Bean
+    public RedisMessageListenerContainer gameRelayListenerContainer(
+            RedisConnectionFactory connectionFactory,
+            com.rwg.game.service.GameEventRelay gameEventRelay,
+            ObjectMapper objectMapper) {
+
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+
+        MessageListener listener = (message, pattern) -> {
+            try {
+                String json = new String(message.getBody(), StandardCharsets.UTF_8);
+                com.rwg.game.service.GameEventRelay.RelayEnvelope envelope =
+                        objectMapper.readValue(json, com.rwg.game.service.GameEventRelay.RelayEnvelope.class);
+
+                if (gameEventRelay.originId().equals(envelope.originId())) {
+                    return;
+                }
+                gameEventRelay.deliverLocally(envelope);
+            } catch (Exception e) {
+                log.warn("Bỏ qua gói game relay không đọc được", e);
+            }
+        };
+
+        container.addMessageListener(listener, new ChannelTopic(com.rwg.game.service.GameEventRelay.REDIS_TOPIC_GAME_RELAY));
+        log.info("Cầu relay game qua Redis đã bật — kênh '{}', originId={}.",
+                com.rwg.game.service.GameEventRelay.REDIS_TOPIC_GAME_RELAY, gameEventRelay.originId());
+
+        return container;
+    }
+
     /**
      * Cảnh báo khi cầu relay KHÔNG được bật.
      *
@@ -106,7 +137,7 @@ public class ChatRelayConfig {
         public ChatRelayDisabledWarning() {
             log.warn("Redis đang TẮT (rwg.redis.enabled=false) — CHAT HỖ TRỢ SẼ KHÔNG REALTIME. "
                     + "Tin nhắn vẫn được lưu đầy đủ vào MySQL, nhưng phía bên kia chỉ thấy tin mới "
-                    + "sau khi TẢI LẠI TRANG. Bật lại bằng RWG_REDIS_ENABLED=true ở CẢ HAI app.");
+                    + "sau khi TẢI LẠI TRANG. Bật lại bằng RWG_REDIS_ENABLED=true o CẢ HAI app.");
         }
     }
 }

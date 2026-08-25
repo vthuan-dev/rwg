@@ -134,11 +134,24 @@ public class WithdrawalService {
 
         // 4) Hạn mức: min mỗi lệnh + tổng tối đa/ngày (UTC) — đọc SAU khi khóa.
         BigDecimal amount = parseAmount(request.amount());
-        Instant startOfDayUtc = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
-        BigDecimal usedToday = orderRepository.sumAmountSince(
-                userId, PaymentType.WITHDRAWAL, PaymentStatus.VOIDED, startOfDayUtc);
-        if (usedToday.add(amount).compareTo(withdrawalProperties.dailyMaxAmount()) > 0) {
-            throw new ApiException(ErrorCode.WITHDRAWAL_LIMIT_EXCEEDED);
+
+        // BỎ QUA HOÀN TOÀN khi không cấu hình trần ngày (xem WithdrawalProperties).
+        //
+        // Đặt trong `if` thay vì để `usedToday` luôn được tính: `sumAmountSince` là một
+        // truy vấn tổng hợp chạy TRONG lúc đang giữ khoá ví. Khi không có trần thì kết
+        // quả không dùng vào đâu, nên tính nó chỉ làm kéo dài thời gian giữ khoá — thứ
+        // trực tiếp giới hạn số lệnh rút xử lý được đồng thời.
+        //
+        // Lệnh rút KHÔNG tự chuyển tiền: nó vào PENDING chờ admin duyệt. Nên bỏ trần
+        // không có nghĩa là tiền tự do ra khỏi hệ thống — admin bấm duyệt mới là lớp
+        // kiểm soát thật, và lớp đó vẫn còn nguyên.
+        if (withdrawalProperties.hasDailyMax()) {
+            Instant startOfDayUtc = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
+            BigDecimal usedToday = orderRepository.sumAmountSince(
+                    userId, PaymentType.WITHDRAWAL, PaymentStatus.VOIDED, startOfDayUtc);
+            if (usedToday.add(amount).compareTo(withdrawalProperties.dailyMaxAmount()) > 0) {
+                throw new ApiException(ErrorCode.WITHDRAWAL_LIMIT_EXCEEDED);
+            }
         }
 
         // 5) Lưu lệnh rồi DEBIT ví trong CÙNG transaction (đủ tiền mới có lệnh).
@@ -331,7 +344,10 @@ public class WithdrawalService {
                     ErrorCode.VALIDATION_ERROR.defaultMessage(), Map.of("field", "amount"),
                     "validation.withdrawal.amount.min");
         }
-        if (amount.compareTo(withdrawalProperties.dailyMaxAmount()) > 0) {
+        // Chặn sớm khi MỘT lệnh đã vượt trần ngày: không cần cộng dồn cũng biết là quá.
+        // Bỏ qua khi không cấu hình trần.
+        if (withdrawalProperties.hasDailyMax()
+                && amount.compareTo(withdrawalProperties.dailyMaxAmount()) > 0) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR,
                     ErrorCode.VALIDATION_ERROR.defaultMessage(), Map.of("field", "amount"),
                     "validation.withdrawal.amount.max");

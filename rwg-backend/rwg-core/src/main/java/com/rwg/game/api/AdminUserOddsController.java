@@ -1,6 +1,7 @@
 package com.rwg.game.api;
 
 import com.rwg.common.web.ClientAddresses;
+import com.rwg.game.dto.SetUserOddsPairRequest;
 import com.rwg.game.dto.SetUserOddsRequest;
 import com.rwg.game.dto.UserOddsResponse;
 import com.rwg.game.service.AdminUserOddsService;
@@ -63,6 +64,24 @@ public class AdminUserOddsController {
                                         @Valid @RequestBody SetUserOddsRequest request,
                                         HttpServletRequest http) {
         service.setOdds(userId, UUID.fromString(jwt.getSubject()), request,
+                ClientAddresses.clientIp(http));
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Đặt cùng một tỷ lệ cho cả cặp hai chiều của một bàn.
+     *
+     * ĐƯỜNG RIÊNG chứ không phải gọi endpoint trên hai lần: hai lần gọi có thể thành công
+     * một nửa, để lại một cấu hình lệch mà người vận hành tin là đã đặt cân — xem
+     * {@code AdminUserOddsService.setOddsForPair}.
+     */
+    @PutMapping("/pair")
+    @Operation(summary = "Đặt cùng một tỷ lệ cho cả cặp hai chiều của bàn, trong một transaction")
+    public ResponseEntity<Void> setOddsForPair(@PathVariable UUID userId,
+                                               @AuthenticationPrincipal Jwt jwt,
+                                               @Valid @RequestBody SetUserOddsPairRequest request,
+                                               HttpServletRequest http) {
+        service.setOddsForPair(userId, UUID.fromString(jwt.getSubject()), request,
                 ClientAddresses.clientIp(http));
         return ResponseEntity.noContent().build();
     }

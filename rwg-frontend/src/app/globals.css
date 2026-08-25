@@ -7,6 +7,23 @@
   --primary: #ff4355;
 
   /* ------------------------------------------------------------------------
+     Vàng thương hiệu
+     ------------------------------------------------------------------------
+     BA sắc độ chứ không một màu phẳng: vàng phẳng trông như màu tô, còn kim
+     loại thật có vùng sáng và vùng tối. Dùng cho logo dưới dạng gradient nên
+     chữ đọc như chữ mạ vàng.
+
+     --gold      : sắc chính, dùng cho chữ và biểu tượng đơn sắc.
+     --gold-light: vùng bắt sáng, đặt ở đầu gradient.
+     --gold-deep : vùng tối, đặt ở cuối gradient.
+
+     Chọn quanh sắc 45deg để hoà với đèn neon vàng-hổ phách trong ảnh nền của
+     trang đăng nhập. Không dùng vàng chanh (60deg) vì nó xung với nền đỏ. */
+  --gold: #e3bd66;
+  --gold-light: #f7e3a8;
+  --gold-deep: #b8892f;
+
+  /* ------------------------------------------------------------------------
      Khung mobile dùng chung
      ------------------------------------------------------------------------
      Chiều cao thanh điều hướng dưới. ĐẶT Ở ĐÂY chứ không viết số trực tiếp vào
@@ -66,6 +83,51 @@ body {
 /* Chừa chỗ cho thanh điều hướng dưới (fixed nên không chiếm chỗ trong luồng). */
 .pb-bottom-nav {
   padding-bottom: var(--bottom-nav-total);
+}
+
+/* ==========================================================================
+   Chặn Safari iOS tự phóng to khi bấm vào ô nhập
+   ==========================================================================
+   TRIỆU CHỨNG: trên iPhone, bấm vào ô "Tên đăng nhập" là cả trang phóng to,
+   và KHÔNG tự thu lại sau khi rời ô — người dùng phải tự chụm hai ngón để
+   thu nhỏ. Trang trông như bị vỡ bố cục.
+
+   NGUYÊN NHÂN: Safari iOS phóng to trang mỗi khi ô nhập nhận focus mà cỡ chữ
+   của ô NHỎ HƠN 16px. Các ô của khu xác thực dùng `text-[0.875rem]` = 14px
+   (xem TextField.tsx), nên rơi đúng vào ngưỡng này. Đây là hành vi cố ý của
+   Safari để chữ đủ lớn mà đọc, không phải lỗi.
+
+   VÌ SAO KHÔNG chặn bằng `maximum-scale=1` / `user-scalable=no` ở thẻ viewport:
+   cách đó tắt luôn khả năng phóng to BẰNG TAY của người dùng, là rào cản thật
+   với người mắt kém; Safari iOS cũng đã bỏ qua hai thuộc tính đó từ lâu nên
+   vừa không đạt mục đích vừa mất tính tiếp cận. Xem thêm ghi chú ở
+   `export const viewport` trong layout.tsx.
+
+   CÁCH LÀM: nâng cỡ chữ thật của ô nhập lên 16px — đúng ngưỡng Safari không
+   phóng to nữa. `!important` là bắt buộc vì phải thắng các lớp `text-[...]`
+   của Tailwind đặt trực tiếp trên phần tử.
+
+   PHẠM VI: chỉ áp cho màn hình hẹp và thiết bị trỏ THÔ (ngón tay).
+   - `hover: none` + `pointer: coarse` loại trừ máy tính có chuột, nơi 14px là
+     cỡ đã thiết kế và không có vấn đề phóng to nào.
+   - Không giới hạn theo `max-width` đơn thuần: cửa sổ trình duyệt hẹp trên máy
+     tính cũng khớp, và ở đó chữ sẽ to lên vô cớ. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    /* 16px = 1rem. Viết bằng px chứ không rem để không bị ảnh hưởng nếu sau này
+       có ai đổi font-size gốc của <html> — ngưỡng của Safari là px tuyệt đối. */
+    font-size: 16px !important;
+  }
+
+  /* Placeholder phải theo cùng cỡ. TextField đặt riêng `placeholder:text-[0.875rem]`,
+     để nguyên thì chữ gợi ý nhỏ hơn hẳn chữ người dùng gõ và ô nhìn như nhảy cỡ
+     ngay khi bắt đầu nhập. */
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 16px !important;
+  }
 }
 
 /* ==========================================================================
@@ -529,3 +591,42 @@ body {
   animation: fade-in-up 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+
+/* ==========================================================================
+   Logo vàng
+   ==========================================================================
+   VÌ SAO DÙNG MASK CHỨ KHÔNG PHẢI FILTER:
+
+   `filter` chỉ biến đổi màu có sẵn, nên để ra đúng một sắc vàng phải xâu chuỗi
+   sepia + saturate + hue-rotate + brightness, và kết quả lệch giữa các trình
+   duyệt. Muốn đổi sắc độ thì phải mò lại cả chuỗi.
+
+   `mask-image` dùng KÊNH ALPHA của ảnh làm khuôn, rồi tô màu bằng background.
+   Logo là chữ trắng trên nền trong suốt nên alpha CHÍNH LÀ hình chữ. Màu ra
+   chính xác bằng giá trị ta khai báo, và đổi màu chỉ là đổi một biến.
+
+   ĐÁNH ĐỔI: phần tử trở thành khối màu, nên ảnh gốc không còn hiện. Nếu sau này
+   logo đổi thành ảnh nhiều màu thì cách này không dùng được nữa — lúc đó nên
+   xuất sẵn một tệp logo vàng.
+
+   -webkit-mask-* vẫn cần: Safari dưới 15.4 chưa hỗ trợ thuộc tính không tiền tố. */
+.logo-gold {
+  background: linear-gradient(
+    160deg,
+    var(--gold-light) 0%,
+    var(--gold) 42%,
+    var(--gold-deep) 78%,
+    var(--gold) 100%
+  );
+
+  -webkit-mask-image: url("/logo/logo1.png");
+  mask-image: url("/logo/logo1.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  /* contain chứ không cover: cover sẽ cắt mép logo khi tỉ lệ khung lệch khỏi tỉ
+     lệ ảnh. Logo bị cắt mất chữ là lỗi thấy ngay. */
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}

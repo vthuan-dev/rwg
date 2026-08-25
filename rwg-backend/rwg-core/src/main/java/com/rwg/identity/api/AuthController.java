@@ -54,6 +54,13 @@ public class AuthController {
         return authService.login(request, ClientAddresses.clientIp(httpRequest));
     }
 
+    @PostMapping("/guest-support")
+    @Operation(summary = "Tạo phiên làm việc hỗ trợ cho khách quên mật khẩu qua tên đăng nhập")
+    public TokenResponse guestSupport(@Valid @RequestBody com.rwg.identity.dto.GuestSupportRequest request,
+                                      HttpServletRequest httpRequest) {
+        return authService.createGuestSupportSession(request, ClientAddresses.clientIp(httpRequest));
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Xoay vòng refresh token: token cũ bị thu hồi, trả cặp token mới")
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request,

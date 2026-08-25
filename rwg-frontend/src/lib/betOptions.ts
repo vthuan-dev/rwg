@@ -51,6 +51,10 @@ export interface BetOption {
  *
  * Nhãn dùng lại nhóm `draw` — bốn chữ này đã có sẵn ở đó từ trang danh sách sảnh và cùng
  * một ý nghĩa, nên không dịch lại thành `bet.big` để tránh hai bản dịch lệch nhau.
+ *
+ * `draw.single` / `draw.double` mang giá trị "Odd" / "Even" ở MỌI tệp locale, tức hai ô
+ * chẵn/lẻ luôn hiện tiếng Anh dù giao diện đang là ngôn ngữ nào. Đó là chủ ý, không phải
+ * bản dịch còn thiếu — ĐỪNG "sửa" lại thành chữ bản địa.
  */
 const KL28_OPTIONS: BetOption[] = [
   { betType: "KL28_BIG", labelKey: "draw.big", multiplier: "1.98" },

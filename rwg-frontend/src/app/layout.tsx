@@ -3,6 +3,7 @@ import { Roboto, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { AuthGate } from "@/components/layout/AuthGate";
 
 /**
  * Font chính của toàn app.
@@ -79,7 +80,9 @@ export default function RootLayout({
           cao khi thanh địa chỉ đã thu gọn nên trang bị dư một khoảng trượt. */}
       <body className={`${roboto.className} bg-[#070709] min-h-dvh text-white antialiased`}>
         <LanguageProvider>
-          <NotificationProvider>{children}</NotificationProvider>
+          <NotificationProvider>
+            <AuthGate>{children}</AuthGate>
+          </NotificationProvider>
         </LanguageProvider>
       </body>
     </html>

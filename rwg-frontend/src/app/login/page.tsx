@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/layout/AuthLayout";
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { AuthModal } from "@/components/ui/AuthModal";
 import { LanguagePopover } from "@/components/ui/LanguagePopover";
 import { useTranslation } from "@/context/LanguageContext";
-import { ApiError, login, me } from "@/lib/playerApi";
+import { ApiError, isGuestSupportOnly, login, me } from "@/lib/playerApi";
 
 /**
  * Nạp sớm ảnh nền của trang.
@@ -65,8 +64,20 @@ export default function LoginPage() {
    *
    * Dùng `replace` chứ không `push`: nếu đẩy vào lịch sử thì bấm nút quay lại sẽ về
    * đúng trang đăng nhập này rồi lại bị chuyển tiếp — người dùng mắt kẹt.
+   *
+   * BỎ QUA HẲN bước này với PHIÊN HỖ TRỢ (khách quên mật khẩu, chỉ nhập tên đăng
+   * nhập): phiên đó có token thật và còn hạn nên `me()` trả về hợp lệ, và nếu tự đẩy
+   * sang trang chủ thì `AuthGate` lại đẩy tiếp về trang chat CSKH — người dùng không
+   * bao giờ mở được trang đăng nhập để đăng nhập thật.
+   *
+   * Đây là LỚP CHẶN THỨ HAI. Nút quay lại ở trang chat đã tự dọn phiên trước khi về
+   * đây (xem `handleBack` trong contact-us), nhưng còn những đường khác dẫn tới
+   * `/login` mà không qua nút đó: gõ trực tiếp địa chỉ, nút quay lại của trình duyệt,
+   * mở một liên kết cũ. Thiếu lớp này thì mọi đường đó vẫn dính vòng lặp.
    */
   useEffect(() => {
+    if (isGuestSupportOnly()) return;
+
     let cancelled = false;
     me()
       .then(() => {
@@ -112,6 +123,15 @@ export default function LoginPage() {
           setErrorMessage(error.message || t("auth.account_locked"));
         } else if (error.code === "NETWORK_ERROR") {
           setErrorMessage(t("auth.network_error"));
+        } else if (error.status === 401) {
+          // CỐ TÌNH để trống phần mô tả: tiêu đề "Đăng nhập không thành công" đã nói
+          // đủ. Thêm câu "Sai thông tin đăng nhập" chỉ khẳng định lại tiêu đề, và với
+          // tài khoản bị quản trị viên khóa thì câu đó còn SAI — backend trả về cùng
+          // mã 401 cho cả hai trường hợp để không tiết lộ tài khoản nào tồn tại.
+          //
+          // Chuỗi rỗng chứ KHÔNG phải null: `open` so sánh với null, đặt null ở đây
+          // là hộp thoại không mở ra và người dùng bấm đăng nhập mà không thấy gì.
+          setErrorMessage("");
         } else {
           // Thông báo của server đã được bản địa hoá theo locale của request nên
           // dùng trực tiếp; chỉ khi thiếu mới dùng câu chung.
@@ -133,19 +153,30 @@ export default function LoginPage() {
             `mt-20 gap-y-8`, nên bộ chọn ngôn ngữ nằm NGAY DƯỚI lời chào chứ không
             phải ở cuối trang. */}
         <div className="mx-auto mt-20 flex flex-col gap-y-8">
-          <Image
-            alt="Resorts World Genting"
-            className="mx-auto w-[260px] sm:w-[300px] h-auto"
-            height={185}
-            priority
-            src="/logo/logo1.png"
-            width={800}
+          {/* KHÔNG dùng <Image> ở đây: logo được tô vàng bằng `mask-image` (xem
+              `.logo-gold` trong globals.css), nên phần tử là một KHỐI MÀU chứ không
+              phải ảnh. <Image> của Next sẽ vẫn tải và vẽ ảnh trắng bên dưới lớp
+              màu, tức tải hai lần cho một thứ hiển thị.
+
+              Tỉ lệ 800x185 của tệp gốc được giữ bằng `aspect-[800/185]` để khối có
+              chiều cao đúng mà không cần viết số px — đổi bề rộng là chiều cao tự
+              theo.
+
+              `role="img"` + `aria-label`: khối này là <div> nên trình đọc màn hình
+              mặc định bỏ qua. Không có hai thuộc tính đó thì người dùng trình đọc
+              mất hoàn toàn thông tin đây là logo của trang nào. */}
+          <div
+            aria-label="Resorts World Genting"
+            className="logo-gold mx-auto w-[260px] sm:w-[300px] aspect-[800/185]"
+            role="img"
           />
-          {/* Bản gốc dùng <div>; ở đây dùng <h1> để trang có đúng một tiêu đề cấp
-              một cho SEO và trình đọc màn hình. Kiểu chữ giữ y nguyên. */}
-          <h1 className="text-center text-[1.25rem] text-white font-medium">
-            {t("auth.hi_welcome_back")}
-          </h1>
+          {/* AN VOI MAT THUONG nhung GIU trong cay tro nang.
+              Ban goc dung <div>; doi thanh <h1> de trang co dung mot tieu de cap mot
+              cho SEO va trinh doc man hinh. Nguoi dung yeu cau bo dong chu nay khoi
+              giao dien, nhung XOA HAN se lam trang mat h1: trinh doc man hinh khong
+              con moc dieu huong, va cong cu tim kiem mat tieu de chinh cua trang.
+              `sr-only` giai quyet ca hai: khong ai thay chu, may van doc duoc. */}
+          <h1 className="sr-only">{t("auth.hi_welcome_back")}</h1>
           <LanguagePopover />
         </div>
 
@@ -208,6 +239,16 @@ export default function LoginPage() {
               >
                 {t("auth.new_account")}
               </Link>
+
+              {/* Lối tắt CSKH dành cho người dùng quên mật khẩu */}
+              <div className="mt-3 w-full border-t border-[#28282e]/60 pt-3 text-center">
+                <Link
+                  href="/login/guest-support"
+                  className="inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition-all"
+                >
+                  🎧 Dịch vụ khách hàng
+                </Link>
+              </div>
             </div>
           </div>
         </form>

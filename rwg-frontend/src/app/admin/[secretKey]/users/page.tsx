@@ -21,7 +21,11 @@ import {
   ChevronDown,
   Percent,
 } from "lucide-react";
-import { adminFetch } from "@/lib/adminApi";
+import {
+  adminFetch,
+  adminOverrideUserPassword,
+  adminOverrideUserWithdrawalPassword,
+} from "@/lib/adminApi";
 import { formatMoney } from "@/lib/money";
 import { useTranslation } from "@/context/LanguageContext";
 import { WalletAdjustPanel } from "@/components/admin/WalletAdjustPanel";
@@ -215,11 +219,28 @@ export default function AdminUsersPage() {
   const [kycError, setKycError] = useState("");
   const [kycOk, setKycOk] = useState(false);
 
+  // Admin đổi mật khẩu cấp 1 và cấp 2
+  const [overridePassword, setOverridePassword] = useState("");
+  const [overridePasswordSaving, setOverridePasswordSaving] = useState(false);
+  const [overridePasswordError, setOverridePasswordError] = useState("");
+  const [overridePasswordOk, setOverridePasswordOk] = useState(false);
+
+  const [overridePin, setOverridePin] = useState("");
+  const [overridePinSaving, setOverridePinSaving] = useState(false);
+  const [overridePinError, setOverridePinError] = useState("");
+  const [overridePinOk, setOverridePinOk] = useState(false);
+
   const [statusModalUser, setStatusModalUser] = useState<UserItem | null>(null);
   const [newStatus, setNewStatus] = useState<"ACTIVE" | "LOCKED" | "BANNED">("LOCKED");
   const [reason, setReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  // Xóa tài khoản
+  const [deletePin, setDeletePin] = useState("");
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteOk, setDeleteOk] = useState(false);
 
   /**
    * Tải danh sách user theo trang + bộ lọc hiện tại.
@@ -277,6 +298,9 @@ export default function AdminUsersPage() {
     setDetailError("");
     setKycError("");
     setKycOk(false);
+    setDeletePin("");
+    setDeleteError("");
+    setDeleteOk(false);
     setDetailLoading(true);
     try {
       const data = await adminFetch<UserDetail>(`/admin/users/${u.id}`);
@@ -306,6 +330,63 @@ export default function AdminUsersPage() {
       setKycError((err as Error).message);
     } finally {
       setKycSaving(false);
+    }
+  };
+
+  const saveOverridePassword = async () => {
+    if (!detail || !overridePassword.trim()) return;
+    setOverridePasswordSaving(true);
+    setOverridePasswordError("");
+    setOverridePasswordOk(false);
+    try {
+      await adminOverrideUserPassword(detail.id, overridePassword.trim());
+      setOverridePasswordOk(true);
+      setOverridePassword("");
+    } catch (err: unknown) {
+      setOverridePasswordError((err as Error).message || "Không thể đổi mật khẩu đăng nhập");
+    } finally {
+      setOverridePasswordSaving(false);
+    }
+  };
+
+  const saveOverridePin = async () => {
+    if (!detail || !overridePin.trim()) return;
+    setOverridePinSaving(true);
+    setOverridePinError("");
+    setOverridePinOk(false);
+    try {
+      await adminOverrideUserWithdrawalPassword(detail.id, overridePin.trim());
+      setOverridePinOk(true);
+      setOverridePin("");
+      setDetail((prev) => (prev ? { ...prev, hasWithdrawalPassword: true } : null));
+    } catch (err: unknown) {
+      setOverridePinError((err as Error).message || "Không thể đổi mật khẩu rút tiền");
+    } finally {
+      setOverridePinSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!detail || !deletePin.trim()) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này không? Hành động này không thể hoàn tác!")) return;
+    setDeleteSaving(true);
+    setDeleteError("");
+    setDeleteOk(false);
+    try {
+      await adminFetch(`/admin/users/${detail.id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ confirmPin: deletePin.trim() }),
+      });
+      setDeleteOk(true);
+      setDeletePin("");
+      setTimeout(() => {
+        setSelectedUser(null);
+        void reload();
+      }, 1500);
+    } catch (err: unknown) {
+      setDeleteError((err as Error).message || "Không thể xóa tài khoản");
+    } finally {
+      setDeleteSaving(false);
     }
   };
 
@@ -827,6 +908,122 @@ export default function AdminUsersPage() {
                   ) : (
                     <span className="text-xs font-bold text-slate-900">
                       {kycLabel(detail.kycLevel)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Block 1: Admin Đổi Mật khẩu Đăng nhập (Cấp 1) */}
+                <div className="flex flex-col gap-2 p-3.5 bg-white border border-slate-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-600" />
+                    <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-wide">
+                      Đổi Mật khẩu Đăng nhập (Cấp 1)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={overridePassword}
+                      onChange={(e) => {
+                        setOverridePassword(e.target.value);
+                        setOverridePasswordOk(false);
+                        setOverridePasswordError("");
+                      }}
+                      placeholder="Mật khẩu mới (vd: admin1712)..."
+                      className="flex-1 bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                    />
+                    <button
+                      onClick={saveOverridePassword}
+                      disabled={overridePasswordSaving || !overridePassword.trim()}
+                      className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shrink-0"
+                    >
+                      {overridePasswordSaving ? "..." : "Cập nhật"}
+                    </button>
+                  </div>
+                  {overridePasswordError && (
+                    <span className="text-[11px] text-red-700 font-semibold">{overridePasswordError}</span>
+                  )}
+                  {overridePasswordOk && (
+                    <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Đã cập nhật mật khẩu đăng nhập mới!
+                    </span>
+                  )}
+                </div>
+
+                {/* Block 2: Admin Đổi Mật khẩu Rút tiền 6 số (Cấp 2) */}
+                <div className="flex flex-col gap-2 p-3.5 bg-white border border-slate-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-wide">
+                      Đổi Mật khẩu Rút tiền 6 số (Cấp 2)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={overridePin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setOverridePin(val);
+                        setOverridePinOk(false);
+                        setOverridePinError("");
+                      }}
+                      placeholder="Mã PIN 6 số (vd: 123456)..."
+                      className="flex-1 bg-slate-50 border border-slate-200 focus:border-slate-900 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                    />
+                    <button
+                      onClick={saveOverridePin}
+                      disabled={overridePinSaving || overridePin.length !== 6}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shrink-0"
+                    >
+                      {overridePinSaving ? "..." : "Cập nhật"}
+                    </button>
+                  </div>
+                  {overridePinError && (
+                    <span className="text-[11px] text-red-700 font-semibold">{overridePinError}</span>
+                  )}
+                  {overridePinOk && (
+                    <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Đã cập nhật mã PIN 6 số mới!
+                    </span>
+                  )}
+                </div>
+
+                {/* Block 3: Admin Xóa tài khoản người dùng */}
+                <div className="flex flex-col gap-2 p-3.5 bg-white border border-red-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <span className="text-[11px] font-extrabold text-red-700 uppercase tracking-wide">
+                      Xóa Tài Khoản (Nguy Hiểm)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="password"
+                      value={deletePin}
+                      onChange={(e) => {
+                        setDeletePin(e.target.value);
+                        setDeleteOk(false);
+                        setDeleteError("");
+                      }}
+                      placeholder="Mã xác nhận bảo mật (171204)..."
+                      className="flex-1 bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                    />
+                    <button
+                      onClick={handleDeleteUser}
+                      disabled={deleteSaving || deletePin.trim().length === 0}
+                      className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shrink-0"
+                    >
+                      {deleteSaving ? "..." : "Xóa"}
+                    </button>
+                  </div>
+                  {deleteError && (
+                    <span className="text-[11px] text-red-700 font-semibold">{deleteError}</span>
+                  )}
+                  {deleteOk && (
+                    <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Đã xóa tài khoản thành công!
                     </span>
                   )}
                 </div>

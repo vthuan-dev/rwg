@@ -63,19 +63,22 @@ public class AdminWalletService {
     private final UserRepository userRepository;
     private final AuditTrailService audit;
     private final NotificationService notifications;
+    private final com.rwg.game.service.GameEventRelay gameEventRelay;
 
     public AdminWalletService(WalletService walletService,
                               WalletRepository walletRepository,
                               WalletTransactionRepository transactionRepository,
                               UserRepository userRepository,
                               AuditTrailService audit,
-                              NotificationService notifications) {
+                              NotificationService notifications,
+                              com.rwg.game.service.GameEventRelay gameEventRelay) {
         this.walletService = walletService;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
         this.userRepository = userRepository;
         this.audit = audit;
         this.notifications = notifications;
+        this.gameEventRelay = gameEventRelay;
     }
 
     // ===== ĐỌC =====
@@ -155,6 +158,8 @@ public class AdminWalletService {
                         ? NotificationType.ADMIN_CREDIT
                         : NotificationType.ADMIN_DEBIT,
                 amount.amount());
+
+        gameEventRelay.publishWalletUpdate(userId, balanceAfter.amount().toPlainString());
 
         return new WalletAdjustmentResponse(
                 userId.toString(), direction,

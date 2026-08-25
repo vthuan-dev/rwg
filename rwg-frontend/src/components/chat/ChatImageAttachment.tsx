@@ -79,17 +79,17 @@ export const ChatImageAttachment: React.FC<{
 
   const alt = attachmentName ?? t("chat.attachment.image_alt");
 
-  // KHUNG CỐ ĐỊNH cho cả ba trạng thái (đang tải / lỗi / đã tải).
+  // Khung CHỈ dùng cho hai trạng thái chưa có ảnh (đang tải / lỗi).
   //
-  // Ảnh không có kích cỡ định trước sẽ chiếm 0px lúc chưa tải rồi bung ra khi tải xong,
-  // đẩy toàn bộ hội thoại bên dưới nhảy xuống — đúng lúc người dùng đang đọc. Giữ khung
-  // cố định thì bố cục ổn định từ đầu.
-  const frameClass =
-    "flex h-40 w-60 items-center justify-center overflow-hidden rounded-xl bg-black/20";
+  // Lúc này chưa biết tỉ lệ ảnh nên buộc phải có kích cỡ cố định, nếu không thì
+  // bong bóng cao 0px rồi bung ra khi ảnh tải xong, đẩy cả hội thoại bên dưới nhảy
+  // xuống đúng lúc người dùng đang đọc.
+  const placeholderClass =
+    "flex h-40 w-full items-center justify-center overflow-hidden rounded-xl bg-black/20";
 
   if (failed) {
     return (
-      <div className={`${frameClass} flex-col gap-1.5 text-[#8b8b93]`}>
+      <div className={`${placeholderClass} flex-col gap-1.5 text-[#8b8b93]`}>
         <ImageOff className="size-6" />
         <span className="text-[0.6875rem]">{t("chat.attachment.load_failed")}</span>
       </div>
@@ -98,7 +98,7 @@ export const ChatImageAttachment: React.FC<{
 
   if (!src) {
     return (
-      <div className={frameClass}>
+      <div className={placeholderClass}>
         <Loader2 className="size-5 animate-spin text-white/60" />
       </div>
     );
@@ -108,14 +108,20 @@ export const ChatImageAttachment: React.FC<{
     <button
       type="button"
       onClick={() => onOpen(src, alt)}
-      className={`${frameClass} cursor-zoom-in transition-opacity hover:opacity-90`}
+      // `block w-full` chứ không phải khung có kích cỡ: nút rộng bằng cả bong bóng,
+      // và chiều cao do chính ảnh quyết định. Không có `h-*` nào ở đây — thêm vào là
+      // lại sinh ra viền đen trên dưới cho ảnh ngang.
+      className="block w-full cursor-zoom-in overflow-hidden rounded-xl transition-opacity hover:opacity-90"
       aria-label={t("chat.attachment.open")}
     >
-      {/* `object-cover` cắt phần thừa thay vì bóp méo: ảnh chụp màn hình điện thoại rất
-          cao, và co cho vừa khung sẽ làm chữ trong ảnh nhỏ đến mức vô nghĩa. Bấm vào để
-          xem đầy đủ. */}
+      {/* `h-auto` + KHÔNG `object-*`: ảnh hiện ở đúng tỉ lệ thật của nó, rộng hết
+          bong bóng. Không cắt mép nào, không viền đen, không bóp méo.
+          `object-cover` ban đầu cắt hai bên ảnh ngang — với ảnh khuyến mãi kèm bảng
+          số liệu thì phần bị cắt lại đúng là phần cần đọc.
+          `max-h-[32rem]` chỉ để một ảnh rất cao (chụp màn hình dài) không đẩy cả
+          khung chat đi; ảnh như vậy vẫn bấm được để xem đầy đủ. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className="size-full object-cover" />
+      <img src={src} alt={alt} className="h-auto w-full max-h-[32rem] object-contain" />
     </button>
   );
 };

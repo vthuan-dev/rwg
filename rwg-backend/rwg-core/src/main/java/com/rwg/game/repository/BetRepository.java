@@ -41,6 +41,14 @@ public interface BetRepository extends JpaRepository<Bet, BetId> {
 
     long countByRoundId(UUID roundId);
 
+    /**
+     * Số lệnh cược của một người.
+     *
+     * Dùng khi quyết định một tài khoản có xóa hẳn được hay không: có một lệnh cược nghĩa là
+     * có dòng tiền vào ra, và sổ sách đó không được biến mất.
+     */
+    long countByUserId(UUID userId);
+
     boolean existsByIdempotencyKey(String idempotencyKey);
 
     /**

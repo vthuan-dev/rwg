@@ -104,8 +104,12 @@ rwg:
     success-delay: ${RWG_PAYMENT_SUCCESS_DELAY:PT1S}
     callback-secret: ${RWG_PAYMENT_CALLBACK_SECRET}
   withdrawal:
+    # PHẢI KHỚP rwg-user-app: hai app dùng chung `WithdrawalProperties`, và app quản trị
+    # cũng đọc giá trị này khi duyệt lệnh. Để lệch nhau thì hạn mức hiển thị ở khu quản
+    # trị khác hạn mức đang thực thi ở phía người chơi.
     min-amount: ${RWG_WITHDRAWAL_MIN:20}
-    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
+    # Rỗng = không giới hạn. Xem chú thích đầy đủ ở rwg-user-app/application.yml.
+    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:}
   crypto:
     bank-enc-key: ${RWG_BANK_ENC_KEY}
   risk:
@@ -121,3 +125,8 @@ rwg:
 logging:
   level:
     org.hibernate.SQL: warn
+
+  admin:
+    # Ma xac nhan tham tac khong hoan tac duoc (xoa tai khoan, v.v.).
+    # De trong = chan toan bo nhung thao tac do. Thay doi chi can restart, khong can redeploy.
+    destructive-pin: ${RWG_ADMIN_DESTRUCTIVE_PIN:}

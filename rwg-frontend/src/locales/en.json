@@ -1,9 +1,9 @@
 {
   "header": {
-    "welcome_back": "Welcome back"
+    "welcome_back": "Welcome, customer: {username}"
   },
   "marquee": {
-    "notice": "Welcome to Resort World Genting! Experience Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
+    "notice": "Welcome to Resort World Genting! Experience Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7"
   },
   "quick_actions": {
     "deposit": "Deposit",
@@ -27,7 +27,7 @@
     "seen": "Seen",
     "delivered": "Sent",
     "you": "You",
-    "staff": "Support",
+    "staff": "Customer Service",
     "online_hint": "Usually replies within minutes",
     "closed_notice": "This conversation was closed. Send a new message to reopen it.",
     "system": {
@@ -162,6 +162,7 @@
         "title": "Wallet Transaction History (Ledger)"
       },
       "odds": {
+        "apply_pair": "Apply to pair",
         "custom": "Custom odds applied",
         "err_range": "Multiplier must be between {min} and {max}.",
         "err_self": "You cannot adjust your own odds.",
@@ -172,6 +173,8 @@
         "intro": "Configure custom odds for {username}",
         "intro_note": "Custom odds will override table defaults. Adjustments must be within 0.5x to 3.0x of default.",
         "net_receive": "Net payout: {value} (after {percent}% commission)",
+        "pair_hint": "Applies the same multiplier to {options} in one save.",
+        "pair_label": "Both sides at once",
         "read_only": "You have read-only access to odds; edits are not allowed.",
         "reset": "Reset to default",
         "save": "Save",
@@ -591,25 +594,25 @@
     "deposit_requested_title": "Deposit request received",
     "deposit_requested": "Your deposit request for ${amount} has been received and is awaiting review.",
     "deposit_completed_title": "Deposit successful",
-    "deposit_completed": "${amount} has been credited to your wallet.",
+    "deposit_completed": "${amount} has been credited to your account.",
     "deposit_rejected_title": "Deposit request declined",
     "deposit_rejected": "Your deposit request for ${amount} was not approved. No funds were credited.",
     "withdrawal_requested_title": "Withdrawal request received",
-    "withdrawal_requested": "Your withdrawal of ${amount} is awaiting review. This amount has been held from your wallet.",
+    "withdrawal_requested": "Your withdrawal of ${amount} is awaiting review. This amount has been held from your account.",
     "withdrawal_approved_title": "Withdrawal approved",
     "withdrawal_approved": "Your withdrawal of ${amount} was approved and is on its way to your account.",
     "withdrawal_rejected_title": "Withdrawal declined",
-    "withdrawal_rejected": "Your withdrawal of ${amount} was not approved. The funds have been returned to your wallet.",
+    "withdrawal_rejected": "Your withdrawal of ${amount} was not approved. The funds have been returned to your account.",
     "admin_credit_title": "Funds added",
-    "admin_credit": "An administrator credited ${amount} to your wallet.",
+    "admin_credit": "Your account has been credited ${amount}.",
     "admin_debit_title": "Funds deducted",
-    "admin_debit": "An administrator deducted ${amount} from your wallet."
+    "admin_debit": "Your account has been debited ${amount}."
   },
   "history": {
     "load_more": "Load more"
   },
   "asset": {
-    "wallet": "Wallet",
+    "wallet": "Account",
     "deposit": "Deposit",
     "withdraw": "Withdrawal",
     "deposit_history": "Deposit history",
@@ -652,11 +655,11 @@
     "step2_desc": "Send the amount you wish to deposit and a screenshot of the successful transfer receipt.",
     "step3_title": "Step 3: Completion & Credit",
     "step3_desc": "Our support agent will verify and credit your wallet immediately.",
-    "err_failed": "Could not load your wallet. Please try again."
+    "err_failed": "Could not load account information. Please try again."
   },
   "profile": {
     "member": "Member",
-    "wallet_1": "Main wallet",
+    "wallet_1": "Main account",
     "deposit": "Deposit",
     "withdraw": "Withdraw",
     "referral_program": "Referral program",
@@ -721,7 +724,9 @@
     "account_locked_note": "Each account can link only one bank account. To change or correct the details, please contact customer support.",
     "contact_support": "Contact support",
     "already_linked": "A bank account is already linked. Please contact customer support to change it.",
-    "remove_forbidden": "You cannot remove your own bank account. Please contact customer support."
+    "remove_forbidden": "You cannot remove your own bank account. Please contact customer support.",
+    "login_password_contact": "Contact support to change your login password",
+    "security_pin_contact": "Contact support to reset your 6-digit code"
   },
   "withdraw": {
     "title": "Withdraw",
@@ -754,6 +759,7 @@
     "view_history": "View withdrawal history",
     "back_to_profile": "Back to profile",
     "limit_hint": "Between {min} and {max} per request",
+    "limit_hint_no_max": "Minimum {min} per request",
     "hint_need_account": "Select a payout account",
     "hint_need_amount": "Enter an amount from {min}",
     "hint_need_password": "Enter your withdrawal password",
@@ -779,7 +785,7 @@
     "page_of": "Page {page} of {total}",
     "prev_page": "Previous page",
     "next_page": "Next page",
-    "wallet_balance": "Wallet balance",
+    "wallet_balance": "Balance",
     "balance": "Balance",
     "current_match": "Current round",
     "next_match": "Next round",

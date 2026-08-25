@@ -13,6 +13,15 @@ import java.util.UUID;
 public interface UserGameOddsRepository extends JpaRepository<UserGameOdds, UUID> {
 
     /**
+     * Xoá mọi tỷ lệ riêng của một người.
+     *
+     * Chỉ dùng trên đường xóa hẳn một tài khoản SẠCH. KHÔNG dùng để "đặt lại toàn bộ về mức
+     * chung": việc đó cần đi qua {@code AdminUserOddsService.removeOdds} để có vết audit và
+     * để người chơi được cập nhật tỷ lệ mới ngay trên màn hình.
+     */
+    void deleteByUserId(UUID userId);
+
+    /**
      * Mọi tỷ lệ riêng của một người ở một bàn.
      *
      * Lấy CẢ BÀN một lượt chứ không từng loại cược: thanh toán một ván chạy vòng qua mọi

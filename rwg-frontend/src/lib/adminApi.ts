@@ -292,3 +292,19 @@ export function chatAttachmentEndpoint(attachmentUrl: string): string {
   // chứa "/api/v1" — nối thẳng sẽ ra "/api/v1/api/v1/...".
   return attachmentUrl.replace(/^\/api\/v1/, "");
 }
+
+/** Admin đổi mật khẩu đăng nhập (cấp 1) cho người chơi. */
+export async function adminOverrideUserPassword(userId: string, newPassword: string): Promise<unknown> {
+  return adminFetch(`/admin/users/${userId}/password/change`, {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
+  });
+}
+
+/** Admin đổi mật khẩu rút tiền 6 số (cấp 2) cho người chơi. */
+export async function adminOverrideUserWithdrawalPassword(userId: string, newPin: string): Promise<unknown> {
+  return adminFetch(`/admin/users/${userId}/withdrawal-password/change`, {
+    method: "POST",
+    body: JSON.stringify({ newPin }),
+  });
+}

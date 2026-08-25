@@ -40,8 +40,14 @@ import java.util.UUID;
 @Service
 public class DepositService {
 
-    static final BigDecimal MIN_DEPOSIT = new BigDecimal("10");
-    static final BigDecimal MAX_DEPOSIT = new BigDecimal("50000");
+    // PUBLIC chứ không package-private: `PaymentController` nằm ở `..payment.api` (khác
+    // package) và cần hai giá trị này để trả về endpoint hạn mức. Để nguyên
+    // package-private thì không biên dịch được.
+    //
+    // Trả về từ MỘT nguồn như vậy quan trọng hơn là giữ tầm nhìn hẹp: trước đây giao diện
+    // viết cứng lại hai con số này, và không có cách nào phát hiện khi chúng lệch nhau.
+    public static final BigDecimal MIN_DEPOSIT = new BigDecimal("10");
+    public static final BigDecimal MAX_DEPOSIT = new BigDecimal("50000");
 
     private final PaymentOrderRepository orderRepository;
     private final PaymentGateway gateway;

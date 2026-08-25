@@ -111,8 +111,8 @@ class ChangePasswordApiTest {
                         .content("""
                                 {"oldPassword":"SaiMatKhau@123","newPassword":"%s"}
                                 """.formatted(NEW_PASSWORD)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_MISMATCH"));
 
         // Mật khẩu cũ vẫn dùng được (không bị đổi).
         loginExpect(username, PASSWORD, 200);

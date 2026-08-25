@@ -4,8 +4,10 @@ import com.rwg.common.ApiException;
 import com.rwg.common.ErrorCode;
 import com.rwg.common.web.ClientAddresses;
 import com.rwg.config.PaymentProperties;
+import com.rwg.config.WithdrawalProperties;
 import com.rwg.payment.dto.DepositRequest;
 import com.rwg.payment.dto.PaymentCallbackRequest;
+import com.rwg.payment.dto.PaymentLimitsResponse;
 import com.rwg.payment.dto.PaymentOrderResponse;
 import com.rwg.payment.service.DepositService;
 import com.rwg.payment.service.WithdrawalService;
@@ -18,6 +20,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -46,19 +49,44 @@ public class PaymentController {
     private final DepositService depositService;
     private final WithdrawalService withdrawalService;
     private final PaymentProperties paymentProperties;
+    private final WithdrawalProperties withdrawalProperties;
 
     public PaymentController(DepositService depositService,
                              WithdrawalService withdrawalService,
-                             PaymentProperties paymentProperties) {
+                             PaymentProperties paymentProperties,
+                             WithdrawalProperties withdrawalProperties) {
         this.depositService = depositService;
         this.withdrawalService = withdrawalService;
         this.paymentProperties = paymentProperties;
+        this.withdrawalProperties = withdrawalProperties;
         // Fail-fast khi khởi động (pattern giống rwg.crypto.bank-enc-key):
         // callback là endpoint công khai, KHÔNG THỂ chạy nếu thiếu secret.
         if (paymentProperties.callbackSecret() == null || paymentProperties.callbackSecret().isBlank()) {
             throw new IllegalStateException(
                     "rwg.payment.callback-secret (env RWG_PAYMENT_CALLBACK_SECRET) is required");
         }
+    }
+
+    /**
+     * Hạn mức nạp/rút để giao diện kiểm trước khi gọi API.
+     *
+     * KHÔNG yêu cầu đăng nhập (khai permitAll ở SecurityConfig): đây là thông tin công
+     * khai, giống bảng phí niêm yết. Bắt đăng nhập chỉ khiến trang nạp/rút phải chờ xong
+     * xác thực mới vẽ được ô nhập, mà không che giấu được gì — con số này in ngay trên
+     * giao diện cho mọi người dùng.
+     *
+     * ĐÂY LÀ NGUỒN DUY NHẤT của các con số đó. Giao diện KHÔNG được viết cứng lại, vì khi
+     * hai bên lệch nhau thì người dùng bị giao diện từ chối trước khi yêu cầu kịp đi, và
+     * lỗi không để lại dấu vết nào trong log server.
+     */
+    @GetMapping("/api/v1/payments/limits")
+    @Operation(summary = "Hạn mức nạp/rút hiện hành (withdrawDailyMax = null nghĩa là không giới hạn)")
+    public PaymentLimitsResponse limits() {
+        return PaymentLimitsResponse.of(
+                DepositService.MIN_DEPOSIT,
+                DepositService.MAX_DEPOSIT,
+                withdrawalProperties.minAmount(),
+                withdrawalProperties.dailyMaxAmount());
     }
 
     @PostMapping("/api/v1/wallet/deposits")

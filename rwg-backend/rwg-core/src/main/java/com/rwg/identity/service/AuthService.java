@@ -206,6 +206,27 @@ public class AuthService {
     }
 
     /**
+     * Khách chưa đăng nhập (quên mật khẩu) nhập Username để tạo phiên liên hệ CSKH.
+     */
+    @Transactional
+    public TokenResponse createGuestSupportSession(com.rwg.identity.dto.GuestSupportRequest request, String ip) {
+        String username = request.username().trim();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
+                        "Tên đăng nhập không tồn tại trên hệ thống",
+                        Map.of("username", username), "error.not_found.user"));
+
+        if (user.getStatus() == UserStatus.CLOSED) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Tài khoản đã bị đóng",
+                    null, "error.user.disabled");
+        }
+
+        audit.record(user.getId(), user.getUsername(), "GUEST_SUPPORT_SESSION",
+                "USER", user.getId().toString(), null, ip);
+        return issueTokens(user, UUID.randomUUID().toString());
+    }
+
+    /**
      * Đăng nhập KHU QUẢN TRỊ (backoffice). Dùng CHUNG toàn bộ đường xác thực với
      * {@link #login} — rate limiter, enforce captcha, cân bằng thời gian BCrypt —
      * rồi thêm một tầng chặn: tài khoản PLAYER bị từ chối dù mật khẩu đúng.

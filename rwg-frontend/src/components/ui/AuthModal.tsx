@@ -86,6 +86,12 @@ export const AuthModal: React.FC<{
       ? { src: "/element/icon-success.png", width: 800, height: 812 }
       : { src: "/element/icon-fail.png", width: 800, height: 800 };
 
+  // Chỗ gọi có thể cố tình bỏ trống phần mô tả khi tiêu đề đã nói đủ (ví dụ hộp thoại
+  // đăng nhập thất bại). Khi đó KHÔNG render thẻ <p>: nó mang `mt-2` nên dù rỗng vẫn
+  // chừa ra một khoảng trống giữa tiêu đề và nút, trông như thiếu chữ chứ không như
+  // một hộp thoại gọn.
+  const hasMessage = message.trim().length > 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Lớp phủ trải HẾT màn hình (kể cả hai bên ngoài cột 640px): nếu chỉ tối phần
@@ -110,7 +116,7 @@ export const AuthModal: React.FC<{
           lớp phủ; riêng hộp thoại bật lại. */}
       <div className="relative w-full sm:max-w-[640px] mx-auto px-4 flex justify-center pointer-events-none">
         <div
-          aria-describedby="auth-modal-description"
+          aria-describedby={hasMessage ? "auth-modal-description" : undefined}
           aria-labelledby="auth-modal-title"
           aria-modal="true"
           className="relative w-full sm:max-w-lg bg-[#1F1F1F] rounded-none shadow-lg outline-none pointer-events-auto animate-auth-panel-in"
@@ -143,12 +149,14 @@ export const AuthModal: React.FC<{
             {/* Backend có thể trả nhiều lỗi validation ghép bằng ký tự xuống dòng.
                 whitespace-pre-line giữ được các dòng đó mà KHÔNG cần dựng HTML từ
                 chuỗi của server — dựng HTML ở đây là mở đường cho chèn mã. */}
-            <p
-              className="mt-2 text-center text-[1rem] font-normal leading-[1.35rem] text-white/50 whitespace-pre-line animate-auth-content-in [animation-delay:60ms]"
-              id="auth-modal-description"
-            >
-              {message}
-            </p>
+            {hasMessage ? (
+              <p
+                className="mt-2 text-center text-[1rem] font-normal leading-[1.35rem] text-white/50 whitespace-pre-line animate-auth-content-in [animation-delay:60ms]"
+                id="auth-modal-description"
+              >
+                {message}
+              </p>
+            ) : null}
 
             {/* Không dùng component Button: nút này giống biến thể `md` nhưng KHÔNG
                 có hiệu ứng sáng lên khi trỏ vào — trang gốc chỉ đổi độ mờ. */}

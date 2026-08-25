@@ -336,6 +336,62 @@ public class AdminChatService {
                 conversationRepository.countConversationsAwaitingReply());
     }
 
+    /**
+     * Admin xóa một hoặc nhiều tin nhắn trong cuộc trò chuyện.
+     *
+     * Cả tin của admin và tin của người chơi đều xóa được — phục vụ xóa nội dung
+     * vi phạm hoặc xóa nhầm. Tin bị đánh dấu ẩn (soft delete) trong DB, nhưng biến
+     * mất ngay lập tức trên màn hình của CẢ HAI phía qua WebSocket.
+     *
+     * Xác nhận theo {@code conversationId}: nếu id tin nằm trong luồng khác thì bị
+     * bỏ qua yên lặng, không lỗi. Quyết định này tránh lộ thông tin "id đó có tồn
+     * tại không" khi admin gửi danh sách sai luồng do lỗi UI.
+     *
+     * @param conversationId luồng chứa tin — phải tồn tại.
+     * @param messageIds     danh sách id tin cần xóa (tối đa 100, bắt buộc không rỗng).
+     * @param staffId        id admin đang thực hiện.
+     * @param staffUsername  tên đăng nhập admin lúc thực hiện (chụp lại cho audit).
+     * @param ip             địa chỉ IP của request, cho audit trail.
+     * @return số tin đã được đánh dấu xóa thật sự.
+     */
+    @Transactional
+    public int deleteMessages(UUID conversationId, List<UUID> messageIds,
+                              UUID staffId, String staffUsername, String ip) {
+        ChatConversation conversation = requireConversation(conversationId);
+
+        List<ChatMessage> toDelete = messageRepository.findByConversationIdAndIdIn(
+                conversationId, messageIds);
+
+        if (toDelete.isEmpty()) {
+            return 0;
+        }
+
+        for (ChatMessage msg : toDelete) {
+            msg.markDeleted(staffId, staffUsername);
+        }
+        messageRepository.saveAll(toDelete);
+
+        // Phát sự kiện xóa để cả hai phía xóa bong bóng khỏi màn hình ngay.
+        // publishAfterCommit đảm bảo gửi SAU khi transaction commit — tránh gửi
+        // thông báo khi transaction có thể còn rollback. Publisher tự gửi đồng thời
+        // tới kênh admin (/topic/admin/chat) và unicast tới người chơi (qua Redis nếu
+        // người chơi đang nối vào app player).
+        String[] deletedIds = toDelete.stream()
+                .map(m -> m.getId().toString())
+                .toArray(String[]::new);
+        String convId = conversationId.toString();
+        String targetUserId = conversation.getUserId().toString();
+
+        eventPublisher.publishAfterCommit(
+                ChatEventPayload.messagesDeleted(convId, targetUserId, deletedIds));
+
+        auditTrailService.record(staffId, null, AuditTrailService.ADMIN_CHAT_MESSAGES_DELETED,
+                "CHAT_CONVERSATION", conversationId.toString(),
+                Map.of("count", toDelete.size(), "staffUsername", staffUsername), ip);
+
+        return toDelete.size();
+    }
+
     // ===== helper =====
 
     private ChatConversation requireConversation(UUID conversationId) {

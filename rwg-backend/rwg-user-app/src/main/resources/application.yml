@@ -131,9 +131,17 @@ rwg:
     # Chỉ profile DEV/TEST được đặt default rõ ràng (xem application-dev.yml).
     callback-secret: ${RWG_PAYMENT_CALLBACK_SECRET}
   withdrawal:
-    # Hạn mức rút tiền theo KE-HOACH-CHUC-NANG-CASINO: min $20, max $5,000/ngày (standard).
+    # Số tiền tối thiểu mỗi lệnh. GIỮ LẠI vì mỗi lệnh rút đều cần admin bấm duyệt —
+    # cho rút những khoản vài xu là mở đường làm ngập việc của nhân sự.
     min-amount: ${RWG_WITHDRAWAL_MIN:20}
-    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:5000}
+
+    # KHÔNG GIỚI HẠN theo mặc định (giá trị rỗng). Đặt một con số để bật lại trần:
+    #   RWG_WITHDRAWAL_DAILY_MAX=5000
+    #
+    # VÌ SAO BỎ TRẦN LÀ AN TOÀN: lệnh rút KHÔNG tự chuyển tiền. Nó vào trạng thái
+    # PENDING và chỉ ra tiền khi admin bấm duyệt. Trần theo ngày là lớp chặn phụ; lớp
+    # chính là con người xét từng lệnh, và lớp đó vẫn còn nguyên.
+    daily-max-amount: ${RWG_WITHDRAWAL_DAILY_MAX:}
   crypto:
     # Khóa mã hóa số tài khoản ngân hàng (AES-256-GCM).
     # KHÔNG có default ở base: thiếu RWG_BANK_ENC_KEY -> fail-fast khi khởi động.

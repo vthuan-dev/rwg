@@ -148,6 +148,15 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
     long countByUserIdAndTypeAndStatus(UUID userId, PaymentType type, PaymentStatus status);
 
     /**
+     * Tất cả lệnh nạp/rút của một người, mọi loại và mọi trạng thái.
+     *
+     * Dùng khi quyết định một tài khoản có xóa hẳn được hay không. Đếm CẢ lệnh đã hủy và
+     * thất bại, không chỉ lệnh thành công: một lệnh rút bị từ chối vẫn là căn cứ khi người
+     * đó khiếu nại rằng họ đã yêu cầu rút tiền.
+     */
+    long countByUserId(UUID userId);
+
+    /**
      * Tổng tiền của MỘT user theo loại + trạng thái TRONG MỘT KHOẢNG — sổ sách tháng.
      *
      * Khác {@link #sumAmountByUserAndTypeAndStatus} ở chỗ có giới hạn thời gian: hàm kia

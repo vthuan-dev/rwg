@@ -56,6 +56,9 @@ rwg:
     captcha-threshold: 5
     lock-threshold: 10
     account-lock-threshold: 20
+  admin:
+    # Mã xác nhận thao tác không hoàn tác — chỉ dùng trong test.
+    destructive-pin: "171204"
 
 management:
   health:
@@ -64,4 +67,4 @@ management:
 
 logging:
   level:
-    org.hibernate.SQL: warn
+    org.hibernate.SQL: warn

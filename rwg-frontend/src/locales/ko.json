@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome_back": "다시 오신 것을 환영합니다"
+    "welcome_back": "{username} 고객님, 환영합니다"
   },
   "marquee": {
     "notice": "리조트 월드 겐팅에 오신 것을 환영합니다! 럭키 28, 브리티시 럭키 28, 코리안 럭키 28, 타이완 타임즈를 24시간 즐기세요."
@@ -27,7 +27,7 @@
     "seen": "읽음",
     "delivered": "전송됨",
     "you": "나",
-    "staff": "고객지원",
+    "staff": "고객 서비스",
     "online_hint": "보통 몇 분 안에 답변합니다",
     "closed_notice": "이 대화는 종료되었습니다. 새 메시지를 보내면 다시 열립니다.",
     "system": {
@@ -162,6 +162,7 @@
         "title": "지갑 거래 내역 (Ledger)"
       },
       "odds": {
+        "apply_pair": "양쪽에 적용",
         "custom": "사용자 정의 배당률 적용됨",
         "err_range": "배율은 {min}에서 {max} 사이여야 합니다.",
         "err_self": "본인의 배당률은 조정할 수 없습니다.",
@@ -172,6 +173,8 @@
         "intro": "{username}의 사용자 정의 배당률 설정",
         "intro_note": "사용자 정의 배당률은 테이블 기본 배당률보다 우선 적용됩니다. 조정은 기본 배당률의 0.5배에서 3.0배 사이여야 합니다.",
         "net_receive": "실제 배당: {value} ({percent}% 수수료 제외)",
+        "pair_hint": "{options}에 동일한 배당률을 한 번에 적용합니다.",
+        "pair_label": "양쪽 동시 설정",
         "read_only": "배당률 조회 권한만 있습니다. 수정할 수 없습니다.",
         "reset": "기본값으로 초기화",
         "save": "저장",
@@ -477,12 +480,12 @@
     "bet_types": {
       "KL28_BIG": "대",
       "KL28_SMALL": "소",
-      "KL28_SINGLE": "홀",
-      "KL28_DOUBLE": "짝",
+      "KL28_SINGLE": "Odd",
+      "KL28_DOUBLE": "Even",
       "RED": "레드",
       "BLACK": "블랙",
-      "ODD": "홀",
-      "EVEN": "짝",
+      "ODD": "Odd",
+      "EVEN": "Even",
       "LOW": "로우 (1-18)",
       "HIGH": "하이 (19-36)",
       "PLAYER": "플레이어",
@@ -591,25 +594,25 @@
     "deposit_requested_title": "입금 신씩이 접수되었습니다",
     "deposit_requested": "${amount} 입금 신씩이 접수되어 심사 중입니다.",
     "deposit_completed_title": "입금 완료",
-    "deposit_completed": "${amount}이 지갑에 입금되었습니다.",
+    "deposit_completed": "${amount}이 계정에 입금되었습니다.",
     "deposit_rejected_title": "입금 신씩이 거절되었습니다",
     "deposit_rejected": "${amount} 입금 신씩이 승인되지 않았습니다. 입금된 금액은 없습니다.",
     "withdrawal_requested_title": "증금 신씩이 접수되었습니다",
-    "withdrawal_requested": "${amount} 증금 신씩이 심사 중입니다. 해당 금액은 지갑에서 보류되었습니다.",
+    "withdrawal_requested": "${amount} 증금 신씩이 심사 중입니다. 해당 금액은 계정에서 보류되었습니다.",
     "withdrawal_approved_title": "증금이 승인되었습니다",
     "withdrawal_approved": "${amount} 증금이 승인되어 계정으로 이집 중입니다.",
     "withdrawal_rejected_title": "증금이 거절되었습니다",
-    "withdrawal_rejected": "${amount} 증금이 승인되지 않았습니다. 금액은 지갑으로 환입되었습니다.",
+    "withdrawal_rejected": "${amount} 증금이 승인되지 않았습니다. 금액은 계정으로 환입되었습니다.",
     "admin_credit_title": "금액이 추가되었습니다",
-    "admin_credit": "관리자가 ${amount}을 지갑에 추가했습니다.",
+    "admin_credit": "계정에 ${amount}이 입금되었습니다.",
     "admin_debit_title": "금액이 차감되었습니다",
-    "admin_debit": "관리자가 ${amount}을 지갑에서 차감했습니다."
+    "admin_debit": "계정에서 ${amount}이 차감되었습니다."
   },
   "history": {
     "load_more": "더 보기"
   },
   "asset": {
-    "wallet": "지갑",
+    "wallet": "계정",
     "deposit": "입금",
     "withdraw": "출금",
     "deposit_history": "입금 내역",
@@ -652,11 +655,11 @@
     "step2_desc": "입금할 금액과 성공한 송금 영수증의 스크린샷을 전송합니다.",
     "step3_title": "3단계: 입금 완료 및 적립",
     "step3_desc": "지원 상담원이 확인 후 지갑에 즉시 금액을 적립해 드립니다.",
-    "err_failed": "지갑 정보를 불러오지 못했습니다. 다시 시도해 주세요."
+    "err_failed": "계정 정보를 불러올 수 없습니다. 다시 시도해 주세요."
   },
   "profile": {
     "member": "회원",
-    "wallet_1": "메인 지갑",
+    "wallet_1": "기본 계정",
     "deposit": "입금",
     "withdraw": "출금",
     "referral_program": "추천 프로그램",
@@ -721,7 +724,9 @@
     "account_locked_note": "계정당 하나의 은행 계좌만 연결할 수 있습니다. 변경 또는 수정이 필요하시면 고객지원으로 문의해 주십시오.",
     "contact_support": "고객지원 문의",
     "already_linked": "이미 은행 계좌가 연결되었습니다. 변경은 고객지원으로 문의해 주십시오.",
-    "remove_forbidden": "은행 계좌를 직접 삭제할 수 없습니다. 고객지원으로 문의해 주십시오."
+    "remove_forbidden": "은행 계좌를 직접 삭제할 수 없습니다. 고객지원으로 문의해 주십시오.",
+    "login_password_contact": "로그인 비밀번호 변경은 고객지원에 문의하세요",
+    "security_pin_contact": "6자리 출금 코드 재설정은 고객지원에 문의하세요"
   },
   "withdraw": {
     "title": "출금",
@@ -754,6 +759,7 @@
     "view_history": "출금 내역 보기",
     "back_to_profile": "프로필로 돌아가기",
     "limit_hint": "1회 {min} ~ {max}",
+    "limit_hint_no_max": "1회 최소 {min}",
     "hint_need_account": "출금 계좌를 선택하세요",
     "hint_need_amount": "{min} 이상의 금액을 입력하세요",
     "hint_need_password": "출금 비밀번호를 입력하세요",
@@ -779,7 +785,7 @@
     "page_of": "{total} 페이지 중 {page} 페이지",
     "prev_page": "이전 페이지",
     "next_page": "다음 페이지",
-    "wallet_balance": "지갑 잔액",
+    "wallet_balance": "잔액",
     "balance": "잔액",
     "current_match": "현재 회차",
     "next_match": "다음 회차",
@@ -836,8 +842,8 @@
     "status_void": "무효",
     "red": "레드",
     "black": "블랙",
-    "odd": "홀",
-    "even": "짝",
+    "odd": "Odd",
+    "even": "Even",
     "low": "로우 (1-18)",
     "high": "하이 (19-36)",
     "player": "플레이어",
@@ -859,8 +865,8 @@
     "more_result": "더 보기",
     "big": "대",
     "small": "소",
-    "single": "홀",
-    "double": "짝",
+    "single": "Odd",
+    "double": "Even",
     "tier_premium": "Premium",
     "tier_gold": "Gold",
     "tier_platinum": "Platinum",

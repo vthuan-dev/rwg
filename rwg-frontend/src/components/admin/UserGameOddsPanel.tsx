@@ -141,6 +141,25 @@ function seedDrafts(data: UserOddsData): Record<string, string> {
 }
 
 /**
+ * Điền sẵn ô "cả cặp" của từng bàn.
+ *
+ * Điền MỨC ĐANG ÁP nếu hai cửa đang BẰNG NHAU; để TRỐNG nếu đang lệch.
+ *
+ * Vì sao không điền sẵn khi hai cửa lệch nhau: lúc đó phải chọn một trong hai giá trị, và
+ * người vận hành thấy một con số có sẵn rất dễ bấm áp dụng mà không nhận ra mình vừa ghi
+ * đè cửa kia. Ô trống buộc họ tự gõ con số muốn áp cho cả hai.
+ */
+function seedPairDrafts(data: UserOddsData): Record<string, string> {
+  const seeded: Record<string, string> = {};
+  data.tables.forEach((table) => {
+    const values = table.options.map((option) => option.effectiveOdds);
+    const allSame = values.length > 0 && values.every((v) => v === values[0]);
+    seeded[table.tableId] = allSame ? toMultiplier(values[0]) : "";
+  });
+  return seeded;
+}
+
+/**
  * Bảng điều chỉnh tỷ lệ cược riêng theo từng bàn.
  *
  * Chỉ ADMIN được ghi — cùng lý do với hạn mức cược: nâng tỷ lệ của một tài khoản rồi để
@@ -170,6 +189,16 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
    * người chơi nói cùng một thứ tiếng. Trừ 1 khi gửi lên server.
    */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  /**
+   * Giá trị đang gõ ở ô "cả cặp", khoá theo `tableId`.
+   *
+   * Giữ RIÊNG khỏi {@link drafts}: hai ô lẻ và ô cả cặp là ba ô nhập độc lập. Gộp chung một
+   * bản đồ thì phải đặt ra quy ước khoá để phân biệt, và một `tableId` trùng dạng khoá của
+   * ô lẻ sẽ làm hai ô đổi theo nhau.
+   */
+  const [pairDrafts, setPairDrafts] = useState<Record<string, string>>({});
+
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
 
@@ -201,6 +230,7 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
       if (result) {
         setData(result);
         setDrafts(seedDrafts(result));
+        setPairDrafts(seedPairDrafts(result));
       }
       setLoading(false);
     })();
@@ -221,6 +251,7 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
     if (result) {
       setData(result);
       setDrafts(seedDrafts(result));
+      setPairDrafts(seedPairDrafts(result));
     }
   }, [fetchOdds]);
 
@@ -280,6 +311,45 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
     }
   };
 
+  /**
+   * Đặt CÙNG một hệ số cho cả hai cửa của một bàn, trong MỘT lần gọi.
+   *
+   * Gọi endpoint riêng `/pair` chứ KHÔNG lặp lại `save` hai lần: lần thứ hai có thể thất bại
+   * (mất mạng, token hết hạn giữa hai lượt), để lại LỆCH giữa hai cửa mà người vận hành
+   * tin là đã đặt cân. Server bọc cả hai lần ghi trong một transaction.
+   */
+  const savePair = async (row: TableOddsRow) => {
+    // Tiền tố "pair:" để khoá không trùng dạng `${tableId}:${betType}` của hai ô lẻ —
+    // trùng thì vòng xoay chờ sẽ hiện trên sai nút.
+    const key = `pair:${row.tableId}`;
+    const raw = pairDrafts[row.tableId] ?? "";
+
+    // Cùng phép đổi đơn vị như `save`: ô nhập chứa HỆ SỐ, API nhận ODDS LỢI.
+    const profitOdds = (Number(raw.trim()) - 1).toFixed(4);
+
+    setError("");
+    setSavedKey(null);
+    setSavingKey(key);
+
+    try {
+      await adminFetch(`/admin/users/${userId}/game-odds/pair`, {
+        method: "PUT",
+        body: JSON.stringify({
+          tableId: row.tableId,
+          odds: profitOdds,
+        }),
+      });
+      setSavedKey(key);
+      await reload();
+    } catch (err) {
+      setError(
+        err instanceof AdminApiError ? err.message : t("admin.states.save_failed")
+      );
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
   const betLabel = useCallback(
     (betType: string) => {
       const key = `admin.bet_types.${betType}`;
@@ -317,6 +387,41 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
 
         const next = Math.min(max, Math.max(min, current + direction * STEP));
         return { ...prev, [key]: next.toFixed(2) };
+      });
+    },
+    []
+  );
+
+  /**
+   * Tăng/giảm hệ số ở ô "cả cặp" một bước.
+   *
+   * KẸP trong biên CHẬT NHẤT của cả hai cửa: giá trị này sẽ áp cho cả hai, nên một con số
+   * chỉ hợp lệ với một cửa thì cả lượt ghi sẽ bị server từ chối. Hiện hai cửa trong mỗi
+   * cặp luôn cùng mức chung nên hai biên trùng nhau; lấy giao để đúng cả khi sau này có
+   * loại game phá giả định đó.
+   */
+  const stepPairDraft = useCallback(
+    (row: TableOddsRow, direction: 1 | -1) => {
+      if (row.options.length === 0) return;
+
+      const min = Math.max(
+        ...row.options.map((o) => Number(o.defaultOdds) * MIN_RATIO + 1)
+      );
+      const max = Math.min(
+        ...row.options.map((o) => Number(o.defaultOdds) * MAX_RATIO + 1)
+      );
+
+      setSavedKey(null);
+      setPairDrafts((prev) => {
+        const parsed = Number((prev[row.tableId] ?? "").trim());
+        // Ô trống (hai cửa đang lệch) thì khởi đầu từ mức chung của bàn, không phải tỷ lệ
+        // đang áp của một trong hai cửa — chọn một trong hai sẽ là lựa chọn tùy ý.
+        const current = Number.isFinite(parsed) && parsed > 1
+          ? parsed
+          : Number(row.options[0].defaultOdds) + 1;
+
+        const next = Math.min(max, Math.max(min, current + direction * STEP));
+        return { ...prev, [row.tableId]: next.toFixed(2) };
       });
     },
     []
@@ -404,6 +509,146 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
               {row.gameType}
             </span>
           </div>
+
+          {/* HÀNG "ÁP CẢ CẶP".
+              Đặt ở phạm vi BÀN, phía trên hai thẻ lẻ, vì nó tác động lên cả hai cửa —
+              nhét vào trong một thẻ sẽ khiến nút trông như chỉ thuộc cửa đó.
+              Hai thẻ lẻ bên dưới vẫn giữ nguyên để chỉnh lệch khi cần. */}
+          {canEdit && row.options.length > 1 && (() => {
+            const pairKey = `pair:${row.tableId}`;
+            const pairDraft = pairDrafts[row.tableId] ?? "";
+
+            // Biên CHẶT NHẤT của cả hai cửa: giá trị này áp cho cả hai, nên chỉ hợp lệ khi
+            // nằm trong biên của từng cửa. Hiện hai biên trùng nhau vì hai cửa cùng mức
+            // chung; lấy giao để vẫn đúng nếu sau này có loại game phá giả định đó.
+            const pairMin = Math.max(
+              ...row.options.map((o) => Number(o.defaultOdds) * MIN_RATIO + 1)
+            );
+            const pairMax = Math.min(
+              ...row.options.map((o) => Number(o.defaultOdds) * MAX_RATIO + 1)
+            );
+
+            const pairValue = Number(pairDraft.trim());
+            const pairValid =
+              pairDraft.trim() !== "" && Number.isFinite(pairValue) && pairValue > 1;
+            const pairOutOfRange =
+              pairValid && (pairValue < pairMin || pairValue > pairMax);
+
+            // Mọi cửa đã ở đúng giá trị này thì không có gì để ghi.
+            const pairUnchanged =
+              pairValid &&
+              row.options.every(
+                (o) => Math.abs(Number(o.effectiveOdds) + 1 - pairValue) < 1e-9
+              );
+
+            const pairCanSubmit =
+              pairValid && !pairOutOfRange && !pairUnchanged && savingKey === null;
+
+            const pairAtMax = pairValid && pairValue >= pairMax;
+            const pairAtMin = pairValid && pairValue <= pairMin;
+
+            return (
+              <div className="flex flex-col gap-1.5 border-b border-slate-100 px-3 pt-2.5 pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    {t("admin.users.odds.pair_label")}
+                  </span>
+                  {savedKey === pairKey && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {t("admin.users.odds.saved")}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-slate-200 bg-white focus-within:border-slate-900">
+                    <input
+                      aria-label={t("admin.users.odds.pair_label")}
+                      className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-[11px] font-bold tabular-nums text-slate-900 outline-none placeholder-slate-400"
+                      inputMode="decimal"
+                      onChange={(e) => {
+                        setSavedKey(null);
+                        setPairDrafts((prev) => ({
+                          ...prev,
+                          [row.tableId]: e.target.value,
+                        }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          stepPairDraft(row, 1);
+                        } else if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          stepPairDraft(row, -1);
+                        } else if (e.key === "Enter" && pairCanSubmit) {
+                          // Enter lưu luôn: đây là ô một-dòng-một-việc, và người vận hành
+                          // gõ số rồi với tay sang chuột chỉ để bấm một nút ngay bên cạnh.
+                          e.preventDefault();
+                          void savePair(row);
+                        }
+                      }}
+                      placeholder={toMultiplier(row.options[0].defaultOdds)}
+                      type="text"
+                      value={pairDraft}
+                    />
+                    <div className="flex shrink-0 flex-col border-l border-slate-200">
+                      <button
+                        aria-label={t("admin.users.odds.step_up")}
+                        className="flex flex-1 items-center justify-center px-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+                        disabled={pairAtMax}
+                        onClick={() => stepPairDraft(row, 1)}
+                        tabIndex={-1}
+                        title={t("admin.users.odds.step_up")}
+                        type="button"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        aria-label={t("admin.users.odds.step_down")}
+                        className="flex flex-1 items-center justify-center border-t border-slate-200 px-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+                        disabled={pairAtMin}
+                        onClick={() => stepPairDraft(row, -1)}
+                        tabIndex={-1}
+                        title={t("admin.users.odds.step_down")}
+                        type="button"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[10px] font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    disabled={!pairCanSubmit}
+                    onClick={() => void savePair(row)}
+                    type="button"
+                  >
+                    {savingKey === pairKey ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      t("admin.users.odds.apply_pair")
+                    )}
+                  </button>
+                </div>
+
+                {pairOutOfRange ? (
+                  <span className="text-[10px] font-bold text-red-600">
+                    {t("admin.users.odds.err_range", {
+                      min: pairMin.toFixed(2),
+                      max: pairMax.toFixed(2),
+                    })}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-400">
+                    {t("admin.users.odds.pair_hint", {
+                      options: row.options.map((o) => betLabel(o.betType)).join(" · "),
+                    })}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Hai cột: các loại điều chỉnh được LUÔN đi theo cặp hai chiều (Thấp/Cao,
               Lớn/Nhỏ, Người chơi/Nhà băng). Đặt cạnh nhau thì so hai mức bằng mắt được

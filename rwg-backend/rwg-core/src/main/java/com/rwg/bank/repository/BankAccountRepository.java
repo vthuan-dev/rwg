@@ -21,6 +21,17 @@ import java.util.UUID;
 @Repository
 public interface BankAccountRepository extends JpaRepository<BankAccount, BankAccountId> {
 
+    /**
+     * Số tài khoản ngân hàng đã liên kết của một người, kể cả đã gỡ.
+     *
+     * Dùng khi quyết định có xóa hẳn được hay không. Đếm CẢ bản đã gỡ: số tài khoản ngân hàng
+     * là đầu mối để nối hai tài khoản của cùng một người, và xóa nó là xóa đầu mối đó.
+     */
+    long countByUserId(UUID userId);
+
+    /** Xoá mọi tài khoản ngân hàng của một người. Chỉ dùng cho tài khoản SẠCH. */
+    void deleteByUserId(UUID userId);
+
     List<BankAccount> findByUserIdAndStatusOrderByCreatedAtAsc(UUID userId, BankAccountStatus status);
 
     /**

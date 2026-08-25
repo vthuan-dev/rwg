@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -399,6 +400,94 @@ class AdminUserManagementTest {
                 .isEqualByComparingTo("100");
         assertThat(new java.math.BigDecimal(detail.get("totalWithdrawn").asText()))
                 .isEqualByComparingTo("0");
+    }
+
+    @Test
+    void deleteUserCleanAccountHardDeletes() throws Exception {
+        String target = unique("clean");
+        registerAndLogin(target);
+        UUID targetId = userRepository.findByUsername(target).orElseThrow().getId();
+
+        AdminActor admin = admin();
+
+        // 1. Gửi sai PIN -> 400 (bị chặn)
+        mockMvc.perform(delete("/api/v1/admin/users/" + targetId)
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"confirmPin":"999999"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        // 2. Gửi đúng PIN -> 200 HARD_DELETE (xóa khỏi DB vì không có cược/nạp)
+        mockMvc.perform(delete("/api/v1/admin/users/" + targetId)
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"confirmPin":"171204"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.method").value("HARD_DELETE"));
+
+        assertThat(userRepository.findById(targetId)).isEmpty();
+    }
+
+    @Test
+    void deleteUserWithFinancialTrailSoftDeletes() throws Exception {
+        String target = unique("hasfunds");
+        JsonNode victimTokens = registerAndLogin(target);
+        String targetBearer = "Bearer " + victimTokens.get("accessToken").asText();
+        String victimRefresh = victimTokens.get("refreshToken").asText();
+        UUID targetId = userRepository.findByUsername(target).orElseThrow().getId();
+
+        // Tạo dấu vết tài chính: nạp tiền vào ví
+        deposit(targetBearer, "200");
+
+        AdminActor admin = admin();
+
+        // 1. Đúng PIN -> 200 SOFT_DELETE (chuyển status thành CLOSED do có giao dịch)
+        mockMvc.perform(delete("/api/v1/admin/users/" + targetId)
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"confirmPin":"171204"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.method").value("SOFT_DELETE"));
+
+        // 2. Trạng thái đổi thành CLOSED
+        User victim = userRepository.findById(targetId).orElseThrow();
+        assertThat(victim.getStatus()).isEqualTo(UserStatus.CLOSED);
+
+        // 3. Đá phiên ngay: refresh token cũ vô hiệu hóa
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(victimRefresh)))
+                .andExpect(status().is4xxClientError());
+
+        // 4. Không đăng nhập lại được
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"identifier":"%s","password":"%s"}
+                                """.formatted(target, PASSWORD)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deleteUserWrongPinValidation() throws Exception {
+        AdminActor admin = admin();
+        mockMvc.perform(delete("/api/v1/admin/users/" + UUID.randomUUID())
+                        .header("Authorization", admin.bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"confirmPin":"  "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     private void deposit(String bearer, String amount) throws Exception {

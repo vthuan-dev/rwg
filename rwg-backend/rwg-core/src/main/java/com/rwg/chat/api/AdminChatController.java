@@ -5,6 +5,7 @@ import com.rwg.chat.dto.AdminChatConversationRowResponse;
 import com.rwg.chat.dto.ChatAttachmentResponse;
 import com.rwg.chat.dto.ChatMessageResponse;
 import com.rwg.chat.dto.ChatUnreadResponse;
+import com.rwg.chat.dto.DeleteChatMessagesRequest;
 import com.rwg.chat.dto.SendChatMessageRequest;
 import com.rwg.chat.service.AdminChatService;
 import com.rwg.common.PageResponse;
@@ -18,6 +19,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -144,6 +146,25 @@ public class AdminChatController {
     @Operation(summary = "Tổng số tin chưa đọc và số luồng đang chờ trả lời")
     public ChatUnreadResponse unreadCount() {
         return service.unread();
+    }
+
+    /**
+     * Xóa một hoặc nhiều tin nhắn (của admin hoặc của người chơi).
+     *
+     * Chỉ ADMIN được gọi endpoint này (xác thực bởi SecurityConfig).
+     * Tin biến mất ngay trên màn hình của cả hai phía qua WebSocket,
+     * nhưng vẫn còn trong DB để khiếu nại sau này.
+     */
+    @DeleteMapping("/conversations/{id}/messages")
+    @Operation(summary = "Xóa tin nhắn (soft delete, biến mất realtime cả hai phía)")
+    public Map<String, Integer> deleteMessages(@PathVariable UUID id,
+                                               @Valid @RequestBody DeleteChatMessagesRequest request,
+                                               @AuthenticationPrincipal Jwt jwt,
+                                               HttpServletRequest httpRequest) {
+        int deleted = service.deleteMessages(id, request.messageIds(),
+                UUID.fromString(jwt.getSubject()), username(jwt),
+                ClientAddresses.clientIp(httpRequest));
+        return Map.of("deleted", deleted);
     }
 
     /**

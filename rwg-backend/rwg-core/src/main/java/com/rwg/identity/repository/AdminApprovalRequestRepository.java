@@ -19,6 +19,17 @@ import java.util.UUID;
 @Repository
 public interface AdminApprovalRequestRepository extends JpaRepository<AdminApprovalRequest, UUID> {
 
+    /**
+     * Số đề nghị phê duyệt nhắm tới người này.
+     *
+     * Dùng khi quyết định có xóa hẳn được hay không. Đề nghị là vết của quy trình bốn mắt —
+     * ai đề xuất, ai duyệt — và đó là thứ kiểm toán sẽ hỏi đầu tiên khi có nghi vấn nội bộ.
+     */
+    long countByTargetUserId(UUID targetUserId);
+
+    /** Xoá mọi đề nghị nhắm tới người này. Chỉ dùng cho tài khoản SẠCH. */
+    void deleteByTargetUserId(UUID targetUserId);
+
     /** Lịch sử đề nghị; status null = tất cả. */
     @Query("select r from AdminApprovalRequest r where "
             + "(:status is null or r.status = :status) and "

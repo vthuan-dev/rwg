@@ -85,6 +85,14 @@ public class AuditTrailService {
     /** Admin đổi hạn mức cược của bàn — ảnh hưởng mức rủi ro tối đa mỗi lệnh cược. */
     public static final String ADMIN_TABLE_LIMITS_CHANGED = "ADMIN_TABLE_LIMITS_CHANGED";
     public static final String ADMIN_USER_ODDS_CHANGED = "ADMIN_USER_ODDS_CHANGED";
+    /**
+     * Admin đặt CÙNG một tỷ lệ cho cả cặp hai chiều của một bàn trong một lượt.
+     *
+     * Hành động riêng chứ không ghi hai dòng {@code ADMIN_USER_ODDS_CHANGED}: nhật ký là
+     * thứ đọc bằng mắt khi truy vết, và hai dòng rời không cho biết chúng thuộc CÙNG một
+     * thao tác hay là hai lần chỉnh riêng lẻ cách nhau vài giây.
+     */
+    public static final String ADMIN_USER_ODDS_PAIR_CHANGED = "ADMIN_USER_ODDS_PAIR_CHANGED";
     public static final String ADMIN_USER_ODDS_REMOVED = "ADMIN_USER_ODDS_REMOVED";
 
     // Chặng 7: chống đa tài khoản.
@@ -101,6 +109,10 @@ public class AuditTrailService {
     public static final String ADMIN_PAYOUT_METHOD_REVEALED = "ADMIN_PAYOUT_METHOD_REVEALED";
     public static final String SUPPORT_CHAT_ASSIGNED = "SUPPORT_CHAT_ASSIGNED";
     public static final String SUPPORT_CHAT_CLOSED = "SUPPORT_CHAT_CLOSED";
+    /** Xóa tài khoản người chơi — HARD_DELETE hoặc SOFT_DELETE tùy sổ sách tài chính. */
+    public static final String ADMIN_USER_DELETED = "ADMIN_USER_DELETED";
+    /** Admin xóa tin nhắn trong cuộc trò chuyện hỗ trợ. */
+    public static final String ADMIN_CHAT_MESSAGES_DELETED = "ADMIN_CHAT_MESSAGES_DELETED";
 
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 

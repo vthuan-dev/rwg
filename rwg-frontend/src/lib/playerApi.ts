@@ -212,6 +212,28 @@ let pendingRefresh: Promise<TokenResponse> | null = null;
 function refreshTokens(): Promise<TokenResponse> {
   if (pendingRefresh) return pendingRefresh;
 
+  const guestUser = getGuestUsername();
+
+  // Nếu là phiên Guest Support và hết token -> tự âm thầm xin lại token qua username
+  if (isGuestSupportOnly() && guestUser) {
+    pendingRefresh = request<TokenResponse>("/auth/guest-support", {
+      method: "POST",
+      body: JSON.stringify({ username: guestUser }),
+    })
+      .then((tokens) => {
+        storeTokens(tokens);
+        return tokens;
+      })
+      .catch((error) => {
+        clearPlayerTokens();
+        throw error;
+      })
+      .finally(() => {
+        pendingRefresh = null;
+      });
+    return pendingRefresh;
+  }
+
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     return Promise.reject(
@@ -336,6 +358,7 @@ export async function login(payload: LoginPayload): Promise<TokenResponse> {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  clearGuestSupportOnly();
   storeTokens(tokens);
   return tokens;
 }
@@ -1280,5 +1303,59 @@ export async function getChatUnreadCount(): Promise<{
     "/chat/unread-count",
     { method: "GET" }
   );
+}
+
+// ===== Phiên Hỗ trợ Khách & Payment Limits =====
+
+export const GUEST_SUPPORT_ONLY_KEY = "rwg_guest_support_only";
+export const GUEST_USERNAME_KEY = "rwg_guest_username";
+
+export function isGuestSupportOnly(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(GUEST_SUPPORT_ONLY_KEY) === "true";
+}
+
+export function getGuestUsername(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(GUEST_USERNAME_KEY);
+}
+
+export function setGuestSupportOnly(username: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(GUEST_SUPPORT_ONLY_KEY, "true");
+    localStorage.setItem(GUEST_USERNAME_KEY, username);
+  }
+}
+
+export function clearGuestSupportOnly(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(GUEST_SUPPORT_ONLY_KEY);
+    localStorage.removeItem(GUEST_USERNAME_KEY);
+  }
+}
+
+export interface GuestSupportPayload {
+  username: string;
+}
+
+export async function guestSupport(payload: GuestSupportPayload): Promise<TokenResponse> {
+  const tokens = await request<TokenResponse>("/auth/guest-support", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  setGuestSupportOnly(payload.username);
+  storeTokens(tokens);
+  return tokens;
+}
+
+export interface PaymentLimits {
+  depositMin: string;
+  depositMax: string;
+  withdrawMin: string;
+  withdrawDailyMax: string | null;
+}
+
+export async function paymentLimits(): Promise<PaymentLimits> {
+  return request<PaymentLimits>("/payments/limits", { method: "GET" });
 }
 

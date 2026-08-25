@@ -375,7 +375,7 @@ class AuthFlowTest {
                         .content("""
                                 {"loginPassword":"SaiMatKhau@123","newWithdrawalPassword":"654321"}
                                 """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
 
         // Đúng -> đặt thành công
         mockMvc.perform(post("/api/v1/users/me/withdrawal-password")

@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome_back": "おかえりなさい"
+    "welcome_back": "{username} 様、いらっしゃいませ"
   },
   "marquee": {
     "notice": "リゾートワールドゲンティンへようこそ！ Lucky 28、British Lucky 28、Korean Lucky 28、Taiwan Times を24時間お楽しみください。"
@@ -27,7 +27,7 @@
     "seen": "既読",
     "delivered": "送信済み",
     "you": "あなた",
-    "staff": "サポート",
+    "staff": "カスタマーサービス",
     "online_hint": "通常は数分以内に返信します",
     "closed_notice": "この会話は終了しました。新しいメッセージを送ると再開できます。",
     "system": {
@@ -162,6 +162,7 @@
         "title": "ウォレット取引履歴（台帳）"
       },
       "odds": {
+        "apply_pair": "両方に適用",
         "custom": "カスタムオッズ適用中",
         "err_range": "倍率は {min} から {max} の間でなければなりません。",
         "err_self": "ご自身のオッズは調整できません。",
@@ -172,6 +173,8 @@
         "intro": "{username} のカスタムオッズ設定",
         "intro_note": "カスタムオッズはテーブルのデフォルトを上書きします。調整はデフォルトの 0.5 倍から 3.0 倍の範囲内でなければなりません。",
         "net_receive": "実配当: {value}（手数料 {percent}% 控除後）",
+        "pair_hint": "{options} に同じ倍率を一度で適用します。",
+        "pair_label": "両方を同時に設定",
         "read_only": "オッズの閲覧のみ可能です。編集は許可されていません。",
         "reset": "デフォルトに戻す",
         "save": "保存",
@@ -477,12 +480,12 @@
     "bet_types": {
       "KL28_BIG": "大",
       "KL28_SMALL": "小",
-      "KL28_SINGLE": "奇数",
-      "KL28_DOUBLE": "偶数",
+      "KL28_SINGLE": "Odd",
+      "KL28_DOUBLE": "Even",
       "RED": "赤",
       "BLACK": "黒",
-      "ODD": "奇数",
-      "EVEN": "偶数",
+      "ODD": "Odd",
+      "EVEN": "Even",
       "LOW": "ロー (1-18)",
       "HIGH": "ハイ (19-36)",
       "PLAYER": "プレイヤー",
@@ -591,25 +594,25 @@
     "deposit_requested_title": "入金リクエストを受付しました",
     "deposit_requested": "${amount} の入金リクエストを受付し、审査中です。",
     "deposit_completed_title": "入金が完了しました",
-    "deposit_completed": "${amount} をウォレットに反映しました。",
+    "deposit_completed": "${amount} をアカウントに反映しました。",
     "deposit_rejected_title": "入金リクエストが却下されました",
     "deposit_rejected": "${amount} の入金リクエストは承認されませんでした。入金はされていません。",
     "withdrawal_requested_title": "出金リクエストを受付しました",
-    "withdrawal_requested": "${amount} の出金リクエストを审査中です。この金額はウォレットから保留されています。",
+    "withdrawal_requested": "${amount} の出金リクエストを审査中です。この金額はアカウントから保留されています。",
     "withdrawal_approved_title": "出金が承認されました",
     "withdrawal_approved": "${amount} の出金が承認され、お客さまの口座へ送金中です。",
     "withdrawal_rejected_title": "出金が却下されました",
-    "withdrawal_rejected": "${amount} の出金は承認されませんでした。金額はウォレットに返金されました。",
+    "withdrawal_rejected": "${amount} の出金は承認されませんでした。金額はアカウントに返金されました。",
     "admin_credit_title": "入金がありました",
-    "admin_credit": "管理者が ${amount} をウォレットに追加しました。",
+    "admin_credit": "アカウントに ${amount} が入金されました。",
     "admin_debit_title": "出金がありました",
-    "admin_debit": "管理者が ${amount} をウォレットから差し引きました。"
+    "admin_debit": "アカウントから ${amount} が引き落とされました。"
   },
   "history": {
     "load_more": "さらに表示"
   },
   "asset": {
-    "wallet": "ウォレット",
+    "wallet": "アカウント",
     "deposit": "入金",
     "withdraw": "出金",
     "deposit_history": "入金履歴",
@@ -652,11 +655,11 @@
     "step2_desc": "入金希望額と、送金成功時の明細書のスクリーンショットを送信します。",
     "step3_title": "ステップ 3: 入金の反映",
     "step3_desc": "担当者が確認を行い、お客様のウォレットへ即座に入金を反映いたします。",
-    "err_failed": "ウォレット情報を読み込めませんでした。もう一度お試しください。"
+    "err_failed": "アカウント情報を読み込めませんでした。もう一度お試しください。"
   },
   "profile": {
     "member": "メンバー",
-    "wallet_1": "メインウォレット",
+    "wallet_1": "メインアカウント",
     "deposit": "入金",
     "withdraw": "出金",
     "referral_program": "紹介プログラム",
@@ -721,7 +724,9 @@
     "account_locked_note": "1つのアカウントに登録できる銀行口座は1つだけです。変更・修正をご希望の場合はカスタマーサポートにご連絡ください。",
     "contact_support": "サポートに連絡",
     "already_linked": "すでに銀行口座が登録されています。変更にはカスタマーサポートにご連絡ください。",
-    "remove_forbidden": "銀行口座をご自身で削除することはできません。カスタマーサポートにご連絡ください。"
+    "remove_forbidden": "銀行口座をご自身で削除することはできません。カスタマーサポートにご連絡ください。",
+    "login_password_contact": "ログインパスワードの変更はサポートへご連絡ください",
+    "security_pin_contact": "6桁の出金コードの再設定はサポートへご連絡ください"
   },
   "withdraw": {
     "title": "出金",
@@ -754,6 +759,7 @@
     "view_history": "出金履歴を見る",
     "back_to_profile": "プロフィールへ戻る",
     "limit_hint": "1 回あたり {min} から {max} まで",
+    "limit_hint_no_max": "1 回あたり最低 {min}",
     "hint_need_account": "出金先口座を選択してください",
     "hint_need_amount": "{min} 以上の金額を入力してください",
     "hint_need_password": "出金パスワードを入力してください",
@@ -779,7 +785,7 @@
     "page_of": "{total} ページ中 {page} ページ",
     "prev_page": "前のページ",
     "next_page": "次のページ",
-    "wallet_balance": "ウォレット残高",
+    "wallet_balance": "残高",
     "balance": "残高",
     "current_match": "現在のラウンド",
     "next_match": "次のラウンド",
@@ -836,8 +842,8 @@
     "status_void": "無効",
     "red": "赤",
     "black": "黒",
-    "odd": "奇数",
-    "even": "偶数",
+    "odd": "Odd",
+    "even": "Even",
     "low": "ロー (1-18)",
     "high": "ハイ (19-36)",
     "player": "プレイヤー",
@@ -859,8 +865,8 @@
     "more_result": "さらに見る",
     "big": "大",
     "small": "小",
-    "single": "奇数",
-    "double": "偶数",
+    "single": "Odd",
+    "double": "Even",
     "tier_premium": "Premium",
     "tier_gold": "Gold",
     "tier_platinum": "Platinum",

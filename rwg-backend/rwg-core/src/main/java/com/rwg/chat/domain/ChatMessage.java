@@ -127,6 +127,29 @@ public class ChatMessage {
     @Column(name = "visible_to", nullable = false, length = 8)
     private ChatVisibility visibleTo = ChatVisibility.ALL;
 
+    /**
+     * Thời điểm tin bị xóa; null = chưa xóa.
+     *
+     * Dùng soft-delete thay vì DELETE khỏi bảng: mỗi tin nhắn là căn cứ khi có khiếu nại
+     * về tiền. Xóa hẳn là xóa mất bằng chứng. Với cả hai phía trên màn hình, kết quả
+     * giống hệt xóa thật: tin biến mất và không bao giờ hiện lại.
+     */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    /** Mã UUID của người xóa (nhân sự khu quản trị). */
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
+    /**
+     * Tên đăng nhập của người xóa, chụp lại lúc thực hiện.
+     *
+     * Không chỉ lưu mã UUID: người xóa có thể đã rời việc và bị đổi tên sau đó. Khi tra
+     * nhật ký cần biết đây là ai ngay, không phải chạy thêm truy vấn JOIN.
+     */
+    @Column(name = "deleted_by_username", length = 50)
+    private String deletedByUsername;
+
     protected ChatMessage() {
         // cho JPA
     }
@@ -240,6 +263,21 @@ public class ChatMessage {
     public Long getAttachmentSize() { return attachmentSize; }
     public UUID getWithdrawalOrderId() { return withdrawalOrderId; }
     public ChatVisibility getVisibleTo() { return visibleTo; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public UUID getDeletedBy() { return deletedBy; }
+    public String getDeletedByUsername() { return deletedByUsername; }
+    public boolean isDeleted() { return deletedAt != null; }
+
+    /**
+     * Đánh dấu tin bị xóa bởi nhân sự. Sau khi save, tin sẽ bị lọc khỏi mọi query
+     * thông thường (xem {@code ChatMessageRepository}) và một sự kiện MESSAGES_DELETED
+     * được phát qua WebSocket để client xóa tin khỏi màn hình ngay.
+     */
+    public void markDeleted(UUID staffId, String staffUsername) {
+        this.deletedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        this.deletedBy = staffId;
+        this.deletedByUsername = staffUsername;
+    }
 
     /**
      * Đoạn xem trước cho hộp thư quản trị.

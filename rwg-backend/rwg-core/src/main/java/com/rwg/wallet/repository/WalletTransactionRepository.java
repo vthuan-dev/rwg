@@ -31,6 +31,14 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     long countByWalletIdAndRefType(UUID walletId, WalletRefType refType);
 
     /**
+     * Số dòng sổ của một ví, mọi loại.
+     *
+     * Dùng khi quyết định một tài khoản có xóa hẳn được hay không. Sổ ví là nguồn sự thật tài
+     * chính, nên chỉ MỘT dòng thôi cũng đủ để tài khoản đó phải giữ lại.
+     */
+    long countByWalletId(UUID walletId);
+
+    /**
      * Tổng (credit - debit) theo từng ví — phục vụ reconciliation job 5 phút
      * so ledger vs số dư (chỉ cảnh báo, KHÔNG tự sửa).
      */

@@ -34,6 +34,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, ChatMe
     @Query("""
             SELECT m FROM ChatMessage m
             WHERE m.conversationId = :conversationId
+              AND m.deletedAt IS NULL
               AND (:before IS NULL OR m.createdAt < :before)
             ORDER BY m.createdAt DESC
             """)
@@ -55,12 +56,31 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, ChatMe
             SELECT m FROM ChatMessage m
             WHERE m.conversationId = :conversationId
               AND m.visibleTo = com.rwg.chat.domain.ChatVisibility.ALL
+              AND m.deletedAt IS NULL
               AND (:before IS NULL OR m.createdAt < :before)
             ORDER BY m.createdAt DESC
             """)
     List<ChatMessage> findPageBeforeVisibleToPlayer(@Param("conversationId") UUID conversationId,
                                                     @Param("before") Instant before,
                                                     Pageable pageable);
+
+    /**
+     * Tìm nhiều tin theo danh sách id để xóa hàng loạt.
+     *
+     * Lấy theo {@code conversationId} kèm danh sách id: tránh tình huống admin gửi
+     * id từ luồng khác và xóa được tin của luồng đó.
+     *
+     * Chỉ lấy tin chưa xóa: xóa một tin đã xóa là idempotent nhưng không cần
+     * cập nhật lại.
+     */
+    @Query("""
+            SELECT m FROM ChatMessage m
+            WHERE m.conversationId = :conversationId
+              AND m.id IN :ids
+              AND m.deletedAt IS NULL
+            """)
+    List<ChatMessage> findByConversationIdAndIdIn(@Param("conversationId") UUID conversationId,
+                                                  @Param("ids") List<UUID> ids);
 
     /**
      * Tin đã tồn tại với cùng {@code clientMsgId} — chống gửi trùng.

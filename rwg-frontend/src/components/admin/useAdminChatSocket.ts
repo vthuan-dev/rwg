@@ -11,7 +11,7 @@ import { ADMIN_WS_URL } from "@/lib/constants";
  * `message` chỉ có với type MESSAGE; `status` chỉ có nghĩa với type CONVERSATION.
  */
 export interface AdminChatEvent {
-  type: "MESSAGE" | "READ" | "CONVERSATION";
+  type: "MESSAGE" | "READ" | "CONVERSATION" | "MESSAGES_DELETED";
   conversationId: string;
   targetUserId: string;
   message: {
@@ -49,6 +49,8 @@ export interface AdminChatEvent {
    */
   staffOnly: boolean;
   status: string | null;
+  /** Danh sách id của tin bị xóa, chỉ có với type = MESSAGES_DELETED. */
+  deletedMessageIds?: string[] | null;
   serverTime: string;
 }
 

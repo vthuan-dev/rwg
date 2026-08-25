@@ -17,9 +17,11 @@ import {
   withdraw,
   walletMe,
   me,
+  paymentLimits,
   verifyWithdrawalPassword,
   type BankAccount,
   type BankOption,
+  type PaymentLimits,
   type PaymentOrder,
   type Wallet,
   type UserResponse,
@@ -27,17 +29,14 @@ import {
 import { History, AlertCircle, CheckCircle, Plus, Check, X, Loader2 } from "lucide-react";
 
 /**
- * Số tiền tối thiểu mỗi lệnh rút, khớp `rwg.withdrawal.min-amount` ở backend.
- */
-const MIN_WITHDRAW_AMOUNT = 20;
-
-/**
- * Tổng hạn mức rút trong một ngày (UTC), khớp `rwg.withdrawal.daily-max-amount` ở backend.
+ * Hạn mức DỰ PHÒNG, chỉ dùng trong khoảnh khắc trước khi backend trả về hạn mức thật.
  *
- * Đây là TỔNG của cả ngày, không phải giới hạn mỗi lệnh: rút hai lần $3,000 sẽ bị chặn ở
- * lệnh thứ hai dù từng lệnh đều dưới hạn mức.
+ * KHÔNG PHẢI nguồn sự thật. Nguồn sự thật là `GET /api/v1/payments/limits`, đọc qua
+ * {@link paymentLimits}. Trước đây hai con số này viết cứng ở ĐÂY và trong `playerApi.ts`,
+ * nên đổi hạn mức ở backend thì giao diện vẫn chặn theo số cũ — người dùng bị từ chối
+ * trước khi yêu cầu kịp gửi đi, và server không ghi lại gì cả.
  */
-const DAILY_MAX_AMOUNT = 5000;
+const FALLBACK_MIN_WITHDRAW = 20;
 
 /**
  * Độ dài tối thiểu của mật khẩu rút tiền, khớp {@code @Size(min = 6)} của
@@ -76,6 +75,15 @@ export default function WithdrawPage() {
   const [bankList, setBankList] = useState<BankOption[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
+  /**
+   * Hạn mức từ backend. `null` khi chưa tải xong.
+   *
+   * ĐẶT TRONG STATE chứ không đọc lại mỗi lần render: giá trị này gần như không đổi trong
+   * một phiên, và các `useMemo` bên dưới phụ thuộc vào nó nên nó phải ổn định giữa các
+   * lần vẽ.
+   */
+  const [limits, setLimits] = useState<PaymentLimits | null>(null);
+
   const [amount, setAmount] = useState("");
   const [withdrawalPassword, setWithdrawalPassword] = useState("");
 
@@ -99,20 +107,26 @@ export default function WithdrawPage() {
    */
   const verifiedCache = useRef<Map<string, boolean>>(new Map());
 
-  // Load ban đầu: số dư ví, thông tin user (để xem đã đặt mật khẩu rút chưa), và danh sách STK ngân hàng
+  // Load ban đầu: số dư ví, thông tin user (để xem đã đặt mật khẩu rút chưa), danh sách
+  // STK ngân hàng, và HẠN MỨC hiện hành.
   const loadData = useCallback(async () => {
     try {
-      const [walletData, userData, accountsData, banksData] = await Promise.all([
+      // Gọi SONG SONG: hạn mức không phụ thuộc thứ gì trong danh sách này, nên xếp nó vào
+      // cùng `Promise.all` thay vì gọi nối tiếp — thêm một lời gọi tuần tự sẽ cộng thẳng
+      // độ trễ mạng vào thời gian trang hiện lên.
+      const [walletData, userData, accountsData, banksData, limitsData] = await Promise.all([
         walletMe(),
         me(),
         bankAccounts(),
         banks(),
+        paymentLimits(),
       ]);
 
       setWallet(walletData);
       setCurrentUser(userData);
       setAccounts(accountsData);
       setBankList(banksData);
+      setLimits(limitsData);
 
       // Tự chọn tài khoản mặc định
       const defaultAcc = accountsData.find((a) => a.isDefault && a.status === "ACTIVE");
@@ -217,12 +231,42 @@ export default function WithdrawPage() {
   }, [wallet]);
 
   /**
-   * Số tiền lớn nhất được phép nhập — phần nguyên của số dư.
+   * Số tiền tối thiểu mỗi lệnh, theo backend.
+   *
+   * Rơi về giá trị dự phòng CHỈ trong lúc `limits` chưa tải xong (khoảng vài trăm ms đầu).
+   */
+  const minWithdraw = useMemo(
+    () => (limits ? Number(limits.withdrawMin) : FALLBACK_MIN_WITHDRAW),
+    [limits]
+  );
+
+  /**
+   * Trần rút theo ngày; `null` nghĩa là KHÔNG GIỚI HẠN.
+   *
+   * Phân biệt `null` với `0` là điều bắt buộc ở đây: `0` nghĩa là không ai rút được gì,
+   * còn `null` nghĩa là không có trần. Viết `dailyMax || Infinity` sẽ gộp hai trường hợp đó
+   * lại và biến "chặn tất cả" thành "cho tất cả" — nên phải so `=== null` tường minh.
+   */
+  const dailyMax = useMemo<number | null>(() => {
+    if (!limits || limits.withdrawDailyMax === null) return null;
+    const parsed = Number(limits.withdrawDailyMax);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [limits]);
+
+  /**
+   * Số tiền lớn nhất được phép nhập.
+   *
+   * Là MIN(số dư, trần ngày) khi có trần, và bằng số dư khi không có trần. Trước đây chỉ
+   * lấy số dư, nên người có số dư lớn hơn trần vẫn gõ được số vượt trần rồi bị backend từ
+   * chối sau khi đã nhập cả mật khẩu rút.
    *
    * Làm tròn XUỐNG chứ không làm tròn thông thường: số dư `50.99` mà cho nhập `51` thì
    * backend từ chối vì không đủ số dư.
    */
-  const maxWithdrawable = useMemo(() => Math.floor(balanceValue), [balanceValue]);
+  const maxWithdrawable = useMemo(() => {
+    const byBalance = Math.floor(balanceValue);
+    return dailyMax === null ? byBalance : Math.min(byBalance, Math.floor(dailyMax));
+  }, [balanceValue, dailyMax]);
 
   /**
    * Nhận số tiền người dùng gõ, KHÔNG cho vượt số dư.
@@ -251,33 +295,49 @@ export default function WithdrawPage() {
    * đều bị tắt — một hàng nút vô dụng chiếm chỗ và không giúp được gì.
    *
    * Cách chọn mốc:
-   *   - Ưu tiên các mốc "tròn" quen mắt (20, 50, 100, 200, 500, 1000, 2000, 5000) nằm trong
-   *     khoảng [tối thiểu, số dư] — người dùng nhận ra ngay con số mình muốn.
+   *   - Ưu tiên các mốc "tròn" quen mắt (1-2-5 nhân với luỹ thừa của 10) nằm trong khoảng
+   *     [tối thiểu, số tối đa] — người dùng nhận ra ngay con số mình muốn.
    *   - Nếu số mốc tròn lọt vào ít hơn 3 (số dư nhỏ, ví dụ $50 chỉ có 20 và 50), bù thêm các
    *     mốc theo tỷ lệ 25% / 50% / 75% số dư để hàng nút không bị trống.
    *   - Luôn giữ tối đa 3 nút: hàng còn một nút "Tối đa" nữa, bốn nút là vừa khít bề ngang
    *     điện thoại, thêm nữa thì chữ bị co lại.
    *
+   * MỐC ĐƯỢC SINH RA chứ không viết cứng thành danh sách. Danh sách cũ dừng ở 5.000 vì đó là
+   * trần cũ; sau khi bỏ trần, người có số dư 200.643 chỉ thấy ba nút 1.000 / 2.000 / 5.000 —
+   * đều quá nhỏ so với số họ muốn rút, tức cả hàng nút thành vô dụng đúng với người rút nhiều
+   * nhất. Sinh theo luỹ thừa 10 thì danh sách tự dâng lên theo mọi số dư.
+   *
    * KHÔNG bao gồm chính số dư đầy đủ: nút "Tối đa" bên cạnh đã làm việc đó, hai nút cho cùng
    * một giá trị chỉ gây bối rối.
    */
   const quickAmounts = useMemo(() => {
-    if (maxWithdrawable < MIN_WITHDRAW_AMOUNT) return [];
+    if (maxWithdrawable < minWithdraw) return [];
 
-    const ROUND_STEPS = [20, 50, 100, 200, 500, 1000, 2000, 5000];
     const candidates = new Set<number>();
 
-    for (const step of ROUND_STEPS) {
-      if (step >= MIN_WITHDRAW_AMOUNT && step <= maxWithdrawable) {
-        candidates.add(step);
+    // Mốc dạng 1-2-5 (10, 20, 50, 100, 200, 500, ...) — cùng thang chia trên thước đo và
+    // đồng hồ đo, vì mắt người nhận ra các bước đó nhanh nhất.
+    //
+    // Dừng ở 1e12: quá mức đó thì Number mất chính xác ở phần nguyên, và không có số dư
+    // thật nào tới đó. Có điểm dừng tường minh để vòng lặp không bao giờ chạy vô hạn nếu
+    // `maxWithdrawable` là Infinity vì một lỗi tính toán ở nơi khác.
+    for (let pow = 10; pow <= 1e12; pow *= 10) {
+      for (const mult of [1, 2, 5]) {
+        const step = pow * mult;
+        // \>=\ chu khong \>\: moc BANG so tien toi da se trung voi nut "Toi da" ben canh,
+        // sinh ra hai nut cho cung mot gia tri. Dieu kien cu la \step <= maxWithdrawable\,
+        // nen so du dung 1.000.000 hay 5.000 hien mot moc trung lap.
+        if (step >= maxWithdrawable) break;
+        if (step >= minWithdraw) candidates.add(step);
       }
+      if (pow > maxWithdrawable) break;
     }
 
     // Bù mốc theo tỷ lệ khi số dư nhỏ khiến các mốc tròn không đủ 3 lựa chọn.
     if (candidates.size < 3) {
       for (const ratio of [0.25, 0.5, 0.75]) {
         const value = Math.floor(maxWithdrawable * ratio);
-        if (value >= MIN_WITHDRAW_AMOUNT && value < maxWithdrawable) {
+        if (value >= minWithdraw && value < maxWithdrawable) {
           candidates.add(value);
         }
       }
@@ -288,7 +348,9 @@ export default function WithdrawPage() {
     return Array.from(candidates)
       .sort((a, b) => a - b)
       .slice(-3);
-  }, [maxWithdrawable]);
+    // PHU THUOC CA `minWithdraw`: thieu no thi danh sach van la ban tinh bang gia tri du
+    // phong, va khong bao gio duoc tinh lai sau khi han muc that tu backend ve.
+  }, [maxWithdrawable, minWithdraw]);
 
   // Đổi lỗi từ backend thành câu người dùng hiểu được
   const describeError = useCallback((err: unknown): string => {
@@ -310,7 +372,12 @@ export default function WithdrawPage() {
       return t("withdraw.err_insufficient");
     }
     if (err.code === "WITHDRAWAL_LIMIT_EXCEEDED") {
-      return t("withdraw.err_max", { max: DAILY_MAX_AMOUNT.toLocaleString("en-US") });
+      // Backend van co the tra ma nay khi tran duoc bat lai giua phien. Doc tu
+      // `dailyMax` chu khong tu hang so: bao sai con so lam nguoi dung di sua so tien
+      // theo mot muc tran khong ton tai.
+      return t("withdraw.err_max", {
+        max: dailyMax === null ? "" : dailyMax.toLocaleString("en-US"),
+      });
     }
     if (err.status === 423 || err.status === 429) {
       // Bị khoá tạm do gõ sai nhiều lần.
@@ -321,7 +388,7 @@ export default function WithdrawPage() {
       return t("withdraw.err_locked", { seconds });
     }
     return err.message || t("withdraw.err_failed");
-  }, [t]);
+  }, [t, dailyMax]);
 
   const handleWithdraw = useCallback(async () => {
     if (!selectedAccountId) {
@@ -333,8 +400,8 @@ export default function WithdrawPage() {
       setError(t("withdraw.err_amount_invalid"));
       return;
     }
-    if (parsedAmount < MIN_WITHDRAW_AMOUNT) {
-      setError(t("withdraw.err_min", { min: String(MIN_WITHDRAW_AMOUNT) }));
+    if (parsedAmount < minWithdraw) {
+      setError(t("withdraw.err_min", { min: String(minWithdraw) }));
       return;
     }
     if (wallet && parsedAmount > parseFloat(wallet.balance)) {
@@ -364,7 +431,7 @@ export default function WithdrawPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [amount, withdrawalPassword, selectedAccountId, wallet, describeError, t]);
+  }, [amount, withdrawalPassword, selectedAccountId, wallet, describeError, t, minWithdraw]);
 
   const selectedAccount = useMemo(() => {
     return accounts.find((a) => a.id === selectedAccountId);
@@ -381,10 +448,10 @@ export default function WithdrawPage() {
   /** Số tiền đã hợp lệ: là số, đạt tối thiểu, và không vượt số dư. */
   const amountValid = useMemo(() => {
     const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed < MIN_WITHDRAW_AMOUNT) return false;
+    if (isNaN(parsed) || parsed < minWithdraw) return false;
     if (wallet && parsed > parseFloat(wallet.balance)) return false;
     return true;
-  }, [amount, wallet]);
+  }, [amount, wallet, minWithdraw]);
 
   /**
    * Nút gửi lệnh chỉ sáng khi ĐỦ CẢ BA: có tài khoản nhận, số tiền hợp lệ, và mật khẩu rút
@@ -403,10 +470,10 @@ export default function WithdrawPage() {
   const blockingHint = useMemo(() => {
     if (canSubmit) return null;
     if (!selectedAccountId) return t("withdraw.hint_need_account");
-    if (!amountValid) return t("withdraw.hint_need_amount", { min: String(MIN_WITHDRAW_AMOUNT) });
+    if (!amountValid) return t("withdraw.hint_need_amount", { min: String(minWithdraw) });
     if (passwordCheck === "locked") return null; // đã có cảnh báo khoá riêng, không nói trùng
     return t("withdraw.hint_need_password");
-  }, [canSubmit, selectedAccountId, amountValid, passwordCheck, t]);
+  }, [canSubmit, selectedAccountId, amountValid, passwordCheck, t, minWithdraw]);
 
   if (!checked || loading) {
     return (
@@ -633,7 +700,7 @@ export default function WithdrawPage() {
               Nút "Tối đa" chỉ có nghĩa khi số dư đạt mức rút tối thiểu. Số dư $5 mà bấm Tối đa
               sẽ điền $5 rồi lập tức báo "tối thiểu $20" — một vòng lặp vô ích.
             */}
-            {maxWithdrawable >= MIN_WITHDRAW_AMOUNT ? (
+            {maxWithdrawable >= minWithdraw ? (
               <button
                 onClick={handleWithdrawAll}
                 className={`flex-1 h-9 text-xs font-semibold flex items-center justify-center border transition-colors active:scale-98 ${
@@ -651,20 +718,30 @@ export default function WithdrawPage() {
           {/*
             Dòng hạn mức.
 
-            Số tối đa hiển thị là MIN(số dư, hạn mức ngày) chứ không phải hằng số `5,000`:
-            người có số dư $50 đọc "tối đa 5,000 USDT" sẽ tưởng mình rút được nhiều hơn số
-            tiền thực có.
+            Số tối đa hiển thị là MIN(số dư, trần ngày) chứ không phải trần thuần: người có
+            số dư $50 đọc "tối đa 5,000" sẽ tưởng mình rút được nhiều hơn số tiền thực có.
+
+            Khi KHÔNG có trần thì dùng câu khác hẳn — xem chú thích bên dưới.
           */}
-          {maxWithdrawable < MIN_WITHDRAW_AMOUNT ? (
+          {maxWithdrawable < minWithdraw ? (
             <span className="text-[11px] text-amber-500 mt-2 block">
-              {t("withdraw.err_min", { min: String(MIN_WITHDRAW_AMOUNT) })}
+              {t("withdraw.err_min", { min: String(minWithdraw) })}
             </span>
           ) : (
             <span className="text-[11px] text-[#8b8b8b] mt-2 block">
-              {t("withdraw.limit_hint", {
-                min: String(MIN_WITHDRAW_AMOUNT),
-                max: Math.min(maxWithdrawable, DAILY_MAX_AMOUNT).toLocaleString("en-US"),
-              })}
+              {/* HAI CAU KHAC NHAU tuy theo co tran hay khong.
+                  Khi khong co tran, cau cu "Moi lenh tu 20 den 5,000" vua sai vua gay
+                  nghi ngo: nguoi co so du 200.000 doc "den 5,000" se tuong minh bi gioi
+                  han, roi bo di ma khong thu. Cau moi noi ro chi co muc toi thieu.
+
+                  Van hien so du o nhanh khong tran: no la tran THUC TE con lai, va noi
+                  ro thi nguoi dung khong phai tu tinh. */}
+              {dailyMax === null
+                ? t("withdraw.limit_hint_no_max", { min: String(minWithdraw) })
+                : t("withdraw.limit_hint", {
+                    min: String(minWithdraw),
+                    max: maxWithdrawable.toLocaleString("en-US"),
+                  })}
             </span>
           )}
         </div>

@@ -27,13 +27,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Tìm kiếm user cho khu quản trị. Mỗi filter là OPTIONAL: truyền null để bỏ qua
      * (điều kiện {@code :param is null or ...}). keyword đã được service chuẩn hóa
      * thành lowercase kèm ký tự '%' trước khi gọi — repository KHÔNG tự thêm wildcard.
+     *
+     * {@code excludeClosed} = true ẩn tài khoản CLOSED ("đã xóa") khỏi kết quả mặc định.
+     * Truyền false để hiện lại — chức năng "Được/Ẩn tài khoản đã xóa" trên giao diện.
      */
     @Query("select u from User u where "
             + "(:status is null or u.status = :status) and "
+            + "(:excludeClosed = false or u.status <> com.rwg.identity.domain.UserStatus.CLOSED) and "
             + "(:role is null or u.role = :role) and "
             + "(:keyword is null or lower(u.username) like :keyword "
             + "or lower(u.email) like :keyword)")
     Page<User> searchForAdmin(@Param("status") UserStatus status,
+                              @Param("excludeClosed") boolean excludeClosed,
                               @Param("role") UserRole role,
                               @Param("keyword") String keyword,
                               Pageable pageable);

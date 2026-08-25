@@ -16,6 +16,7 @@ import { CHAT_EVENT, useNotification } from "@/context/NotificationContext";
 import {
   ApiError,
   clearPlayerTokens,
+  clearGuestSupportOnly,
   getPlayerToken,
   getChatConversation,
   getChatMessages,
@@ -25,6 +26,7 @@ import {
   uploadChatAttachment,
   fetchAuthedBlobUrl,
   chatAttachmentPath,
+  isGuestSupportOnly,
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/playerApi";
@@ -114,6 +116,32 @@ export default function ContactUsPage() {
       return;
     }
     setChecked(true);
+  }, [router]);
+
+  /**
+   * Rời trang chat.
+   *
+   * VỚI PHIÊN HỖ TRỢ (khách quên mật khẩu, chỉ nhập tên đăng nhập) đây KHÔNG phải
+   * một lần điều hướng thuần mà là KẾT THÚC PHIÊN. Trước đây nút này chỉ trỏ
+   * `/login` và người dùng MẮC KẸT: phiên hỗ trợ có token THẬT và còn hạn, nên
+   * trang đăng nhập gọi `me()` thấy hợp lệ rồi tự đẩy sang trang chủ, còn `AuthGate`
+   * thấy cờ phiên hỗ trợ thì đẩy ngược về đúng trang chat này — một vòng kín.
+   *
+   * `clearGuestSupportOnly()` PHẢI chạy cùng `clearPlayerTokens()`. Thiếu vế đầu thì
+   * `refreshTokens()` dùng username đã lưu để tự xin token hỗ trợ mới (xem playerApi),
+   * tức phiên sống lại và vòng lặp quay về.
+   *
+   * Người chơi đã đăng nhập bằng mật khẩu thì chỉ quay về `/profile`, KHÔNG bị đăng
+   * xuất — họ không thuộc vòng lặp trên.
+   */
+  const handleBack = useCallback(() => {
+    if (isGuestSupportOnly()) {
+      clearGuestSupportOnly();
+      clearPlayerTokens();
+      router.replace("/login");
+      return;
+    }
+    router.push("/profile");
   }, [router]);
 
 
@@ -209,6 +237,12 @@ export default function ContactUsPage() {
 
       if (payload.type === "CONVERSATION") {
         setConversation((prev) => (prev ? { ...prev, status: payload.status } : prev));
+        return;
+      }
+
+      if (payload.type === "MESSAGES_DELETED") {
+        const deletedSet = new Set(payload.deletedMessageIds || []);
+        setMessages((prev) => prev.filter((m) => !deletedSet.has(m.id)));
         return;
       }
 
@@ -372,7 +406,7 @@ export default function ContactUsPage() {
     <MobileShell
       header={
         <TopNavigationBar
-          backHref="/profile"
+          onBack={handleBack}
           title={t("chat.title")}
           rightSlot={
             <div className="flex items-center gap-1.5 text-[0.625rem] font-semibold text-[#8b8b93]">
@@ -428,14 +462,24 @@ export default function ContactUsPage() {
               )}
 
               <ul className="flex flex-col">
+                {/* Tin nhắn quảng bá/lời chào tự động luôn nằm ở ĐẦU cuộc trò chuyện.
+                    Các tin nhắn trao đổi thực tế của User & Admin sẽ xuất hiện ở BÊN DƯỚI
+                    theo đúng thứ tự thời gian nhắn tin thông thường. */}
+                <ChatPromoMessages
+                  timestamp={promoTimestamp}
+                  showSender
+                  onOpenImage={(src, alt) => setLightbox({ src, alt })}
+                />
+
                 {messages.map((message, index) => {
-                  // Chỉ hiện avatar + tên ở tin ĐẦU của một chuỗi liên tiếp cùng người
-                  // gửi: lặp lại ở mọi bong bóng làm cột trái rối và tốn chỗ ngang.
+                  // Với tin nhắn đầu tiên (index === 0): nếu là tin từ STAFF thì không hiện lại avatar/tên (vì ChatPromoMessages đã hiện ở trên), nếu là từ PLAYER thì hiện.
                   const prev = index > 0 ? messages[index - 1] : null;
                   const showSender =
-                    !prev ||
-                    prev.senderType !== message.senderType ||
-                    prev.senderUsername !== message.senderUsername;
+                    index === 0
+                      ? message.senderType !== "STAFF"
+                      : !prev ||
+                        prev.senderType !== message.senderType ||
+                        prev.senderUsername !== message.senderUsername;
 
                   return (
                     <ChatBubble
@@ -447,16 +491,6 @@ export default function ContactUsPage() {
                     />
                   );
                 })}
-
-                {/* Lời chào khuyến mãi ở CUỐI danh sách, không phải đầu: nó phải nằm
-                    trong tầm nhìn mỗi lần khách mở trang, mà màn hình chat luôn cuộn
-                    xuống đáy. Đầu danh sách thì sau vài câu trò chuyện nó trôi mất và
-                    khách không bao giờ thấy. */}
-                <ChatPromoMessages
-                  timestamp={promoTimestamp}
-                  showSender={messages[messages.length - 1]?.senderType !== "STAFF"}
-                  onOpenImage={(src, alt) => setLightbox({ src, alt })}
-                />
               </ul>
             </>
           )}

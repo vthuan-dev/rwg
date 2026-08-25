@@ -220,6 +220,37 @@ function BetDetailContent() {
     };
   }, [idParam, loadOdds, loadRound, loadWallet, router, t]);
 
+  // Cập nhật số dư ví real-time qua websocket
+  useEffect(() => {
+    const handleBalanceUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setWallet((prev) => {
+        if (prev) {
+          return { ...prev, balance: customEvent.detail };
+        }
+        return { balance: customEvent.detail, currency: table?.currency || "USD" } as any;
+      });
+    };
+    window.addEventListener("wallet_balance_updated", handleBalanceUpdate);
+    return () => {
+      window.removeEventListener("wallet_balance_updated", handleBalanceUpdate);
+    };
+  }, [table]);
+
+  // Cập nhật tỷ lệ cược odds real-time qua websocket khi admin chỉnh sửa
+  useEffect(() => {
+    const handleOddsUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tableId: string }>;
+      if (table && customEvent.detail.tableId === table.id) {
+        void loadOdds(table.id);
+      }
+    };
+    window.addEventListener("game_odds_updated", handleOddsUpdate);
+    return () => {
+      window.removeEventListener("game_odds_updated", handleOddsUpdate);
+    };
+  }, [table, loadOdds]);
+
   /**
    * Sang vòng mới thì đặt lại phiếu cược.
    *

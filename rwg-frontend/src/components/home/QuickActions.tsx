@@ -2,9 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CreditCard, Wallet, Receipt, Headphones } from "lucide-react";
 import { useTranslation } from "@/context/LanguageContext";
 import { useNotification } from "@/context/NotificationContext";
+import { getPlayerToken } from "@/lib/playerApi";
 
 interface QuickAction {
   id: string;
@@ -52,15 +54,22 @@ const ACTIONS: QuickAction[] = [
 /**
  * Bốn lối tắt chính, xếp lưới 2×2.
  *
- * Dùng `Link` chứ không `button`: đây là điều hướng sang trang khác, nên phải cho
- * người dùng mở tab mới / dùng phím được, và trình đọc màn hình cần đọc ra là liên
- * kết chứ không phải nút bấm.
+ * BẮT BUỘC ĐĂNG NHẬP: khi khách chưa đăng nhập, bấm vào bất kỳ ô nào trong 4 ô này
+ * đều chuyển thẳng sang `/login` để họ đăng nhập trước.
  */
 export const QuickActions: React.FC = () => {
+  const router = useRouter();
   const { t } = useTranslation();
   // Lấy từ context thay vì tự gọi API: con số này đã được nạp sẵn và được WebSocket
   // cập nhật, nên thêm một request ở đây là dư.
   const { chatUnreadCount } = useNotification();
+
+  const handleActionClick = (e: React.MouseEvent, href: string) => {
+    if (!getPlayerToken()) {
+      e.preventDefault();
+      router.push("/login");
+    }
+  };
 
   return (
     <nav className="w-full px-4 my-4" aria-label={t("games.title")}>
@@ -74,6 +83,7 @@ export const QuickActions: React.FC = () => {
             <li key={action.id} className="flex">
               <Link
                 href={action.href}
+                onClick={(e) => handleActionClick(e, action.href)}
                 // `py-4` + `gap-2.5`: icon và nhãn thở ra, ô cao hơn một chút cho
                 // cân với khoảng cách mới giữa các ô.
                 className="relative w-full min-h-11 py-4 flex flex-col items-center justify-center gap-2.5 bg-[#1b1b1f] border border-[#28282e] transition-colors active:bg-[#242429]"

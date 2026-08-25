@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -407,6 +408,107 @@ class ChatApiTest {
                         .content("""
                                 {"body":"   "}
                                 """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Admin xóa tin nhắn: soft delete thành công, không hiện ở lịch sử chat của admin và player")
+    void adminCanDeleteMessagesRealtime() throws Exception {
+        String playerUsername = register("chatdel");
+        String player = playerBearer(playerUsername);
+        JsonNode sentMsg = sendAsPlayer(player, "Tin nhan can xoa", null);
+        String msgId = sentMsg.get("id").asText();
+        String conversationId = myConversationId(player);
+
+        String staff = staffBearer(UserRole.SUPPORT);
+
+        // 1. Thực hiện xóa tin nhắn
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"messageIds":["%s"]}
+                                """.formatted(msgId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(1));
+
+        // 2. Player get history -> rỗng vì tin nhắn bị soft-delete
+        mockMvc.perform(get("/api/v1/chat/messages").header("Authorization", player))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // 3. Staff get history -> rỗng
+        mockMvc.perform(get("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        // 4. Audit log có ghi nhận hành động xóa tin nhắn
+        List<AuditLog> logs = auditLogRepository.findAll().stream()
+                .filter(l -> AuditTrailService.ADMIN_CHAT_MESSAGES_DELETED.equals(l.getAction()))
+                .filter(l -> conversationId.equals(l.getTargetId().toString()))
+                .toList();
+        assertThat(logs).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Người chơi và vai trò RISK không được quyền xóa tin nhắn")
+    void playerAndRiskCannotDeleteMessages() throws Exception {
+        String player = playerBearer(register("chatdel2"));
+        String conversationId = myConversationId(player);
+        String msgId = UUID.randomUUID().toString();
+
+        // Player gọi endpoint xóa tin nhắn -> 403 Forbidden (chỉ admin/staff)
+        // Lưu ý: api bắt đầu bằng /api/v1/admin/** nên chỉ admin mới truy cập được qua security config
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", player)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"messageIds":["%s"]}
+                                """.formatted(msgId)))
+                .andExpect(status().isForbidden());
+
+        // RISK gọi endpoint xóa -> 403 Forbidden
+        // Xem SecurityConfig: DELETE /api/v1/admin/chat/** chỉ cho phép ADMIN/FINANCE/SUPPORT, RISK bị chặn ghi
+        // Hãy kiểm tra xem SecurityConfig của dự án có chặn cụ thể DELETE phương thức này không.
+        String risk = staffBearer(UserRole.RISK);
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", risk)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"messageIds":["%s"]}
+                                """.formatted(msgId)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Xóa tin nhắn sai định dạng hoặc vượt quá 100 tin nhắn bị từ chối")
+    void deleteMessagesValidation() throws Exception {
+        String staff = staffBearer(UserRole.SUPPORT);
+        String conversationId = UUID.randomUUID().toString();
+
+        // 1. Danh sách trống
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"messageIds":[]}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        // 2. Vượt quá 100 tin nhắn (dựng list giả lập)
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"messageIds\":[");
+        for (int i = 0; i < 101; i++) {
+            sb.append("\"").append(UUID.randomUUID().toString()).append("\"");
+            if (i < 100) sb.append(",");
+        }
+        sb.append("]}");
+
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(sb.toString()))
                 .andExpect(status().isBadRequest());
     }
 }

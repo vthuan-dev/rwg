@@ -88,7 +88,12 @@ export const Header: React.FC = () => {
 
       {username ? (
         <p className="px-4 pb-2.5 text-primary font-bold text-[1.0625rem] leading-normal truncate">
-          {t("header.welcome_back")}, {username}
+          {/* Truyền tên vào t() thay vì nối chuỗi trong JSX.
+              Bản cũ viết `{t(...)}, {username}` — dấu phẩy và vị trí của tên nằm
+              cứng trong mã, nên mọi ngôn ngữ buộc phải theo trật tự của tiếng Anh.
+              Tiếng Nhật và tiếng Hàn đặt tên NGƯỜI TRƯỚC lời chào và không dùng dấu
+              phẩy kiểu phương Tây; giờ mỗi bản dịch tự quyết định trật tự của mình. */}
+          {t("header.welcome_back", { username })}
         </p>
       ) : null}
     </header>

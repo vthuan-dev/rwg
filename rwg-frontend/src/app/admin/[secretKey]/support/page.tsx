@@ -168,6 +168,9 @@ export default function AdminSupportPage() {
   const [activeCurrency, setActiveCurrency] = useState("USD");
   const [loadingBalance, setLoadingBalance] = useState(false);
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const attachment = useChatAttachment(uploadAdminAttachment);
   /** Ô chọn tệp thật, bị ẩn và thao tác qua nút bên cạnh ô nhập. */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -296,6 +299,8 @@ export default function AdminSupportPage() {
     setThreadError("");
     setThreadLoading(true);
     setDraft("");
+    setSelectMode(false);
+    setSelectedIds(new Set());
 
     try {
       const page = await adminFetch<Message[]>(
@@ -478,6 +483,15 @@ export default function AdminSupportPage() {
         return;
       }
 
+      if (event.type === "MESSAGES_DELETED" && event.deletedMessageIds) {
+        const deletedSet = new Set(event.deletedMessageIds);
+        if (isActive) {
+          setMessages((prev) => prev.filter((m) => !deletedSet.has(m.id)));
+        }
+        void reloadList();
+        return;
+      }
+
       if (event.type === "CONVERSATION") {
         setRows((prev) =>
           prev.map((r) =>
@@ -502,6 +516,38 @@ export default function AdminSupportPage() {
   );
 
   useAdminChatSocket(handleEvent);
+
+  const toggleMessageSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const deleteMessages = async () => {
+    if (selectedIds.size === 0 || !activeId || acting) return;
+    setActing(true);
+    setThreadError("");
+    try {
+      await adminFetch(`/admin/chat/conversations/${activeId}/messages`, {
+        method: "DELETE",
+        body: JSON.stringify({ messageIds: Array.from(selectedIds) }),
+      });
+      setMessages((prev) => prev.filter((m) => !selectedIds.has(m.id)));
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      void reloadList();
+    } catch (err) {
+      setThreadError((err as Error).message);
+    } finally {
+      setActing(false);
+    }
+  };
 
   const sendReply = async () => {
     const body = draft.trim();
@@ -578,7 +624,7 @@ export default function AdminSupportPage() {
     setLoadingBalance(true);
     setThreadError(""); // Xoá lỗi cũ nếu có
     try {
-      const detail = await adminFetch<any>(`/admin/users/${activeRow.userId}`);
+      const detail = await adminFetch<{ walletBalance: string; currency?: string }>(`/admin/users/${activeRow.userId}`);
       setActiveBalance(detail.walletBalance);
       setActiveCurrency(detail.currency || "USD");
       setShowAdjustModal(true);
@@ -850,43 +896,82 @@ export default function AdminSupportPage() {
 
                     {canReply && (
                       <div className="ms-auto flex shrink-0 items-center gap-2">
-                        {!activeRow.assignedAdminId && (
-                          <button
-                            type="button"
-                            disabled={acting}
-                            onClick={() => void runAction("assign")}
-                            className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
-                          >
-                            <UserCheck className="h-3.5 w-3.5" />
-                            {t("admin.chat.assign")}
-                          </button>
-                        )}
-                        {canAdjustWallet(getAdminIdentity()) && (
-                          <button
-                            type="button"
-                            disabled={loadingBalance}
-                            onClick={openAdjustModal}
-                            id="chat-adjust-wallet"
-                            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
-                          >
-                            {loadingBalance ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <WalletIcon className="h-3.5 w-3.5" />
+                        {selectMode ? (
+                          <>
+                            <span className="text-xs font-semibold text-slate-500">
+                              {t("admin.chat.selected_count", { count: selectedIds.size })}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={selectedIds.size === 0 || acting}
+                              onClick={deleteMessages}
+                              className="flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                            >
+                              {acting ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                t("admin.chat.delete_selected")
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectMode(false);
+                                setSelectedIds(new Set());
+                              }}
+                              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100"
+                            >
+                              {t("admin.chat.cancel")}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSelectMode(true)}
+                              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100"
+                            >
+                              {t("admin.chat.select_messages")}
+                            </button>
+                            {!activeRow.assignedAdminId && (
+                              <button
+                                type="button"
+                                disabled={acting}
+                                onClick={() => void runAction("assign")}
+                                className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />
+                                {t("admin.chat.assign")}
+                              </button>
                             )}
-                            {t("admin.users.wallet.tab_adjust")}
-                          </button>
-                        )}
-                        {activeRow.status === "OPEN" && (
-                          <button
-                            type="button"
-                            disabled={acting}
-                            onClick={() => void runAction("close")}
-                            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
-                          >
-                            <Lock className="h-3.5 w-3.5" />
-                            {t("admin.chat.close")}
-                          </button>
+                            {canAdjustWallet(getAdminIdentity()) && (
+                              <button
+                                type="button"
+                                disabled={loadingBalance}
+                                onClick={openAdjustModal}
+                                id="chat-adjust-wallet"
+                                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                              >
+                                {loadingBalance ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <WalletIcon className="h-3.5 w-3.5" />
+                                )}
+                                {t("admin.users.wallet.tab_adjust")}
+                              </button>
+                            )}
+                            {activeRow.status === "OPEN" && (
+                              <button
+                                type="button"
+                                disabled={acting}
+                                onClick={() => void runAction("close")}
+                                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
+                              >
+                                <Lock className="h-3.5 w-3.5" />
+                                {t("admin.chat.close")}
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -958,11 +1043,25 @@ export default function AdminSupportPage() {
                             const hasImage = Boolean(
                               m.attachmentUrl && m.attachmentType === "IMAGE"
                             );
+                            const isSelected = selectedIds.has(m.id);
                             return (
                               <li
                                 key={m.id}
-                                className={`flex ${isStaff ? "justify-end" : "justify-start"}`}
+                                onClick={() => {
+                                  if (selectMode) toggleMessageSelect(m.id);
+                                }}
+                                className={`flex items-center gap-2.5 py-1 ${
+                                  selectMode ? "cursor-pointer hover:bg-slate-100/50" : ""
+                                } ${isStaff ? "justify-end" : "justify-start"}`}
                               >
+                                {selectMode && !isStaff && (
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}} // Đã handled ở onClick của li
+                                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                                  />
+                                )}
                                 <div
                                   className={`flex max-w-[70%] flex-col ${
                                     isStaff ? "items-end" : "items-start"
@@ -977,6 +1076,10 @@ export default function AdminSupportPage() {
                                       isStaff
                                         ? "rounded-2xl rounded-br-md bg-slate-900 text-white"
                                         : "rounded-2xl rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                                    } ${
+                                      selectMode && isSelected
+                                        ? "ring-2 ring-red-500 ring-offset-1"
+                                        : ""
                                     }`}
                                   >
                                     {hasImage && (
@@ -985,7 +1088,10 @@ export default function AdminSupportPage() {
                                           attachmentUrl={m.attachmentUrl!}
                                           attachmentName={m.attachmentName}
                                           load={loadAdminAttachment}
-                                          onOpen={(src, alt) => setLightbox({ src, alt })}
+                                          onOpen={(src, alt) => {
+                                            // Chặn lightbox khi đang ở chế độ chọn tin nhắn
+                                            if (!selectMode) setLightbox({ src, alt });
+                                          }}
                                           localSrc={m.localAttachmentUrl}
                                         />
                                       </div>
@@ -1010,6 +1116,14 @@ export default function AdminSupportPage() {
                                     })}
                                   </span>
                                 </div>
+                                {selectMode && isStaff && (
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}} // Đã handled ở onClick của li
+                                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                                  />
+                                )}
                               </li>
                             );
                           })}

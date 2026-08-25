@@ -14,6 +14,18 @@ import java.util.UUID;
 @Repository
 public interface UserRelationRepository extends JpaRepository<UserRelation, UUID> {
 
+    /**
+     * Số quan hệ tuyến có mặt người này, ở bất kỳ vị trí nào.
+     *
+     * Phải kiểm CẢ HAI phía: người này có thể là tuyến trên (đại lý nhận hoa hồng) hoặc tuyến
+     * dưới (người tạo ra doanh thu). Chỉ kiểm một phía thì xóa mất một đại lý sẽ làm đứt tuyến
+     * của những người họ giới thiệu, và những người đó mất hoa hồng mà không ai biết vì sao.
+     */
+    long countByAncestorIdOrDescendantId(UUID ancestorId, UUID descendantId);
+
+    /** Xoá mọi quan hệ tuyến có mặt người này. Chỉ dùng cho tài khoản SẠCH. */
+    void deleteByAncestorIdOrDescendantId(UUID ancestorId, UUID descendantId);
+
     /** Tuyến trên của một user ở mọi cấp (tối đa 2 dòng). */
     List<UserRelation> findByDescendantId(UUID descendantId);
 

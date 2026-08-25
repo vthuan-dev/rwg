@@ -6,6 +6,7 @@ import com.rwg.game.domain.BetType;
 import com.rwg.game.domain.GameTable;
 import com.rwg.game.domain.GameTableStatus;
 import com.rwg.game.domain.UserGameOdds;
+import com.rwg.game.dto.SetUserOddsPairRequest;
 import com.rwg.game.dto.SetUserOddsRequest;
 import com.rwg.game.dto.UserOddsOptionResponse;
 import com.rwg.game.dto.UserOddsResponse;
@@ -22,11 +23,13 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Quản trị tỷ lệ cược riêng theo người chơi.
@@ -44,17 +47,20 @@ public class AdminUserOddsService {
     private final UserRepository userRepository;
     private final OddsResolver oddsResolver;
     private final AuditTrailService audit;
+    private final GameEventRelay gameEventRelay;
 
     public AdminUserOddsService(UserGameOddsRepository oddsRepository,
                                 GameTableRepository tableRepository,
                                 UserRepository userRepository,
                                 OddsResolver oddsResolver,
-                                AuditTrailService audit) {
+                                AuditTrailService audit,
+                                GameEventRelay gameEventRelay) {
         this.oddsRepository = oddsRepository;
         this.tableRepository = tableRepository;
         this.userRepository = userRepository;
         this.oddsResolver = oddsResolver;
         this.audit = audit;
+        this.gameEventRelay = gameEventRelay;
     }
 
     /**
@@ -178,10 +184,7 @@ public class AdminUserOddsService {
         }
 
         UUID tableId = parseUuid(request.tableId());
-        GameTable table = tableRepository.findById(tableId)
-                .filter(t -> t.getStatus() == GameTableStatus.ACTIVE)
-                .orElseThrow(() -> new ApiException(ErrorCode.GAME_TABLE_NOT_FOUND));
-
+        GameTable table = requireActiveTable(tableId);
         BetType betType = parseBetType(request.betType());
 
         // Loại cược phải THUỘC danh sách điều chỉnh được của bàn này. Thiếu kiểm tra thì
@@ -196,30 +199,10 @@ public class AdminUserOddsService {
         }
 
         BigDecimal odds = parseOdds(request.odds());
+        String reason = normalizeReason(request.reason());
+
+        BigDecimal previous = applyOdds(userId, adminId, table, betType, odds, reason);
         BigDecimal defaultOdds = oddsResolver.defaultOdds(table.getGameType(), betType, null);
-
-        if (!oddsResolver.withinSafeRange(odds, defaultOdds)) {
-            throw new ApiException(ErrorCode.VALIDATION_ERROR, null, null,
-                    "validation.admin.odds.out_of_range");
-        }
-
-        Optional<UserGameOdds> existing =
-                oddsRepository.findByUserIdAndTableIdAndBetType(userId, tableId, betType);
-
-        BigDecimal previous = existing.map(UserGameOdds::getOdds).orElse(defaultOdds);
-
-        // Chuẩn hoá lý do trống thành null thay vì lưu chuỗi rỗng: cột nullable, và hai cách
-        // biểu diễn cùng một ý nghĩa sẽ buộc mọi chỗ đọc phải kiểm cả hai.
-        String reason = (request.reason() == null || request.reason().isBlank())
-                ? null
-                : request.reason().trim();
-
-        if (existing.isPresent()) {
-            existing.get().update(odds, reason, adminId);
-        } else {
-            oddsRepository.save(new UserGameOdds(
-                    userId, tableId, betType, odds, reason, adminId));
-        }
 
         // `Map.of` NÉM NullPointerException nếu giá trị null, mà `reason` giờ được phép null.
         // Dùng chuỗi rỗng trong bản ghi audit — audit là nhật ký đọc bằng mắt, một ô trống ở
@@ -233,6 +216,116 @@ public class AdminUserOddsService {
                         "oddsAfter", odds.toPlainString(),
                         "defaultOdds", defaultOdds.toPlainString(),
                         "reason", reason == null ? "" : reason), ip);
+
+        gameEventRelay.publishOddsUpdate(userId, tableId);
+    }
+
+    /**
+     * Đặt CÙNG một tỷ lệ cho cả cặp hai chiều của một bàn.
+     *
+     * VÌ SAO LÀ MỘT PHÉP TOÁN, không phải hai lần gọi {@link #setOdds}: `@Transactional` bao
+     * cả hai lần ghi, nên giá trị ngoài biên ở cửa thứ hai sẽ rollback luôn cửa thứ nhất.
+     * Nếu để giao diện gọi hai lần, lượt sau thất bại sẽ để lại cấu hình LỆCH mà người vận
+     * hành tin là đã đặt cân — âm thầm và ảnh hưởng tiền chi trả.
+     *
+     * KIỂM BIÊN CHO TỪNG CỬA, không chỉ một lần. Hiện tại hai cửa trong mỗi cặp đều có cùng
+     * mức chung (Lucky 28 cùng 0.98; Roulette và Baccarat cùng 1), nên một giá trị hợp lệ cho
+     * cửa này cũng hợp lệ cho cửa kia. Nhưng đó là ĐẶC ĐIỂM DỮ LIỆU HIỆN TẠI chứ không phải
+     * quy luật: một loại game mới với hai mức chung khác nhau sẽ phá giả định đó. Kiểm từng
+     * cửa thì trường hợp ấy bị TỪ CHỐI thay vì ghi một cửa ngoài biên.
+     *
+     * Ghi audit MỘT dòng và phát sự kiện MỘT lần: hai dòng rời không cho biết chúng thuộc
+     * cùng một thao tác, còn phát hai lần sẽ làm trang người chơi tải lại tỷ lệ hai lượt.
+     */
+    @Transactional
+    public void setOddsForPair(UUID userId, UUID adminId, SetUserOddsPairRequest request, String ip) {
+        requireNotSelfDealing(userId, adminId, ip);
+
+        if (!userRepository.existsById(userId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND);
+        }
+
+        UUID tableId = parseUuid(request.tableId());
+        GameTable table = requireActiveTable(tableId);
+
+        List<BetType> types = TableOddsService.adjustableBetTypesFor(table.getGameType());
+        if (types.isEmpty()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, null, null,
+                    "validation.admin.odds.bet_type.not_in_table");
+        }
+
+        BigDecimal odds = parseOdds(request.odds());
+        String reason = normalizeReason(request.reason());
+
+        // LinkedHashMap để thứ tự trong bản ghi audit khớp thứ tự hiện trên màn hình quản trị
+        // (xem `*_ADJUSTABLE` trong TableOddsService) — người đọc nhật ký sau này đối chiếu
+        // được hai bên mà không phải tự sắp lại.
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("tableId", tableId.toString());
+        details.put("gameType", table.getGameType());
+        details.put("oddsAfter", odds.toPlainString());
+        details.put("betTypes", types.stream().map(BetType::name).collect(Collectors.joining(",")));
+
+        for (BetType betType : types) {
+            BigDecimal previous = applyOdds(userId, adminId, table, betType, odds, reason);
+            details.put("oddsBefore." + betType.name(), previous.toPlainString());
+        }
+
+        details.put("reason", reason == null ? "" : reason);
+
+        audit.record(adminId, null, AuditTrailService.ADMIN_USER_ODDS_PAIR_CHANGED,
+                "USER", userId.toString(), details, ip);
+
+        gameEventRelay.publishOddsUpdate(userId, tableId);
+    }
+
+    /**
+     * Ghi tỷ lệ riêng của MỘT cửa và trả về giá trị TRƯỚC đó (mức chung nếu chưa từng ghi đè).
+     *
+     * Tách riêng để hai đường vào — một cửa và cả cặp — dùng chung đúng một bản logic ghi.
+     * Sao lại thành hai bản thì chúng lệch nhau ngay lần đầu ai đó sửa một bên, và bên lệch
+     * sẽ là bên quyết định tiền chi trả.
+     *
+     * KHÔNG ghi audit và KHÔNG phát sự kiện ở đây: hai việc đó thuộc phạm vi của cả THAO TÁC,
+     * mà một thao tác có thể gồm nhiều cửa.
+     */
+    private BigDecimal applyOdds(UUID userId, UUID adminId, GameTable table,
+                                 BetType betType, BigDecimal odds, String reason) {
+        BigDecimal defaultOdds = oddsResolver.defaultOdds(table.getGameType(), betType, null);
+
+        if (!oddsResolver.withinSafeRange(odds, defaultOdds)) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, null, null,
+                    "validation.admin.odds.out_of_range");
+        }
+
+        Optional<UserGameOdds> existing =
+                oddsRepository.findByUserIdAndTableIdAndBetType(userId, table.getId(), betType);
+
+        BigDecimal previous = existing.map(UserGameOdds::getOdds).orElse(defaultOdds);
+
+        if (existing.isPresent()) {
+            existing.get().update(odds, reason, adminId);
+        } else {
+            oddsRepository.save(new UserGameOdds(
+                    userId, table.getId(), betType, odds, reason, adminId));
+        }
+
+        return previous;
+    }
+
+    /** Bàn phải tồn tại và đang hoạt động. */
+    private GameTable requireActiveTable(UUID tableId) {
+        return tableRepository.findById(tableId)
+                .filter(t -> t.getStatus() == GameTableStatus.ACTIVE)
+                .orElseThrow(() -> new ApiException(ErrorCode.GAME_TABLE_NOT_FOUND));
+    }
+
+    /**
+     * Chuẩn hoá lý do trống thành null thay vì lưu chuỗi rỗng: cột nullable, và hai cách
+     * biểu diễn cùng một ý nghĩa sẽ buộc mọi chỗ đọc phải kiểm cả hai.
+     */
+    private static String normalizeReason(String raw) {
+        return (raw == null || raw.isBlank()) ? null : raw.trim();
     }
 
     /** Xoá tỷ lệ riêng, đưa người chơi về mức chung. */
@@ -252,6 +345,8 @@ public class AdminUserOddsService {
                 Map.of("tableId", tableId.toString(),
                         "betType", betType.name(),
                         "oddsRemoved", removed.toPlainString()), ip);
+
+        gameEventRelay.publishOddsUpdate(userId, tableId);
     }
 
     // ===== các lớp chặn an toàn =====

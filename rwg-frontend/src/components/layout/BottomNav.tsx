@@ -2,9 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, Gamepad2, FileText, User } from "lucide-react";
 import { useTranslation } from "@/context/LanguageContext";
+import { getPlayerToken } from "@/lib/playerApi";
 
 interface NavItem {
   href: string;
@@ -53,7 +54,17 @@ const isItemActive = (pathname: string, href: string): boolean => {
  */
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useTranslation();
+
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    // Nếu là trang Hồ sơ (/profile) hoặc trang khác ngoại trừ trang chủ (/),
+    // mà khách chưa đăng nhập -> chuyển thẳng tới /login.
+    if (href !== "/" && !getPlayerToken()) {
+      e.preventDefault();
+      router.push("/login");
+    }
+  };
 
   return (
     <nav
@@ -78,6 +89,7 @@ export const BottomNav: React.FC = () => {
             <li key={item.href} className="flex">
               <Link
                 href={item.href}
+                onClick={(e) => handleNavClick(e, item.href)}
                 // min-h-11 = 44px: mức tối thiểu cho mục bấm bằng ngón tay.
                 className={`flex flex-col items-center justify-center gap-1 w-full min-h-11 transition-colors active:bg-white/5 ${
                   isActive ? "text-primary" : "text-[#8b8b8b]"

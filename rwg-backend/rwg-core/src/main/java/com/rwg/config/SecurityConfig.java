@@ -1,6 +1,7 @@
 package com.rwg.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.rwg.identity.service.SessionRevocationStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,6 +12,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -45,11 +49,29 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
     }
 
+    /**
+     * Bộ giải mã JWT dùng chung cho REST và WebSocket.
+     *
+     * DÙNG CHUNG LÀ CỐ Ý: {@link WsAuthChannelInterceptor} gọi chính bean này ở frame STOMP
+     * CONNECT. Nhờ vậy mọi quy tắc xác thực thêm vào đây đều phủ cả hai đường, không phải
+     * khai báo hai lần và không có nguy cơ hai bên lệch nhau.
+     */
     @Bean
-    public JwtDecoder jwtDecoder(SecurityProperties props) {
+    public JwtDecoder jwtDecoder(SecurityProperties props, SessionRevocationStore revocationStore) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(props.hmacKey()).build();
+
         // Validate issuer (mặc định kèm chữ ký + exp): token phát hành bởi issuer khác bị từ chối.
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(props.issuer()));
+        //
+        // Ghép thêm kiểm tra THU HỒI PHIÊN: thu hồi refresh token chỉ chặn việc gia hạn phiên,
+        // còn access token đã phát vẫn sống tới 15 phút — đủ để một tài khoản vừa bị khóa đặt
+        // thêm rất nhiều vòng cược. Xem {@link RevokedSessionValidator}.
+        //
+        // Dùng `DelegatingOAuth2TokenValidator` chứ không thay hẳn validator mặc định: thay hẳn
+        // sẽ bỏ luôn kiểm tra chữ ký, hạn dùng và issuer.
+        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(props.issuer()),
+                new RevokedSessionValidator(revocationStore));
+        decoder.setJwtValidator(validator);
         return decoder;
     }
 
@@ -77,7 +99,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
-                                                   SecurityProperties props,
+                                                   JwtDecoder jwtDecoder,
                                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -92,6 +114,10 @@ public class SecurityConfig {
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
                         // theo providerTxnId; chặng sau thêm xác thực chữ ký provider.
                         .requestMatchers("/api/v1/payments/callback").permitAll()
+                        // Hạn mức nạp/rút: thông tin công khai, in ngay trên giao diện nên
+                        // không có gì để che. Bắt đăng nhập chỉ làm trang nạp/rút phải chờ
+                        // xác thực xong mới vẽ được ô nhập số tiền.
+                        .requestMatchers("/api/v1/payments/limits").permitAll()
 
                         // ===== KHU ADMIN: phân quyền theo route (chặng 5) =====
                         //
@@ -154,8 +180,16 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/reset")
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/password/change")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/change")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/chat/**")
                             .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/chat/**")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*")
+                            .hasRole("ADMIN")
 
                         // SỔ SÁCH NGƯỜI CHƠI: chỉ ADMIN + FINANCE.
                         //
@@ -206,7 +240,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt
-                                .decoder(jwtDecoder(props))
+                                // Dùng THẲNG bean jwtDecoder, không gọi lại jwtDecoder(props).
+                                // Gọi lại sẽ tạo một decoder MỚI không có validator thu hồi
+                                // phiên, tức lớp chặn đó chỉ còn hiệu lực ở WebSocket.
+                                .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return http.build();
     }

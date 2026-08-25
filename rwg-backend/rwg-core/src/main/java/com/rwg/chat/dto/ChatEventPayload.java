@@ -10,9 +10,10 @@ import java.time.Instant;
  * riêng thì mỗi lần thêm một trường phải sửa hai chỗ và chúng sẽ lệch nhau.
  *
  * `type` để client phân biệt việc cần làm:
- * - MESSAGE      : có tin mới, hiện vào luồng.
- * - READ         : phía đối diện đã xem (đổi dấu tích, không thêm bong bóng).
- * - CONVERSATION : trạng thái luồng đổi (được nhận việc / bị đóng).
+ * - MESSAGE         : có tin mới, hiện vào luồng.
+ * - READ            : phía đối diện đã xem (đổi dấu tích, không thêm bong bóng).
+ * - CONVERSATION    : trạng thái luồng đổi (được nhận việc / bị đóng).
+ * - MESSAGES_DELETED: một hay nhiều tin bị xóa bởi nhân sự — client xóa khỏi màn hình ngay.
  *
  * `targetUserId` cho biết gói này thuộc về người chơi nào. App player dùng nó để
  * unicast tới đúng người; app admin dùng để biết dòng nào trong hộp thư cần làm mới.
@@ -35,17 +36,25 @@ public record ChatEventPayload(
          * đoán như vậy cũng sẽ sai ngay khi có loại tin nội bộ thứ hai không mang lệnh rút.
          */
         boolean staffOnly,
+        /**
+         * Danh sách id của tin bị xóa; chỉ có nghĩa với type = MESSAGES_DELETED.
+         *
+         * Null với mọi loại khác. Lựa chọn kiểu String[] thay vì List: Jackson dùng
+         * array cho cả hai chiều và JSON cũng gọn hơn khi đi qua Redis.
+         */
+        String[] deletedMessageIds,
         Instant serverTime
 ) {
 
     public static final String TYPE_MESSAGE = "MESSAGE";
     public static final String TYPE_READ = "READ";
     public static final String TYPE_CONVERSATION = "CONVERSATION";
+    public static final String TYPE_MESSAGES_DELETED = "MESSAGES_DELETED";
 
     public static ChatEventPayload message(String conversationId, String targetUserId,
                                            ChatMessageResponse message) {
         return new ChatEventPayload(TYPE_MESSAGE, conversationId, targetUserId, message,
-                null, false, Instant.now());
+                null, false, null, Instant.now());
     }
 
     /**
@@ -58,17 +67,28 @@ public record ChatEventPayload(
     public static ChatEventPayload staffOnlyMessage(String conversationId, String targetUserId,
                                                     ChatMessageResponse message) {
         return new ChatEventPayload(TYPE_MESSAGE, conversationId, targetUserId, message,
-                null, true, Instant.now());
+                null, true, null, Instant.now());
     }
 
     public static ChatEventPayload read(String conversationId, String targetUserId) {
         return new ChatEventPayload(TYPE_READ, conversationId, targetUserId, null,
-                null, false, Instant.now());
+                null, false, null, Instant.now());
     }
 
     public static ChatEventPayload conversation(String conversationId, String targetUserId,
-                                                String status) {
+                                               String status) {
         return new ChatEventPayload(TYPE_CONVERSATION, conversationId, targetUserId, null,
-                status, false, Instant.now());
+                status, false, null, Instant.now());
+    }
+
+    /**
+     * Thông báo một số tin đã bị xóa — cả admin và player đều nhận.
+     *
+     * Client nhận gói này và xóa các bong bóng tương ứng khỏi màn hình ngay lập tức.
+     */
+    public static ChatEventPayload messagesDeleted(String conversationId, String targetUserId,
+                                                   String[] deletedMessageIds) {
+        return new ChatEventPayload(TYPE_MESSAGES_DELETED, conversationId, targetUserId, null,
+                null, false, deletedMessageIds, Instant.now());
     }
 }

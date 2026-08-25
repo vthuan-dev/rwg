@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome_back": "欢迎回来"
+    "welcome_back": "欢迎您，尊贵的客户：{username}"
   },
   "marquee": {
     "notice": "欢迎来到云顶名胜世界！24/7体验 Lucky 28、British Lucky 28、Korean Lucky 28 与 Taiwan Times。"
@@ -27,7 +27,7 @@
     "seen": "已查看",
     "delivered": "已送达",
     "you": "您",
-    "staff": "客服",
+    "staff": "客服服务",
     "online_hint": "通常在几分钟内回复",
     "closed_notice": "该对话已关闭。发送新消息即可重新开启。",
     "system": {
@@ -162,6 +162,7 @@
         "title": "钱包交易历史 (账本)"
       },
       "odds": {
+        "apply_pair": "应用于两边",
         "custom": "已应用自定义赔率",
         "err_range": "倍率必须在 {min} 到 {max} 之间。",
         "err_self": "您无法调整自己的赔率。",
@@ -172,6 +173,8 @@
         "intro": "配置 {username} 的自定义赔率",
         "intro_note": "自定义赔率将覆盖桌台默认赔率。调整幅度必须在默认的 0.5 倍到 3.0 倍之间。",
         "net_receive": "实得赔率: {value} (已扣除 {percent}% 佣金)",
+        "pair_hint": "一次保存即可将相同赔率应用于 {options}。",
+        "pair_label": "同时设置两边",
         "read_only": "您只有只读权限查看赔率，不允许编辑。",
         "reset": "恢复默认",
         "save": "保存",
@@ -477,12 +480,12 @@
     "bet_types": {
       "KL28_BIG": "大",
       "KL28_SMALL": "小",
-      "KL28_SINGLE": "单",
-      "KL28_DOUBLE": "双",
+      "KL28_SINGLE": "Odd",
+      "KL28_DOUBLE": "Even",
       "RED": "红",
       "BLACK": "黑",
-      "ODD": "单",
-      "EVEN": "双",
+      "ODD": "Odd",
+      "EVEN": "Even",
       "LOW": "小 (1-18)",
       "HIGH": "大 (19-36)",
       "PLAYER": "闲",
@@ -591,25 +594,25 @@
     "deposit_requested_title": "已收到存款申请",
     "deposit_requested": "您的 ${amount} 存款申请已收到，正在审核中。",
     "deposit_completed_title": "存款成功",
-    "deposit_completed": "${amount} 已存入您的钱包。",
+    "deposit_completed": "${amount} 已存入您的账户。",
     "deposit_rejected_title": "存款申请被拒",
     "deposit_rejected": "您的 ${amount} 存款申请未获批准，未存入任何资金。",
     "withdrawal_requested_title": "已收到提款申请",
-    "withdrawal_requested": "您的 ${amount} 提款申请正在审核，该金额已从钱包中预扣。",
+    "withdrawal_requested": "您的 ${amount} 提款申请正在审核，该金额已从账户中预扣。",
     "withdrawal_approved_title": "提款已批准",
     "withdrawal_approved": "您的 ${amount} 提款已获批准，正在转入您的账户。",
     "withdrawal_rejected_title": "提款被拒",
-    "withdrawal_rejected": "您的 ${amount} 提款未获批准，资金已退回您的钱包。",
+    "withdrawal_rejected": "您的 ${amount} 提款未获批准，资金已退回您的账户。",
     "admin_credit_title": "账户入款",
-    "admin_credit": "管理员已向您的钱包存入 ${amount}。",
+    "admin_credit": "您的账户已入账 ${amount}。",
     "admin_debit_title": "账户扣款",
-    "admin_debit": "管理员已从您的钱包扣除 ${amount}。"
+    "admin_debit": "您的账户已扣除 ${amount}。"
   },
   "history": {
     "load_more": "加载更多"
   },
   "asset": {
-    "wallet": "钱包",
+    "wallet": "账户",
     "deposit": "存款",
     "withdraw": "取款",
     "deposit_history": "存款记录",
@@ -652,11 +655,11 @@
     "step2_desc": "发送您要充值的金额和成功转账凭证的截图。",
     "step3_title": "步骤 3: 完成加额",
     "step3_desc": "客服专员将立即进行核对并将资金存入您的账户。",
-    "err_failed": "无法加载钱包信息，请重试。"
+    "err_failed": "无法加载账户信息，请重试。"
   },
   "profile": {
     "member": "会员",
-    "wallet_1": "主钱包",
+    "wallet_1": "主账户",
     "deposit": "存款",
     "withdraw": "取款",
     "referral_program": "推荐计划",
@@ -721,7 +724,9 @@
     "account_locked_note": "每个账号只能绑定一个银行账户。如需更改或修正信息，请联系客服。",
     "contact_support": "联系客服",
     "already_linked": "您已绑定一个银行账户，如需更改请联系客服。",
-    "remove_forbidden": "您无法自行解绑银行账户，请联系客服。"
+    "remove_forbidden": "您无法自行解绑银行账户，请联系客服。",
+    "login_password_contact": "联系客服修改登录密码",
+    "security_pin_contact": "联系客服重置6位提款密码"
   },
   "withdraw": {
     "title": "取款",
@@ -754,6 +759,7 @@
     "view_history": "查看取款记录",
     "back_to_profile": "返回个人中心",
     "limit_hint": "每笔 {min} 至 {max}",
+    "limit_hint_no_max": "每笔最低 {min}",
     "hint_need_account": "请选择收款账户",
     "hint_need_amount": "请输入不低于 {min} 的金额",
     "hint_need_password": "请输入取款密码",
@@ -779,7 +785,7 @@
     "page_of": "第 {page} / {total} 页",
     "prev_page": "上一页",
     "next_page": "下一页",
-    "wallet_balance": "钱包余额",
+    "wallet_balance": "余额",
     "balance": "余额",
     "current_match": "本期",
     "next_match": "下一期",
@@ -836,8 +842,8 @@
     "status_void": "作废",
     "red": "红",
     "black": "黑",
-    "odd": "单",
-    "even": "双",
+    "odd": "Odd",
+    "even": "Even",
     "low": "小 (1-18)",
     "high": "大 (19-36)",
     "player": "闲",
@@ -859,8 +865,8 @@
     "more_result": "查看更多",
     "big": "大",
     "small": "小",
-    "single": "单",
-    "double": "双",
+    "single": "Odd",
+    "double": "Even",
     "tier_premium": "Premium",
     "tier_gold": "Gold",
     "tier_platinum": "Platinum",

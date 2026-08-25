@@ -1,9 +1,9 @@
 {
   "header": {
-    "welcome_back": "Chào mừng quay trở lại"
+    "welcome_back": "Chào mừng khách hàng: {username}"
   },
   "marquee": {
-    "notice": "Welcome to Resort World Genting! Trải nghiệm đẳng cấp sảnh May mắn 28, May mắn 28 Anh, May mắn 28 Hàn & Taiwan Times 24/7."
+    "notice": "Welcome to Resort World Genting! Trải nghiệm đẳng cấp sảnh May mắn 28, May mắn 28 Anh, May mắn 28 Hàn & Taiwan Times 24/7"
   },
   "quick_actions": {
     "deposit": "Nạp tiền",
@@ -27,7 +27,7 @@
     "seen": "Đã xem",
     "delivered": "Đã gửi",
     "you": "Bạn",
-    "staff": "Hỗ trợ",
+    "staff": "Dịch Vụ Khách Hàng",
     "online_hint": "Thường phản hồi trong vài phút",
     "closed_notice": "Cuộc trò chuyện đã được đóng. Gửi tin mới để mở lại.",
     "system": {
@@ -162,6 +162,7 @@
         "title": "Lịch sử Giao dịch Ví (Ledger)"
       },
       "odds": {
+        "apply_pair": "Áp cả cặp",
         "custom": "Đang áp dụng tỷ lệ cược riêng",
         "err_range": "Hệ số phải nằm trong khoảng {min} đến {max}.",
         "err_self": "Bạn không thể tự điều chỉnh tỷ lệ cược của chính mình.",
@@ -172,6 +173,8 @@
         "intro": "Cấu hình tỷ lệ cược riêng cho {username}",
         "intro_note": "Tỷ lệ cược riêng sẽ ghi đè tỷ lệ mặc định của bàn. Chỉ điều chỉnh trong khoảng 0.5x đến 3.0x mức chung.",
         "net_receive": "Thực nhận: {value} (đã trừ {percent}% hoa hồng sảnh)",
+        "pair_hint": "Đặt cùng hệ số cho {options} trong một lần lưu.",
+        "pair_label": "Đặt cả hai cửa cùng lúc",
         "read_only": "Bạn chỉ có quyền xem tỷ lệ cược, không được phép chỉnh sửa.",
         "reset": "Khôi phục mặc định",
         "save": "Lưu",
@@ -477,12 +480,12 @@
     "bet_types": {
       "KL28_BIG": "Lớn",
       "KL28_SMALL": "Nhỏ",
-      "KL28_SINGLE": "Lẻ",
-      "KL28_DOUBLE": "Chẵn",
+      "KL28_SINGLE": "Odd",
+      "KL28_DOUBLE": "Even",
       "RED": "Đỏ",
       "BLACK": "Đen",
-      "ODD": "Lẻ",
-      "EVEN": "Chẵn",
+      "ODD": "Odd",
+      "EVEN": "Even",
       "LOW": "Thấp (1-18)",
       "HIGH": "Cao (19-36)",
       "PLAYER": "Người chơi",
@@ -589,27 +592,27 @@
     "game_win": "Chúc mừng: bạn thắng {amount}",
     "game_loss": "Ván này chưa thắng!",
     "deposit_requested_title": "Đã nhận yêu cầu nạp tiền",
-    "deposit_requested": "Yêu cầu nạp ${amount} đã được ghi nhận và đang chệ duyệt.",
+    "deposit_requested": "Yêu cầu nạp ${amount} đã được ghi nhận và đang phê duyệt.",
     "deposit_completed_title": "Nạp tiền thành công",
-    "deposit_completed": "Đã cộng ${amount} vào ví của bạn.",
+    "deposit_completed": "Đã cộng ${amount} vào tài khoản của bạn.",
     "deposit_rejected_title": "Yêu cầu nạp bị từ chối",
-    "deposit_rejected": "Yêu cầu nạp ${amount} không được duyệt. Không có tiền nào được cộng vào ví.",
+    "deposit_rejected": "Yêu cầu nạp ${amount} không được duyệt. Không có tiền nào được cộng vào tài khoản.",
     "withdrawal_requested_title": "Đã nhận lệnh rút tiền",
-    "withdrawal_requested": "Lệnh rút ${amount} đang chệ duyệt. Số tiền này đã được tạm trừ khỏi ví.",
+    "withdrawal_requested": "Lệnh rút ${amount} đang phê duyệt. Số tiền này đã được tạm trừ khỏi tài khoản.",
     "withdrawal_approved_title": "Lệnh rút đã được duyệt",
     "withdrawal_approved": "Lệnh rút ${amount} đã được duyệt và đang chuyển tới tài khoản của bạn.",
     "withdrawal_rejected_title": "Lệnh rút bị từ chối",
-    "withdrawal_rejected": "Lệnh rút ${amount} không được duyệt. Tiền đã được hoàn lại ví của bạn.",
+    "withdrawal_rejected": "Lệnh rút ${amount} không được duyệt. Tiền đã được hoàn lại tài khoản của bạn.",
     "admin_credit_title": "Được cộng tiền",
-    "admin_credit": "Quản trị viên đã cộng ${amount} vào ví của bạn.",
+    "admin_credit": "Tài khoản của bạn đã được cộng ${amount}.",
     "admin_debit_title": "Bị trừ tiền",
-    "admin_debit": "Quản trị viên đã trừ ${amount} khỏi ví của bạn."
+    "admin_debit": "Tài khoản của bạn đã bị trừ ${amount}."
   },
   "history": {
     "load_more": "Xem thêm"
   },
   "asset": {
-    "wallet": "Ví",
+    "wallet": "Tài khoản",
     "deposit": "Nạp tiền",
     "withdraw": "Rút tiền",
     "deposit_history": "Lịch sử nạp tiền",
@@ -652,11 +655,11 @@
     "step2_desc": "Gửi số tiền muốn nạp và ảnh chụp biên lai giao dịch thành công.",
     "step3_title": "Bước 3: Hoàn thành cộng tiền",
     "step3_desc": "Hỗ trợ viên sẽ xác nhận và cộng tiền vào tài khoản của bạn ngay lập tức.",
-    "err_failed": "Không tải được thông tin ví. Vui lòng thử lại."
+    "err_failed": "Không tải được thông tin tài khoản. Vui lòng thử lại."
   },
   "profile": {
     "member": "Thành viên",
-    "wallet_1": "Ví chính",
+    "wallet_1": "Tài khoản chính",
     "deposit": "Nạp tiền",
     "withdraw": "Rút tiền",
     "referral_program": "Chương trình giới thiệu",
@@ -721,7 +724,9 @@
     "account_locked_note": "Mỗi tài khoản chỉ liên kết được một tài khoản ngân hàng. Cần đổi hoặc sửa thông tin, vui lòng liên hệ CSKH để được hỗ trợ.",
     "contact_support": "Liên hệ CSKH",
     "already_linked": "Bạn đã liên kết một tài khoản ngân hàng. Vui lòng liên hệ CSKH để đổi.",
-    "remove_forbidden": "Bạn không thể tự gỡ tài khoản ngân hàng. Vui lòng liên hệ CSKH."
+    "remove_forbidden": "Bạn không thể tự gỡ tài khoản ngân hàng. Vui lòng liên hệ CSKH.",
+    "login_password_contact": "Liên hệ hỗ trợ để đổi mật khẩu đăng nhập",
+    "security_pin_contact": "Liên hệ hỗ trợ để đặt lại mã 6 số"
   },
   "withdraw": {
     "title": "Rút tiền",
@@ -754,6 +759,7 @@
     "view_history": "Xem lịch sử rút tiền",
     "back_to_profile": "Về trang hồ sơ",
     "limit_hint": "Mỗi lệnh từ {min} đến {max}",
+    "limit_hint_no_max": "Tối thiểu {min} mỗi lệnh",
     "hint_need_account": "Chọn tài khoản nhận tiền",
     "hint_need_amount": "Nhập số tiền từ {min}",
     "hint_need_password": "Nhập mật khẩu rút tiền",
@@ -779,7 +785,7 @@
     "page_of": "Trang {page} / {total}",
     "prev_page": "Trang trước",
     "next_page": "Trang sau",
-    "wallet_balance": "Số dư ví",
+    "wallet_balance": "Số dư",
     "balance": "Số dư",
     "current_match": "Phiên hiện tại",
     "next_match": "Phiên tiếp theo",
@@ -836,8 +842,8 @@
     "status_void": "Huỷ",
     "red": "Đỏ",
     "black": "Đen",
-    "odd": "Lẻ",
-    "even": "Chẵn",
+    "odd": "Odd",
+    "even": "Even",
     "low": "Thấp (1-18)",
     "high": "Cao (19-36)",
     "player": "Người chơi",
@@ -859,8 +865,8 @@
     "more_result": "Xem thêm",
     "big": "Lớn",
     "small": "Nhỏ",
-    "single": "Lẻ",
-    "double": "Chẵn",
+    "single": "Odd",
+    "double": "Even",
     "tier_premium": "Premium",
     "tier_gold": "Gold",
     "tier_platinum": "Platinum",

@@ -12,6 +12,7 @@ import { Client } from "@stomp/stompjs";
 import { useTranslation } from "@/context/LanguageContext";
 import {
   ApiError,
+  clearPlayerTokens,
   getPlayerToken,
   getUnreadNotificationsCount,
   getChatUnreadCount,
@@ -269,6 +270,39 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (err) {
           console.error("Lỗi xử lý websocket wallet update:", err);
         }
+      });
+
+      // 3b) Subscribe game odds updates
+      client.subscribe("/user/queue/game/odds-updated", (msg) => {
+        try {
+          const payload = JSON.parse(msg.body);
+          window.dispatchEvent(
+            new CustomEvent("game_odds_updated", { detail: payload })
+          );
+        } catch (err) {
+          console.error("Lỗi xủ lý websocket odds update:", err);
+        }
+      });
+
+      // 3c) Phiên bị thu hồi (admin khóa tài khoản, đổi quyền, hoặc đặt lại mật khẩu).
+      //
+      // KHÔNG hiện thông báo gì: đây là yêu cầu nghiệp vụ. Người bị khóa chỉ thấy mình
+      // đang ở trang đăng nhập; lý do khóa không được tiết lộ ra giao diện.
+      client.subscribe("/user/queue/session", () => {
+        clearPlayerTokens();
+
+        // Ngắt socket TRƯỚC khi điều hướng: token đã bị xoá nên lần kết nối lại tự động
+        // của stompjs (reconnectDelay 5000) sẽ thất bại và lặp mãi, mỗi lần ghi một dòng lỗi
+        // vào console của trang đăng nhập.
+        stompClientRef.current?.deactivate();
+        stompClientRef.current = null;
+
+        // `location.replace` chứ không router của Next: cần Bỏ HẲN toàn bộ state đang có
+        // trong trang. Điều hướng bằng router giữ nguyên cây React, nên các trang đang mở
+        // vẫn còn dữ liệu cũ trong bộ nhớ và các vòng gọi API của chúng vẫn chạy tiếp một
+        // lúc. `replace` cũng không để lại mục lịch sử, nên bấm nút quay lại không đưa họ
+        // về trang đã bị tước quyền.
+        window.location.replace("/login");
       });
 
       // 4) Subscribe chat hỗ trợ.

@@ -50,16 +50,34 @@ export default function SecurityCenterPage() {
       <main className="flex grow flex-col">
         {checked ? (
           <>
+            {/* CẢ HAI DÒNG DẪN SANG TRANG HỖ TRỢ, không sang trang tự đổi.
+
+                Trước đây chúng trỏ tới `/profile/security-center/login-password` và
+                `.../security-pin` — HAI TRANG KHÔNG TỒN TẠI. Thư mục `security-center/`
+                chỉ có `page.tsx`, nên bấm vào là 404 và người dùng tưởng chức năng bị
+                lỗi.
+
+                Hướng vận hành đã chọn: người chơi nhắn cho hỗ trợ, nhân sự đổi hộ. Nên
+                đích đúng là trang trò chuyện.
+
+                DÙNG CHUỖI cho `href` chứ không dùng hàm gọi `router.push`:
+                `ProfileMenuRow` render hàm thành `<button>` (xem javadoc của nó), còn
+                đây là điều hướng thật — cần `<a>` để trình đọc màn hình đọc đúng là
+                liên kết và người dùng mở được trong tab mới.
+
+                Phụ đề đổi sang khoá riêng nói rõ phải liên hệ hỗ trợ, thay vì để người
+                dùng bấm vào rồi mới biết mình không tự đổi được. Hai khoá cũ giữ nguyên
+                vì trang `account-settings` cũng dùng chúng. */}
             <ProfileMenuRow
               href="/profile/security-center/login-password"
               icon="icon-icon37"
-              subtitle={t("profile.login_password_description")}
+              subtitle={t("profile.login_password_contact")}
               title={t("profile.login_password")}
             />
             <ProfileMenuRow
               href="/profile/security-center/security-pin"
               icon="icon-icon42"
-              subtitle={t("profile.security_pin_description")}
+              subtitle={t("profile.security_pin_contact")}
               title={t("profile.security_pin")}
             />
           </>

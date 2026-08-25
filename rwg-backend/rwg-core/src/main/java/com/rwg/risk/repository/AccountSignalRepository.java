@@ -15,6 +15,23 @@ import java.util.UUID;
 public interface AccountSignalRepository extends JpaRepository<AccountSignal, UUID> {
 
     /**
+     * Đếm dấu vết đăng ký của một người — dùng khi kiểm tra tài khoản có "sạch" không.
+     *
+     * Dấu vết thiết bị (device fingerprint, IP) là đầu mối điều tra khi có khiếu nại.
+     * Tài khoản có dấu vết thì KHÔNG xóa hẳn — chỉ đóng (CLOSED) để sổ sách còn đó.
+     */
+    long countByUserId(UUID userId);
+
+    /**
+     * Xoá dấu vết đăng ký của một người.
+     *
+     * Chỉ dùng trên đường xóa hẳn một tài khoản SẠCH (chưa từng có giao dịch nào). Dấu vết
+     * này dùng để đa tài khoản, nên với tài khoản có tiền thì phải giữ - đó là lúc nó có
+     * giá trị nhất.
+     */
+    void deleteByUserId(UUID userId);
+
+    /**
      * Các user khác cùng dấu vết thiết bị. Loại chính user đang xét ra ngay trong
      * truy vấn để nơi gọi không phải nhớ lọc.
      */

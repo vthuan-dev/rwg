@@ -14,6 +14,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
  * `header` chuyển thẳng xuống `MobileShell` để thanh tiêu đề nằm NGOÀI vùng nội dung
  * cuộn. Đặt thanh bên trong `children` thì `sticky top-0` của nó dính theo vùng cuộn của
  * trang chứ không theo khung, nên khi cuộn thanh sẽ trôi lên mất.
+ *
+ * KHÔNG kiểm đăng nhập ở đây: việc đó do `AuthGate` ở layout gốc lo, và nó phủ MỌI
+ * đường dẫn — kể cả các trang không dùng khung này (`/asset/*`, `/profile/account-settings`).
  */
 export const PlayerLayout: React.FC<{
   children: React.ReactNode;

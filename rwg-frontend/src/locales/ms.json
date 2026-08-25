@@ -1,9 +1,9 @@
 {
   "header": {
-    "welcome_back": "Selamat kembali"
+    "welcome_back": "Selamat datang, pelanggan: {username}"
   },
   "marquee": {
-    "notice": "Selamat datang ke Resort World Genting! Nikmati Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7."
+    "notice": "Selamat datang ke Resort World Genting! Nikmati Lucky 28, British Lucky 28, Korean Lucky 28 & Taiwan Times 24/7"
   },
   "quick_actions": {
     "deposit": "Deposit",
@@ -27,7 +27,7 @@
     "seen": "Dilihat",
     "delivered": "Dihantar",
     "you": "Anda",
-    "staff": "Sokongan",
+    "staff": "Khidmat Pelanggan",
     "online_hint": "Biasanya membalas dalam beberapa minit",
     "closed_notice": "Perbualan ini telah ditutup. Hantar mesej baharu untuk membukanya semula.",
     "system": {
@@ -162,6 +162,7 @@
         "title": "Sejarah Transaksi Dompet (Lejar)"
       },
       "odds": {
+        "apply_pair": "Guna pada kedua",
         "custom": "Odds tersuai digunakan",
         "err_range": "Pengganda mestilah antara {min} dan {max}.",
         "err_self": "Anda tidak boleh melaraskan odds anda sendiri.",
@@ -172,6 +173,8 @@
         "intro": "Konfigurasi odds tersuai untuk {username}",
         "intro_note": "Odds tersuai akan mengatasi lalai meja. Pelarasan mestilah dalam lingkungan 0.5x hingga 3.0x daripada lalai.",
         "net_receive": "Pembayaran bersih: {value} (selepas komisen {percent}%)",
+        "pair_hint": "Menetapkan gandaan yang sama pada {options} dalam satu simpanan.",
+        "pair_label": "Tetapkan kedua-dua sekali",
         "read_only": "Anda mempunyai akses lihat sahaja untuk odds; pengeditan tidak dibenarkan.",
         "reset": "Tetapkan semula ke lalai",
         "save": "Simpan",
@@ -477,12 +480,12 @@
     "bet_types": {
       "KL28_BIG": "Besar",
       "KL28_SMALL": "Kecil",
-      "KL28_SINGLE": "Ganjil",
-      "KL28_DOUBLE": "Genap",
+      "KL28_SINGLE": "Odd",
+      "KL28_DOUBLE": "Even",
       "RED": "Merah",
       "BLACK": "Hitam",
-      "ODD": "Ganjil",
-      "EVEN": "Genap",
+      "ODD": "Odd",
+      "EVEN": "Even",
       "LOW": "Rendah (1-18)",
       "HIGH": "Tinggi (19-36)",
       "PLAYER": "Pemain",
@@ -591,25 +594,25 @@
     "deposit_requested_title": "Permintaan deposit diterima",
     "deposit_requested": "Permintaan deposit ${amount} anda telah diterima dan sedang disemak.",
     "deposit_completed_title": "Deposit berjaya",
-    "deposit_completed": "${amount} telah dikreditkan ke dompet anda.",
+    "deposit_completed": "${amount} telah dikreditkan ke akaun anda.",
     "deposit_rejected_title": "Permintaan deposit ditolak",
     "deposit_rejected": "Permintaan deposit ${amount} anda tidak diluluskan. Tiada dana dikreditkan.",
     "withdrawal_requested_title": "Permintaan pengeluaran diterima",
-    "withdrawal_requested": "Pengeluaran ${amount} anda sedang disemak. Jumlah ini telah ditahan daripada dompet anda.",
+    "withdrawal_requested": "Pengeluaran ${amount} anda sedang disemak. Jumlah ini telah ditahan daripada akaun anda.",
     "withdrawal_approved_title": "Pengeluaran diluluskan",
     "withdrawal_approved": "Pengeluaran ${amount} anda telah diluluskan dan sedang dihantar ke akaun anda.",
     "withdrawal_rejected_title": "Pengeluaran ditolak",
-    "withdrawal_rejected": "Pengeluaran ${amount} anda tidak diluluskan. Dana telah dipulangkan ke dompet anda.",
+    "withdrawal_rejected": "Pengeluaran ${amount} anda tidak diluluskan. Dana telah dipulangkan ke akaun anda.",
     "admin_credit_title": "Dana ditambah",
-    "admin_credit": "Pentadbir telah mengkreditkan ${amount} ke dompet anda.",
+    "admin_credit": "Akaun anda telah dikreditkan ${amount}.",
     "admin_debit_title": "Dana ditolak",
-    "admin_debit": "Pentadbir telah menolak ${amount} daripada dompet anda."
+    "admin_debit": "Akaun anda telah didebitkan ${amount}."
   },
   "history": {
     "load_more": "Muat lagi"
   },
   "asset": {
-    "wallet": "Dompet",
+    "wallet": "Akaun",
     "deposit": "Deposit",
     "withdraw": "Pengeluaran",
     "deposit_history": "Sejarah deposit",
@@ -652,11 +655,11 @@
     "step2_desc": "Hantar jumlah yang ingin anda depositkan dan tangkapan skrin resit pindahan yang berjaya.",
     "step3_title": "Langkah 3: Selesai & Kredit",
     "step3_desc": "Ejen sokongan kami akan mengesahkan dan mengkreditkan dompet anda dengan segera.",
-    "err_failed": "Gagal memuatkan maklumat dompet. Sila cuba lagi."
+    "err_failed": "Gagal memuatkan maklumat akaun. Sila cuba lagi."
   },
   "profile": {
     "member": "Ahli",
-    "wallet_1": "Dompet utama",
+    "wallet_1": "Akaun utama",
     "deposit": "Deposit",
     "withdraw": "Keluarkan",
     "referral_program": "Program rujukan",
@@ -721,7 +724,9 @@
     "account_locked_note": "Setiap akaun hanya boleh memautkan satu akaun bank. Untuk menukar atau membetulkan maklumat, sila hubungi khidmat pelanggan.",
     "contact_support": "Hubungi khidmat pelanggan",
     "already_linked": "Anda telah memautkan satu akaun bank. Sila hubungi khidmat pelanggan untuk menukarnya.",
-    "remove_forbidden": "Anda tidak boleh membuang akaun bank sendiri. Sila hubungi khidmat pelanggan."
+    "remove_forbidden": "Anda tidak boleh membuang akaun bank sendiri. Sila hubungi khidmat pelanggan.",
+    "login_password_contact": "Hubungi sokongan untuk menukar kata laluan log masuk",
+    "security_pin_contact": "Hubungi sokongan untuk menetapkan semula kod 6 angka"
   },
   "withdraw": {
     "title": "Pengeluaran",
@@ -754,6 +759,7 @@
     "view_history": "Lihat sejarah pengeluaran",
     "back_to_profile": "Kembali ke profil",
     "limit_hint": "Setiap permintaan {min} hingga {max}",
+    "limit_hint_no_max": "Minimum {min} setiap permintaan",
     "hint_need_account": "Pilih akaun pembayaran",
     "hint_need_amount": "Masukkan jumlah dari {min}",
     "hint_need_password": "Masukkan kata laluan pengeluaran",
@@ -779,7 +785,7 @@
     "page_of": "Halaman {page} daripada {total}",
     "prev_page": "Halaman sebelum",
     "next_page": "Halaman seterusnya",
-    "wallet_balance": "Baki dompet",
+    "wallet_balance": "Baki",
     "balance": "Baki",
     "current_match": "Pusingan semasa",
     "next_match": "Pusingan seterusnya",
@@ -836,8 +842,8 @@
     "status_void": "Dibatalkan",
     "red": "Merah",
     "black": "Hitam",
-    "odd": "Ganjil",
-    "even": "Genap",
+    "odd": "Odd",
+    "even": "Even",
     "low": "Rendah (1-18)",
     "high": "Tinggi (19-36)",
     "player": "Pemain",
@@ -859,8 +865,8 @@
     "more_result": "Lihat lagi",
     "big": "Besar",
     "small": "Kecil",
-    "single": "Ganjil",
-    "double": "Genap",
+    "single": "Odd",
+    "double": "Even",
     "tier_premium": "Premium",
     "tier_gold": "Gold",
     "tier_platinum": "Platinum",

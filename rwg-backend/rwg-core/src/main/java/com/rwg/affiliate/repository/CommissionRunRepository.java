@@ -16,6 +16,17 @@ import java.util.UUID;
 public interface CommissionRunRepository extends JpaRepository<CommissionRun, UUID> {
 
     /**
+     * Số lượt hoa hồng đã chạy cho một đại lý.
+     *
+     * Dùng khi quyết định có xóa hẳn được hay không. Một lượt hoa hồng là một khoản tiền đã
+     * chi hoặc đang giữ, nên nó thuộc sổ sách tài chính.
+     */
+    long countByAgentId(UUID agentId);
+
+    /** Xoá mọi lượt hoa hồng của một đại lý. Chỉ dùng cho tài khoản SẠCH. */
+    void deleteByAgentId(UUID agentId);
+
+    /**
      * Fast-path chống chi trùng. Chốt thật vẫn là
      * uq_commission_runs_agent_period_level ở tầng DB — hai job song song có thể
      * cùng vượt qua check này, nhưng chỉ 1 insert thành công.
