@@ -18,6 +18,7 @@ import com.rwg.common.PageResponse;
 import com.rwg.config.ChatProperties;
 import com.rwg.identity.domain.User;
 import com.rwg.identity.repository.UserRepository;
+import com.rwg.identity.service.AdminDestructivePinService;
 import com.rwg.identity.service.AuditTrailService;
 import com.rwg.media.service.MediaStorageService;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,7 @@ public class AdminChatService {
      */
     private static final int MAX_PAGE_SIZE = 100;
 
+    private final AdminDestructivePinService pinService;
     private final ChatConversationRepository conversationRepository;
     private final ChatMessageRepository messageRepository;
     private final UserRepository userRepository;
@@ -70,7 +72,8 @@ public class AdminChatService {
     /** Dựng dữ liệu thẻ duyệt lệnh rút cho những tin là thẻ. */
     private final ChatWithdrawalCardResolver withdrawalCardResolver;
 
-    public AdminChatService(ChatConversationRepository conversationRepository,
+    public AdminChatService(AdminDestructivePinService pinService,
+                            ChatConversationRepository conversationRepository,
                             ChatMessageRepository messageRepository,
                             UserRepository userRepository,
                             ChatService chatService,
@@ -79,6 +82,7 @@ public class AdminChatService {
                             ChatProperties chatProperties,
                             MediaStorageService mediaStorageService,
                             ChatWithdrawalCardResolver withdrawalCardResolver) {
+        this.pinService = pinService;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
@@ -355,8 +359,9 @@ public class AdminChatService {
      * @return số tin đã được đánh dấu xóa thật sự.
      */
     @Transactional
-    public int deleteMessages(UUID conversationId, List<UUID> messageIds,
-                              UUID staffId, String staffUsername, String ip) {
+    public int deleteMessages(UUID conversationId, List<UUID> messageIds, String confirmPin,
+                               UUID staffId, String staffUsername, String ip) {
+        pinService.verify(staffId, confirmPin);
         ChatConversation conversation = requireConversation(conversationId);
 
         List<ChatMessage> toDelete = messageRepository.findByConversationIdAndIdIn(

@@ -531,12 +531,17 @@ export default function AdminSupportPage() {
 
   const deleteMessages = async () => {
     if (selectedIds.size === 0 || !activeId || acting) return;
+    const pin = window.prompt("Nhập mã xác nhận bảo mật để xóa tin nhắn:");
+    if (pin === null) return; // Người dùng bấm Hủy
     setActing(true);
     setThreadError("");
     try {
       await adminFetch(`/admin/chat/conversations/${activeId}/messages`, {
         method: "DELETE",
-        body: JSON.stringify({ messageIds: Array.from(selectedIds) }),
+        body: JSON.stringify({
+          messageIds: Array.from(selectedIds),
+          confirmPin: pin.trim(),
+        }),
       });
       setMessages((prev) => prev.filter((m) => !selectedIds.has(m.id)));
       setSelectMode(false);

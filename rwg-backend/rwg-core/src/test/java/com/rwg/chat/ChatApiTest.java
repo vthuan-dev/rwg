@@ -427,7 +427,7 @@ class ChatApiTest {
                         .header("Authorization", staff)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"messageIds":["%s"]}
+                                {"messageIds":["%s"],"confirmPin":"171204"}
                                 """.formatted(msgId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.deleted").value(1));
@@ -451,7 +451,28 @@ class ChatApiTest {
         assertThat(logs).hasSize(1);
     }
 
-    @Test
+        @Test
+    @DisplayName("Xóa tin nhắn sai mã PIN bị từ chối")
+    void deleteMessagesWrongPin() throws Exception {
+        String playerUsername = register("chatwrongpin");
+        String player = playerBearer(playerUsername);
+        JsonNode sentMsg = sendAsPlayer(player, "Tin nhan de test wrong pin", null);
+        String msgId = sentMsg.get("id").asText();
+        String conversationId = myConversationId(player);
+
+        String staff = staffBearer(UserRole.SUPPORT);
+
+        mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"messageIds":["%s"],"confirmPin":"wrong"}
+                                """.formatted(msgId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+@Test
     @DisplayName("Người chơi và vai trò RISK không được quyền xóa tin nhắn")
     void playerAndRiskCannotDeleteMessages() throws Exception {
         String player = playerBearer(register("chatdel2"));
@@ -464,7 +485,7 @@ class ChatApiTest {
                         .header("Authorization", player)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"messageIds":["%s"]}
+                                {"messageIds":["%s"],"confirmPin":"171204"}
                                 """.formatted(msgId)))
                 .andExpect(status().isForbidden());
 
@@ -476,7 +497,7 @@ class ChatApiTest {
                         .header("Authorization", risk)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"messageIds":["%s"]}
+                                {"messageIds":["%s"],"confirmPin":"171204"}
                                 """.formatted(msgId)))
                 .andExpect(status().isForbidden());
     }
@@ -492,13 +513,13 @@ class ChatApiTest {
                         .header("Authorization", staff)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"messageIds":[]}
+                                {"messageIds":[],"confirmPin":"171204"}
                                 """))
                 .andExpect(status().isBadRequest());
 
         // 2. Vượt quá 100 tin nhắn (dựng list giả lập)
         StringBuilder sb = new StringBuilder();
-        sb.append("{\"messageIds\":[");
+        sb.append("{\"confirmPin\":\"171204\",\"messageIds\":[");
         for (int i = 0; i < 101; i++) {
             sb.append("\"").append(UUID.randomUUID().toString()).append("\"");
             if (i < 100) sb.append(",");

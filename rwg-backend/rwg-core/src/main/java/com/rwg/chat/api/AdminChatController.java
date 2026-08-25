@@ -161,7 +161,7 @@ public class AdminChatController {
                                                @Valid @RequestBody DeleteChatMessagesRequest request,
                                                @AuthenticationPrincipal Jwt jwt,
                                                HttpServletRequest httpRequest) {
-        int deleted = service.deleteMessages(id, request.messageIds(),
+        int deleted = service.deleteMessages(id, request.getMessageIds(), request.getConfirmPin(),
                 UUID.fromString(jwt.getSubject()), username(jwt),
                 ClientAddresses.clientIp(httpRequest));
         return Map.of("deleted", deleted);
