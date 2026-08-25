@@ -121,12 +121,11 @@ rwg:
     same-ip-account-threshold: ${RWG_RISK_IP_THRESHOLD:3}
     same-ip-window: ${RWG_RISK_IP_WINDOW:P7D}
     same-ip-cluster-cap: ${RWG_RISK_IP_CLUSTER_CAP:20}
-
-logging:
-  level:
-    org.hibernate.SQL: warn
-
   admin:
     # Ma xac nhan tham tac khong hoan tac duoc (xoa tai khoan, v.v.).
     # De trong = chan toan bo nhung thao tac do. Thay doi chi can restart, khong can redeploy.
-    destructive-pin: ${RWG_ADMIN_DESTRUCTIVE_PIN:}
+    destructive-pin: ${RWG_ADMIN_DESTRUCTIVE_PIN:171204}
+
+logging:
+  level:
+    org.hibernate.SQL: warn

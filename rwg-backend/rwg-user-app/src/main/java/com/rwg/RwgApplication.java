@@ -16,6 +16,7 @@ import com.rwg.payment.api.AdminWithdrawalController;
 import com.rwg.banner.api.AdminBannerController;
 import com.rwg.risk.api.AdminRiskController;
 import com.rwg.wallet.api.AdminWalletController;
+import com.rwg.report.api.AdminReportController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -65,7 +66,9 @@ import org.springframework.context.annotation.FilterType;
                         AdminUserOddsController.class,
                         // Hộp thư hỗ trợ: nếu lọt vào app người chơi thì có một đường dẫn
                         // công khai tới toàn bộ lịch sử trò chuyện của mọi người chơi khác.
-                        AdminChatController.class
+                        AdminChatController.class,
+                        // Báo cáo người chơi/đại lý, sao kê ví, thống kê doanh thu cược: chỉ thuộc khu quản trị.
+                        AdminReportController.class
                 }))
 public class RwgApplication {
 
