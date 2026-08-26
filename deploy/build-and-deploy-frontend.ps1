@@ -84,6 +84,25 @@ robocopy "$FE\.next" "$stage\.next" /E /XD cache dev /NFL /NDL /NJH /NJS /NP | O
 robocopy "$FE\public" "$stage\public" /E /NFL /NDL /NJH /NJS /NP | Out-Null
 Copy-Item "$FE\package.json","$FE\package-lock.json","$FE\next.config.ts" $stage
 
+# --- .env.production: bien moi truong cho LUC CHAY, khong chi luc build ---
+#
+# VI SAO CAN: `next start` DOC LAI next.config.ts moi lan khoi dong. Moi phan cua
+# config co doc process.env (remotePatterns, rewrites, redirects) se duoc tinh lai o
+# thoi diem do - khong dung gia tri da co luc build.
+#
+# Lan truoc thieu buoc nay: images.remotePatterns suy tu NEXT_PUBLIC_USER_BASE_URL,
+# build ra dung "gentingcasino.pw" va nam trong required-server-files.json, nhung
+# tien trinh rwg-web khong co bien nao nen config tinh lai thanh "localhost:8080".
+# Ket qua: anh banner tai len bao '"url" parameter is not allowed', dung nhu khi
+# chua sua gi - trong khi ban build thi hoan toan dung.
+#
+# Sinh tu CHINH cac bien da khai o dau script, khong go lai tay: hai danh sach roi
+# nhau se lech nhau ngay lan dau ai do them mot bien moi.
+$envLines = Get-ChildItem env:NEXT_PUBLIC_* | Sort-Object Name |
+            ForEach-Object { "$($_.Name)=$($_.Value)" }
+[System.IO.File]::WriteAllText("$stage\.env.production", ($envLines -join "`n") + "`n")
+Write-Output "   .env.production: $($envLines.Count) bien"
+
 $sizeMB = [math]::Round((Get-ChildItem "$stage\.next" -Recurse -File | Measure-Object Length -Sum).Sum/1MB)
 Write-Output "   .next: $sizeMB MB"
 # Sau khi loai bo .next/dev (310 MB dev build), bundle production chuan chi khoang 15-25 MB.
@@ -132,3 +151,33 @@ foreach ($p in @("/", "/login", "/admin/2026/login")) {
     $code = (& cmd /c "`"$PLINK`" -ssh -batch -pw $VPS_PW $VPS `"curl -sS -o /dev/null -w '%{http_code}' https://$DOMAIN$p`" 2>&1")
     Write-Output "   https://$DOMAIN$p -> HTTP $code"
 }
+
+Write-Output ""
+Write-Output "########## 8. KIEM ANH BANNER QUA IMAGE OPTIMIZER ##########"
+# VI SAO KIEM RIENG BUOC NAY: cac duong dan o buoc 7 tra HTTP 200 ngay ca khi anh
+# banner hoan toan khong hien duoc - trang chu van dung, chi rieng o anh la hong.
+# Loi do tung len that va khong buoc nao trong script phat hien ra.
+#
+# Anh banner di qua /_next/image, va duong dan do bi chan neu images.remotePatterns
+# khong khop host. Kiem bang mot anh THAT tren dia thay vi ten gan cung: ten tep la
+# UUID sinh luc tai len nen khong the biet truoc.
+$checkImg = @'
+set -eu
+IMG=$(ls -t /opt/rwg/media/*.jpg /opt/rwg/media/*.png /opt/rwg/media/*.webp 2>/dev/null | head -1)
+if [ -z "$IMG" ]; then echo "   BO QUA - chua co anh banner nao tren dia"; exit 0; fi
+NAME=$(basename "$IMG")
+RAW="https://__DOMAIN__/uploads/media/$NAME"
+echo "   anh thu: $NAME"
+DIRECT=$(curl -sS -o /dev/null -w '%{http_code}' "$RAW")
+echo "   tai truc tiep      -> HTTP $DIRECT"
+ENC=$(printf '%s' "$RAW" | sed 's|:|%3A|g; s|/|%2F|g')
+OPT=$(curl -sS -o /dev/null -w '%{http_code}' "https://__DOMAIN__/_next/image?url=$ENC&w=640&q=75")
+echo "   qua image optimizer -> HTTP $OPT"
+[ "$OPT" = "200" ] || { echo "   LOI: optimizer tra $OPT, anh banner se hien thanh o hong"; exit 1; }
+echo "   OK anh banner hien duoc"
+'@
+$checkImg = ($checkImg -replace "__DOMAIN__", $DOMAIN) -replace "`r`n", "`n"
+$tmpChk = "d:\Project\RWG\.deploy-check-img.sh"
+[System.IO.File]::WriteAllText($tmpChk, $checkImg)
+& cmd /c "type `"$tmpChk`" | `"$PLINK`" -ssh -batch -pw $VPS_PW $VPS `"bash -s`" 2>&1"
+Remove-Item $tmpChk -Force
