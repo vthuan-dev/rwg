@@ -60,18 +60,11 @@ export const BetOptionGrid: React.FC<BetOptionGridProps> = ({
             onClick={() => onToggle(option.betType)}
             type="button"
           >
-            {/* Tỷ lệ riêng: đánh dấu bằng một chấm nhỏ ở góc, đủ để người chơi nhận ra
-                con số khác thường mà không phá bố cục hai dòng của ô. Chấm là hình khối
-                nên trình đọc màn hình không đọc được — nhãn ẩn phía dưới lo phần đó. */}
-            {option.personalized ? (
-              <span
-                aria-hidden="true"
-                className={`absolute end-1.5 top-1.5 size-1.5 rounded-full ${
-                  isSelected ? "bg-black/50" : "bg-primary"
-                }`}
-              />
-            ) : null}
-
+            {/* KHÔNG đánh dấu tỷ lệ riêng trên giao diện người chơi.
+                Trước đây ô có một chấm nhỏ ở góc khi admin đặt tỷ lệ riêng cho tài
+                khoản. Chấm đó tố cáo chính việc điều chỉnh: người chơi so với bạn bè
+                là biết mình đang bị áp con số khác. Hệ số mới vẫn về ngay qua sự kiện
+                `game_odds_updated`, nên phần cần hiển thị đã đủ — chỉ là con số. */}
             <span className="text-center text-[0.9375rem] font-bold">
               {t(option.labelKey)}
             </span>
@@ -93,10 +86,6 @@ export const BetOptionGrid: React.FC<BetOptionGridProps> = ({
                   percent: String(Number(option.commissionRate) * 100),
                 })}
               </span>
-            ) : null}
-
-            {option.personalized ? (
-              <span className="sr-only">{t("bet.personalized_odds")}</span>
             ) : null}
           </button>
         );
