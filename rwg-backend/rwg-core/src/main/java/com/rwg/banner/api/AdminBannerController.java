@@ -1,5 +1,6 @@
 package com.rwg.banner.api;
 
+import com.rwg.banner.domain.BannerPlacement;
 import com.rwg.banner.dto.BannerLimitsResponse;
 import com.rwg.banner.dto.BannerResponse;
 import com.rwg.banner.dto.UpdateBannerStatusRequest;
@@ -46,13 +47,17 @@ public class AdminBannerController {
     @Operation(summary = "Tải tệp Video (MP4/WebM) hoặc Ảnh (PNG/JPG/WebP) làm banner mới")
     public BannerResponse uploadBanner(
             @RequestPart("file") MultipartFile file,
+            // MẶC ĐỊNH HOME_CAROUSEL để không phá client cũ: trước khi có khu ảnh chat thì
+            // mọi lần tải lên đều là banner trang chủ.
+            @RequestParam(value = "placement", required = false, defaultValue = "HOME_CAROUSEL")
+            BannerPlacement placement,
             // TUỲ CHỌN: biểu mẫu ở khu quản trị chỉ còn tệp + thứ tự. Để trống thì
             // BannerService suy tiêu đề từ tên tệp (cột title là NOT NULL).
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "linkUrl", required = false) String linkUrl,
             @RequestParam(value = "sortOrder", required = false, defaultValue = "0") Integer sortOrder
     ) {
-        return bannerService.createBanner(file, title, linkUrl, sortOrder);
+        return bannerService.createBanner(file, placement, title, linkUrl, sortOrder);
     }
 
     /**
@@ -61,21 +66,28 @@ public class AdminBannerController {
      * KHÔNG để frontend gán cứng số 4: nếu gán cứng thì khi đổi {@code rwg.media.banner-max-count}
      * ở backend, frontend vẫn tắt nút theo con số cũ — hai nguồn sự thật cho cùng một
      * giới hạn, và người vận hành thấy nút bị tắt mà server vẫn nhận thêm.
+     *
+     * Trần KHÁC NHAU theo khu, nên phải hỏi theo {@code placement}.
      */
     @GetMapping("/limits")
-    @Operation(summary = "Giới hạn số lượng và dung lượng banner")
-    public BannerLimitsResponse limits() {
-        return bannerService.limits();
+    @Operation(summary = "Giới hạn số lượng và dung lượng banner của một khu")
+    public BannerLimitsResponse limits(
+            @RequestParam(value = "placement", required = false, defaultValue = "HOME_CAROUSEL")
+            BannerPlacement placement
+    ) {
+        return bannerService.limits(placement);
     }
 
     @GetMapping
-    @Operation(summary = "Tra cứu toàn bộ danh sách banner (phân trang)")
+    @Operation(summary = "Tra cứu danh sách banner của một khu (phân trang)")
     public PageResponse<BannerResponse> listBanners(
+            @RequestParam(value = "placement", required = false, defaultValue = "HOME_CAROUSEL")
+            BannerPlacement placement,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        return bannerService.listAllBanners(pageable);
+        return bannerService.listAllBanners(placement, pageable);
     }
 
     @PatchMapping("/{id}/status")

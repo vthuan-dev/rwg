@@ -109,8 +109,13 @@ public class SecurityConfig {
                         // Endpoint auth công khai
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/admin/auth/**").permitAll()
-                        // Xem banner & phát video/ảnh media công khai trên trang người chơi
-                        .requestMatchers("/api/v1/banners/active", "/uploads/media/**").permitAll()
+                        // Xem banner & phát video/ảnh media công khai trên trang người chơi.
+                        // `chat-promo` cũng công khai: đó là ảnh quảng bá gửi cho MỌI khách khi
+                        // mở khung chat, không phải ảnh đính kèm của một hội thoại cụ thể — ảnh
+                        // đính kèm là biên lai và giấy tờ cá nhân nên vẫn nằm sau
+                        // /api/v1/chat/attachments/ có kiểm tra quyền.
+                        .requestMatchers("/api/v1/banners/active", "/api/v1/banners/chat-promo",
+                                "/uploads/media/**").permitAll()
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
                         // theo providerTxnId; chặng sau thêm xác thực chữ ký provider.
                         .requestMatchers("/api/v1/payments/callback").permitAll()

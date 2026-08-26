@@ -2,6 +2,7 @@ package com.rwg.banner;
 
 import com.rwg.banner.domain.Banner;
 import com.rwg.banner.domain.BannerMediaType;
+import com.rwg.banner.domain.BannerPlacement;
 import com.rwg.banner.domain.BannerRepository;
 import com.rwg.identity.domain.User;
 import com.rwg.identity.domain.UserRole;
@@ -181,8 +182,10 @@ class AdminBannerApiTest {
     @Test
     @DisplayName("Player xem danh sách banner active tại trang chủ")
     void playerGetsActiveBanners() throws Exception {
-        Banner b1 = new Banner("Banner 1", BannerMediaType.VIDEO, "/uploads/media/v1.mp4", null, 1);
-        Banner b2 = new Banner("Banner 2", BannerMediaType.IMAGE, "/uploads/media/i1.png", null, 2);
+        Banner b1 = new Banner("Banner 1", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.VIDEO, "/uploads/media/v1.mp4", null, 1);
+        Banner b2 = new Banner("Banner 2", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.IMAGE, "/uploads/media/i1.png", null, 2);
         b2.setActive(false); // Inactive
         bannerRepository.save(b1);
         bannerRepository.save(b2);
@@ -198,7 +201,8 @@ class AdminBannerApiTest {
     @Test
     @DisplayName("Admin cập nhật trạng thái và xoá banner")
     void adminToggleStatusAndDelete() throws Exception {
-        Banner banner = new Banner("Banner Test", BannerMediaType.VIDEO, "/uploads/media/test.mp4", null, 0);
+        Banner banner = new Banner("Banner Test", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.VIDEO, "/uploads/media/test.mp4", null, 0);
         banner = bannerRepository.save(banner);
 
         // Bật / tắt status
@@ -263,7 +267,8 @@ class AdminBannerApiTest {
         // để lại 4 tệp thật trên đĩa của máy chạy test.
         for (int i = 1; i <= 4; i++) {
             bannerRepository.save(new Banner(
-                    "Banner " + i, BannerMediaType.IMAGE, "/uploads/media/seed" + i + ".png", null, i));
+                    "Banner " + i, BannerPlacement.HOME_CAROUSEL,
+                    BannerMediaType.IMAGE, "/uploads/media/seed" + i + ".png", null, i));
         }
 
         MockMultipartFile file = new MockMultipartFile(
@@ -285,7 +290,8 @@ class AdminBannerApiTest {
         // tải này sẽ thành công, và ai cũng có thể tải vô hạn bằng cách tắt hết đi.
         for (int i = 1; i <= 4; i++) {
             Banner b = new Banner(
-                    "Banner " + i, BannerMediaType.IMAGE, "/uploads/media/off" + i + ".png", null, i);
+                    "Banner " + i, BannerPlacement.HOME_CAROUSEL,
+                    BannerMediaType.IMAGE, "/uploads/media/off" + i + ".png", null, i);
             b.setActive(false);
             bannerRepository.save(b);
         }
@@ -305,7 +311,8 @@ class AdminBannerApiTest {
     @DisplayName("Endpoint /limits trả đúng trần và số đang có")
     void limitsEndpointReturnsCurrentState() throws Exception {
         bannerRepository.save(new Banner(
-                "Một banner", BannerMediaType.IMAGE, "/uploads/media/one.png", null, 1));
+                "Một banner", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.IMAGE, "/uploads/media/one.png", null, 1));
 
         mockMvc.perform(get("/api/v1/admin/banners/limits")
                         .header("Authorization", "Bearer " + adminToken))
@@ -314,5 +321,99 @@ class AdminBannerApiTest {
                 .andExpect(jsonPath("$.currentCount").value(1))
                 .andExpect(jsonPath("$.maxImageBytes").value(10L * 1024 * 1024))
                 .andExpect(jsonPath("$.maxVideoBytes").value(50L * 1024 * 1024));
+    }
+
+    // ===== Tách khu HOME_CAROUSEL / CHAT_PROMO =====
+    //
+    // Đây là nhóm ca kiểm QUAN TRỌNG NHẤT của tính năng này. Hai khu dùng chung một
+    // bảng, nên chỉ cần một truy vấn quên điều kiện `placement` là ảnh bảng thưởng dọc
+    // lọt lên carousel trang chủ của mọi người chơi, hoặc ảnh quảng cáo ngang bị gửi cho
+    // mọi khách trong khung chat.
+
+    @Test
+    @DisplayName("Ảnh khuyến mãi chat KHÔNG lọt vào carousel trang chủ")
+    void chatPromoDoesNotLeakIntoHomeCarousel() throws Exception {
+        bannerRepository.save(new Banner("Bảng thưởng", BannerPlacement.CHAT_PROMO,
+                BannerMediaType.IMAGE, "/uploads/media/promo.png", null, 0));
+        bannerRepository.save(new Banner("Banner trang chủ", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.IMAGE, "/uploads/media/home.png", null, 0));
+
+        mockMvc.perform(get("/api/v1/banners/active"))
+                .andExpect(status().isOk())
+                // ĐÚNG MỘT bản ghi, không phải hai.
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("Banner trang chủ"));
+    }
+
+    @Test
+    @DisplayName("Banner trang chủ KHÔNG bị gửi vào khung chat")
+    void homeCarouselDoesNotLeakIntoChatPromo() throws Exception {
+        bannerRepository.save(new Banner("Banner trang chủ", BannerPlacement.HOME_CAROUSEL,
+                BannerMediaType.IMAGE, "/uploads/media/home.png", null, 0));
+
+        // Chưa có ảnh CHAT_PROMO nào → 204, không phải trả banner trang chủ thay thế.
+        mockMvc.perform(get("/api/v1/banners/chat-promo"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("chat-promo trả ảnh ACTIVE đầu tiên theo thứ tự")
+    void chatPromoReturnsFirstActiveByOrder() throws Exception {
+        // Thứ tự lưu KHÁC thứ tự hiển thị, để chắc rằng kết quả do `sort_order` quyết định
+        // chứ không phải do tình cờ trùng thứ tự chèn.
+        bannerRepository.save(new Banner("Ảnh thứ hai", BannerPlacement.CHAT_PROMO,
+                BannerMediaType.IMAGE, "/uploads/media/p2.png", null, 5));
+
+        Banner tat = new Banner("Ảnh đang tắt", BannerPlacement.CHAT_PROMO,
+                BannerMediaType.IMAGE, "/uploads/media/p0.png", null, 0);
+        tat.setActive(false);
+        bannerRepository.save(tat);
+
+        bannerRepository.save(new Banner("Ảnh thứ nhất", BannerPlacement.CHAT_PROMO,
+                BannerMediaType.IMAGE, "/uploads/media/p1.png", null, 1));
+
+        mockMvc.perform(get("/api/v1/banners/chat-promo"))
+                .andExpect(status().isOk())
+                // Ảnh sort_order=0 bị TẮT nên phải bỏ qua, lấy sort_order=1.
+                .andExpect(jsonPath("$.title").value("Ảnh thứ nhất"))
+                .andExpect(jsonPath("$.placement").value("CHAT_PROMO"));
+    }
+
+    @Test
+    @DisplayName("Trần đếm RIÊNG từng khu: đủ 4 banner trang chủ vẫn tải được ảnh chat")
+    void maxCountIsPerPlacement() throws Exception {
+        for (int i = 1; i <= 4; i++) {
+            bannerRepository.save(new Banner(
+                    "Banner " + i, BannerPlacement.HOME_CAROUSEL,
+                    BannerMediaType.IMAGE, "/uploads/media/full" + i + ".png", null, i));
+        }
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "bang-thuong.png", "image/png", PNG_HEADER);
+
+        // Khu trang chủ đã đầy, nhưng khu chat còn trống → phải cho phép.
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .param("placement", "CHAT_PROMO")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.placement").value("CHAT_PROMO"));
+    }
+
+    @Test
+    @DisplayName("Khu chat TỪ CHỐI video: bong bóng chat không phát được video")
+    void chatPromoRejectsVideo() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "quang-cao.mp4", "video/mp4", MP4_HEADER);
+
+        mockMvc.perform(multipart("/api/v1/admin/banners/upload")
+                        .file(file)
+                        .param("placement", "CHAT_PROMO")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isBadRequest());
+
+        // KHÔNG để lại bản ghi nào: tệp đã ghi xuống đĩa trước khi kiểm loại, nên
+        // BannerService phải dọn tệp rồi mới ném lỗi.
+        assertThat(bannerRepository.findAll()).isEmpty();
     }
 }

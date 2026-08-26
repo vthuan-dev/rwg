@@ -940,6 +940,21 @@
     "max_reached": "배너 최대 {max}개에 도달했습니다. 하나를 삭제한 후 업로드하세요.",
     "err_too_large": "파일 {size}은 제한 {max}을 초과합니다",
     "hint_limits": "이미지 최대 {image}, 동상 최대 {video}",
-    "title_from_filename": "제목은 파일 이름에서 가지오집니다"
+    "title_from_filename": "제목은 파일 이름에서 가지오집니다",
+    "placement_tabs_label": "표시 영역 선택",
+    "live_badge": "사용 중",
+    "hint_limits_image_only": "이미지 최대 {image}",
+    "hint_sort_chat_promo": "숫자가 작을수록 우선합니다. 켜져 있는 이미지 중 가장 작은 번호가 고객에게 보입니다.",
+    "err_chat_promo_image_only": "채팅 영역은 이미지만 받습니다. 동영상은 불가합니다",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "홈 배너",
+        "hint": "홈 화면 상단에서 순환하는 동영상과 이미지. 가로 16:9."
+      },
+      "CHAT_PROMO": {
+        "name": "채팅 프로모션 이미지",
+        "hint": "고객이 실시간 상담을 열 때 자동으로 전송됩니다. 켜져 있는 첫 번째 이미지만 사용합니다."
+      }
+    }
   }
 }

@@ -940,6 +940,21 @@
     "max_reached": "Limit of {max} banners reached. Delete one before uploading.",
     "err_too_large": "File {size} exceeds the {max} limit",
     "hint_limits": "Images up to {image}, videos up to {video}",
-    "title_from_filename": "Title is taken from the file name"
+    "title_from_filename": "Title is taken from the file name",
+    "placement_tabs_label": "Select display area",
+    "live_badge": "IN USE",
+    "hint_limits_image_only": "Image up to {image}",
+    "hint_sort_chat_promo": "Lower numbers come first. The enabled image with the lowest number is what customers see.",
+    "err_chat_promo_image_only": "The chat area accepts images only, not video",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "Homepage Banners",
+        "hint": "Videos and images that rotate at the top of the homepage. Landscape 16/9."
+      },
+      "CHAT_PROMO": {
+        "name": "Chat Promo Image",
+        "hint": "Sent automatically when a customer opens Live Chat. Only the first enabled image is used."
+      }
+    }
   }
 }

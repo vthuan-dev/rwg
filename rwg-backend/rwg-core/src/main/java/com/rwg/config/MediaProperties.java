@@ -89,7 +89,20 @@ public record MediaProperties(
          * Spring ném MaxUploadSizeExceededException ở tầng servlet với thông báo khó
          * hiểu, còn giới hạn ở đây trả lỗi nói rõ mức tối đa.
          */
-        long bannerMaxVideoBytes
+        long bannerMaxVideoBytes,
+
+        /**
+         * Số ảnh khuyến mãi chat tối đa được phép tồn tại.
+         *
+         * TRẦN RIÊNG, không dùng chung {@link #bannerMaxCount}: hai khu không liên quan
+         * gì đến nhau, nên dùng chung một trần thì tải đủ 4 banner trang chủ là hết chỗ
+         * cho ảnh chat.
+         *
+         * 3 thay vì 1: khung chat chỉ dùng MỘT ảnh, nhưng cho lưu thêm vài bản để nhân
+         * sự chuẩn bị trước cho đợt sau rồi chỉ cần bật lên, thay vì phải xoá ảnh đang
+         * chạy mới tải được ảnh mới.
+         */
+        int chatPromoMaxCount
 ) {
 
     public MediaProperties {
@@ -100,6 +113,7 @@ public record MediaProperties(
         if (bannerMaxCount <= 0) bannerMaxCount = 4;
         if (bannerMaxImageBytes <= 0) bannerMaxImageBytes = 10L * 1024 * 1024;
         if (bannerMaxVideoBytes <= 0) bannerMaxVideoBytes = 50L * 1024 * 1024;
+        if (chatPromoMaxCount <= 0) chatPromoMaxCount = 3;
     }
 
     /** Dung lượng tối đa hiển thị cho người dùng, dạng "10MB". */

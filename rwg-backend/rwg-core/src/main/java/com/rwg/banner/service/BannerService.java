@@ -1,6 +1,8 @@
 package com.rwg.banner.service;
 
 import com.rwg.banner.domain.Banner;
+import com.rwg.banner.domain.BannerMediaType;
+import com.rwg.banner.domain.BannerPlacement;
 import com.rwg.banner.domain.BannerRepository;
 import com.rwg.banner.dto.BannerLimitsResponse;
 import com.rwg.banner.dto.BannerResponse;
@@ -18,9 +20,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Service quản lý Banner Video/Ảnh quảng cáo Trang chủ.
+ * Service quản lý Banner Video/Ảnh quảng cáo Trang chủ và ảnh khuyến mãi khung chat.
+ *
+ * Hai khu dùng CHUNG lớp này vì mọi quy tắc lưu trữ đều giống nhau — kiểm chữ ký byte,
+ * trần dung lượng, sinh tên UUID, xoá kèm tệp. Chỗ khác nhau duy nhất là
+ * {@link BannerPlacement}, và nó được truyền tường minh vào từng phương thức chứ không
+ * suy đoán từ loại tệp: một ảnh JPG có thể thuộc cả hai khu.
  */
 @Service
 public class BannerService {
@@ -48,32 +56,54 @@ public class BannerService {
     /** Lấy danh sách banner đang ACTIVE cho Trang chủ người chơi. */
     @Transactional(readOnly = true)
     public List<BannerResponse> listActiveBanners() {
-        return bannerRepository.findByIsActiveTrueOrderBySortOrderAscCreatedAtDesc()
+        return bannerRepository
+                .findByPlacementAndIsActiveTrueOrderBySortOrderAscCreatedAtDesc(BannerPlacement.HOME_CAROUSEL)
                 .stream()
                 .map(BannerResponse::from)
                 .toList();
     }
 
     /**
-     * Giới hạn hiện hành + số banner đang có.
+     * Ảnh khuyến mãi hiện hành của khung chat.
      *
-     * Đếm bằng {@code count()} chứ không đếm từ danh sách đã tải về: danh sách có phân
-     * trang nên trang đầu chỉ có 10 bản ghi, và với trần cao hơn 10 thì con số sẽ lệch.
+     * TRẢ VỀ ĐÚNG MỘT ảnh — bản ACTIVE đầu tiên theo thứ tự hiển thị — vì khung chat chỉ
+     * gửi một ảnh. Chọn ở tầng server chứ không trả cả danh sách để frontend tự lọc: hai
+     * nơi cùng quyết định "ảnh nào đang dùng" thì trang quản trị và khung chat sẽ hiện
+     * hai ảnh khác nhau ngay lần đầu logic lệch.
+     *
+     * {@code Optional.empty()} khi chưa cấu hình ảnh nào. Controller đổi thành 204 để
+     * frontend biết dùng ảnh dự phòng, thay vì nhận 404 trông như lỗi hệ thống.
      */
     @Transactional(readOnly = true)
-    public BannerLimitsResponse limits() {
+    public Optional<BannerResponse> chatPromo() {
+        return bannerRepository
+                .findByPlacementAndIsActiveTrueOrderBySortOrderAscCreatedAtDesc(BannerPlacement.CHAT_PROMO)
+                .stream()
+                .findFirst()
+                .map(BannerResponse::from);
+    }
+
+    /**
+     * Giới hạn hiện hành + số banner đang có của MỘT khu.
+     *
+     * Đếm bằng {@code countByPlacement()} chứ không đếm từ danh sách đã tải về: danh sách
+     * có phân trang nên trang đầu chỉ có 10 bản ghi, và với trần cao hơn 10 thì con số sẽ
+     * lệch.
+     */
+    @Transactional(readOnly = true)
+    public BannerLimitsResponse limits(BannerPlacement placement) {
         return new BannerLimitsResponse(
-                mediaProperties.bannerMaxCount(),
-                bannerRepository.count(),
+                maxCountFor(placement),
+                bannerRepository.countByPlacement(placement),
                 mediaProperties.bannerMaxImageBytes(),
                 mediaProperties.bannerMaxVideoBytes()
         );
     }
 
-    /** Tra cứu toàn bộ danh sách banner (dùng cho Admin). */
+    /** Tra cứu danh sách banner của một khu (dùng cho Admin). */
     @Transactional(readOnly = true)
-    public PageResponse<BannerResponse> listAllBanners(Pageable pageable) {
-        Page<Banner> page = bannerRepository.findAllByOrderBySortOrderAscCreatedAtDesc(pageable);
+    public PageResponse<BannerResponse> listAllBanners(BannerPlacement placement, Pageable pageable) {
+        Page<Banner> page = bannerRepository.findByPlacementOrderBySortOrderAscCreatedAtDesc(placement, pageable);
         return PageResponse.from(page.map(BannerResponse::from));
     }
 
@@ -86,16 +116,20 @@ public class BannerService {
      * banner — người chơi không đọc thấy nó.
      */
     @Transactional
-    public BannerResponse createBanner(MultipartFile file, String title, String linkUrl, Integer sortOrder) {
+    public BannerResponse createBanner(MultipartFile file,
+                                       BannerPlacement placement,
+                                       String title,
+                                       String linkUrl,
+                                       Integer sortOrder) {
         // TRẦN SỐ LƯỢNG KIỂM TRƯỚC KHI GHI ĐĨA, không phải sau.
         //
         // {@code mediaStorageService.store} ghi tệp xuống đĩa NGAY khi được gọi. Nếu kiểm
-        // trần sau đó thì tệp thứ 5 vẫn nằm lại trên đĩa rồi mới báo lỗi, để lại một tệp
-        // rác không có bản ghi nào trỏ tới và không ai biết để dọn.
+        // trần sau đó thì tệp vượt trần vẫn nằm lại trên đĩa rồi mới báo lỗi, để lại một
+        // tệp rác không có bản ghi nào trỏ tới và không ai biết để dọn.
         //
-        // ĐếM CẢ BANNER ĐANG TẮT: xem chú thích {@code bannerMaxCount}.
-        long existing = bannerRepository.count();
-        int maxCount = mediaProperties.bannerMaxCount();
+        // ĐẾM THEO KHU: xem chú thích {@code countByPlacement}.
+        long existing = bannerRepository.countByPlacement(placement);
+        int maxCount = maxCountFor(placement);
         if (existing >= maxCount) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR,
                     "Đã đạt số banner tối đa (" + maxCount + "). Xoá một banner cũ trước khi tải thêm.",
@@ -104,10 +138,25 @@ public class BannerService {
         }
 
         MediaStorageService.StoredMediaResult storedMedia = mediaStorageService.store(file);
+
+        // KHUNG CHAT KHÔNG PHÁT ĐƯỢC VIDEO: bong bóng chat vẽ ảnh bằng thẻ <img>. Một
+        // video tải vào khu này sẽ thành ô hỏng cho MỌI khách mở chat, và người vận hành
+        // không thấy gì bất thường ở trang quản trị. Chặn ở đây thay vì chỉ lọc `accept`
+        // ở trình duyệt — thuộc tính đó là gợi ý, không phải rào chắn.
+        if (placement == BannerPlacement.CHAT_PROMO
+                && storedMedia.mediaType() != BannerMediaType.IMAGE) {
+            // Tệp đã ghi xuống đĩa ở dòng trên, phải dọn trước khi ném lỗi.
+            mediaStorageService.deleteByPublicUrl(storedMedia.publicUrl());
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    "Ảnh khuyến mãi khung chat chỉ nhận tệp ảnh, không nhận video", null,
+                    "error.banner.chat_promo.image_only");
+        }
+
         int order = sortOrder != null ? sortOrder : 0;
 
         Banner banner = new Banner(
                 resolveTitle(title, file.getOriginalFilename()),
+                placement,
                 storedMedia.mediaType(),
                 storedMedia.publicUrl(),
                 linkUrl != null && !linkUrl.isBlank() ? linkUrl.trim() : null,
@@ -116,6 +165,13 @@ public class BannerService {
 
         Banner saved = bannerRepository.save(banner);
         return BannerResponse.from(saved);
+    }
+
+    /** Trần số lượng của khu tương ứng. */
+    private int maxCountFor(BannerPlacement placement) {
+        return placement == BannerPlacement.CHAT_PROMO
+                ? mediaProperties.chatPromoMaxCount()
+                : mediaProperties.bannerMaxCount();
     }
 
     /**

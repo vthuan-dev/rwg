@@ -940,6 +940,21 @@
     "max_reached": "Had {max} sepanduk dicapai. Hapus satu sebelum memuat naik.",
     "err_too_large": "Fail {size} melebihi had {max}",
     "hint_limits": "Imej sehingga {image}, video sehingga {video}",
-    "title_from_filename": "Tajuk diambil daripada nama fail"
+    "title_from_filename": "Tajuk diambil daripada nama fail",
+    "placement_tabs_label": "Pilih kawasan paparan",
+    "live_badge": "SEDANG DIGUNA",
+    "hint_limits_image_only": "Imej maksimum {image}",
+    "hint_sort_chat_promo": "Nombor lebih kecil didahulukan. Imej aktif dengan nombor terkecil ialah yang dilihat pelanggan.",
+    "err_chat_promo_image_only": "Kawasan chat hanya menerima imej, bukan video",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "Banner Laman Utama",
+        "hint": "Video dan imej yang berputar di bahagian atas laman utama. Landskap 16/9."
+      },
+      "CHAT_PROMO": {
+        "name": "Imej Promosi Chat",
+        "hint": "Dihantar automatik apabila pelanggan membuka Sembang Langsung. Hanya imej aktif pertama digunakan."
+      }
+    }
   }
 }

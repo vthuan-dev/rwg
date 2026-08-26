@@ -27,6 +27,16 @@ public class Banner {
     @Column(name = "title", nullable = false)
     private String title;
 
+    /**
+     * Khu hiển thị của banner này.
+     *
+     * KHÔNG CÓ giá trị mặc định ở tầng Java, dù cột DB có DEFAULT: mặc định ngầm nghĩa
+     * là quên truyền vẫn biên dịch được, và ảnh sẽ vào sai khu mà không có gì báo.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "placement", length = 32, nullable = false)
+    private BannerPlacement placement;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", length = 20, nullable = false)
     private BannerMediaType mediaType;
@@ -53,9 +63,15 @@ public class Banner {
         // JPA Required
     }
 
-    public Banner(String title, BannerMediaType mediaType, String mediaUrl, String linkUrl, int sortOrder) {
+    public Banner(String title,
+                  BannerPlacement placement,
+                  BannerMediaType mediaType,
+                  String mediaUrl,
+                  String linkUrl,
+                  int sortOrder) {
         this.id = UUID.randomUUID().toString();
         this.title = Objects.requireNonNull(title, "title");
+        this.placement = Objects.requireNonNull(placement, "placement");
         this.mediaType = Objects.requireNonNull(mediaType, "mediaType");
         this.mediaUrl = Objects.requireNonNull(mediaUrl, "mediaUrl");
         this.linkUrl = linkUrl;
@@ -88,6 +104,10 @@ public class Banner {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public BannerPlacement getPlacement() {
+        return placement;
     }
 
     public BannerMediaType getMediaType() {

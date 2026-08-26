@@ -940,6 +940,21 @@
     "max_reached": "Đã đủ {max} banner. Xoá một banner cũ trước khi tải thêm.",
     "err_too_large": "Tệp {size} vượt quá mức tối đa {max}",
     "hint_limits": "Ảnh tối đa {image}, video tối đa {video}",
-    "title_from_filename": "Tiêu đề lấy theo tên tệp"
+    "title_from_filename": "Tiêu đề lấy theo tên tệp",
+    "placement_tabs_label": "Chọn khu hiển thị",
+    "live_badge": "ĐANG DÙNG",
+    "hint_limits_image_only": "Ảnh tối đa {image}",
+    "hint_sort_chat_promo": "Số nhỏ hơn được ưu tiên. Ảnh đang bật có số nhỏ nhất là ảnh khách nhìn thấy.",
+    "err_chat_promo_image_only": "Khu chat chỉ nhận tệp ảnh, không nhận video",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "Banner Trang chủ",
+        "hint": "Video và ảnh chạy vòng ở đầu trang chủ. Tỉ lệ 16/9 nằm ngang."
+      },
+      "CHAT_PROMO": {
+        "name": "Ảnh khuyến mãi Chat",
+        "hint": "Ảnh gửi tự động cho khách khi họ mở khung Trò chuyện trực tiếp. Chỉ ảnh đang bật đầu tiên được dùng."
+      }
+    }
   }
 }

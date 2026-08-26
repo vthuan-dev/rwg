@@ -2,6 +2,7 @@ package com.rwg.banner.dto;
 
 import com.rwg.banner.domain.Banner;
 import com.rwg.banner.domain.BannerMediaType;
+import com.rwg.banner.domain.BannerPlacement;
 
 import java.time.Instant;
 
@@ -11,6 +12,7 @@ import java.time.Instant;
 public record BannerResponse(
         String id,
         String title,
+        BannerPlacement placement,
         BannerMediaType mediaType,
         String mediaUrl,
         String linkUrl,
@@ -22,6 +24,7 @@ public record BannerResponse(
         return new BannerResponse(
                 banner.getId(),
                 banner.getTitle(),
+                banner.getPlacement(),
                 banner.getMediaType(),
                 banner.getMediaUrl(),
                 banner.getLinkUrl(),

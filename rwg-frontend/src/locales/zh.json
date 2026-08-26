@@ -940,6 +940,21 @@
     "max_reached": "已达到 {max} 个横幅上限。请先删除一个。",
     "err_too_large": "文件 {size} 超过 {max} 上限",
     "hint_limits": "图片最大 {image}，视频最大 {video}",
-    "title_from_filename": "标题取自文件名"
+    "title_from_filename": "标题取自文件名",
+    "placement_tabs_label": "选择展示位置",
+    "live_badge": "使用中",
+    "hint_limits_image_only": "图片最大 {image}",
+    "hint_sort_chat_promo": "数字越小越靠前。启用中数字最小的图片就是客户看到的那张。",
+    "err_chat_promo_image_only": "聊天专区仅接受图片，不接受视频",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "首页横幅",
+        "hint": "在首页顶部轮播的视频与图片。横向 16/9 比例。"
+      },
+      "CHAT_PROMO": {
+        "name": "聊天促销图",
+        "hint": "客户打开在线客服时自动发送。仅使用第一张启用的图片。"
+      }
+    }
   }
 }

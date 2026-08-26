@@ -66,6 +66,10 @@ done
 echo "   Deploy backend complete!"
 '@
 
-$remoteFile = "C:\Users\LENOVO\.gemini\antigravity-ide\brain\d2d7163f-9496-4706-a01e-605ead6f4f9f\scratch\deploy_be.sh"
+# Tep tam dat TRONG DU AN, khong phai thu muc lam viec cua mot phien agent: duong dan
+# kieu ...\brain\<id>\scratch chi ton tai trong phien do, nen script se hong khi chay lai
+# sau nay ma khong ai hieu vi sao.
+$remoteFile = "d:\Project\RWG\.deploy-be.sh"
 (Set-Content -LiteralPath $remoteFile -Value ($remote -replace "`r`n","`n") -Encoding utf8 -NoNewline)
 cmd /c "type `"$remoteFile`" | `"$PLINK`" -ssh -batch -pw $VPS_PW $VPS `"bash -s`" 2>&1"
+Remove-Item $remoteFile -Force

@@ -940,6 +940,21 @@
     "max_reached": "バナーの上限 {max} 件に達しました。先に1件削除してください。",
     "err_too_large": "ファイル {size} は上限 {max} を超えています",
     "hint_limits": "画像は最大 {image}、動画は最大 {video}",
-    "title_from_filename": "タイトルはファイル名から取得します"
+    "title_from_filename": "タイトルはファイル名から取得します",
+    "placement_tabs_label": "表示エリアを選択",
+    "live_badge": "使用中",
+    "hint_limits_image_only": "画像は最大 {image}",
+    "hint_sort_chat_promo": "小さい番号が優先されます。有効な画像のうち最小番号のものがお客様に表示されます。",
+    "err_chat_promo_image_only": "チャットエリアは画像のみ対応、動画は不可です",
+    "placement": {
+      "HOME_CAROUSEL": {
+        "name": "ホームバナー",
+        "hint": "ホーム画面上部で切り替わる動画と画像。横長 16:9。"
+      },
+      "CHAT_PROMO": {
+        "name": "チャット販促画像",
+        "hint": "お客様がライブチャットを開いたとき自動送信されます。有効な最初の画像のみ使用します。"
+      }
+    }
   }
 }
