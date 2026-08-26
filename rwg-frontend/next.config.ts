@@ -1,5 +1,50 @@
 import type { NextConfig } from "next";
 
+/**
+ * Host được phép làm nguồn ảnh remote, suy từ URL của backend người chơi.
+ *
+ * VÌ SAO CẦN: ảnh banner do khu quản trị tải lên nằm dưới `/uploads/media` và do BACKEND
+ * phục vụ, nên `BannerCarousel` ghép tiền tố domain backend vào — tức `<Image>` nhận một URL
+ * tuyệt đối. Next chặn mọi host không khai báo ở đây và trả về
+ * `"url" parameter is not allowed`, làm ảnh banner thành ô hỏng trên trang chủ.
+ *
+ * SUY TỪ BIẾN MÔI TRƯỜNG, không gán cứng: host khác nhau giữa máy dev (`localhost:8080`) và
+ * môi trường thật (`gentingcasino.pw`). Gán cứng một trong hai thì bản còn lại hỏng, và nó
+ * hỏng ở đúng chỗ khó nhận ra nhất — ảnh vẫn có trong DB, tệp vẫn có trên đĩa, chỉ trình
+ * duyệt là không tải được.
+ *
+ * Trả mảng rỗng khi biến môi trường sai định dạng, thay vì ném lỗi: một URL viết sai không
+ * nên chặn cả tiến trình build. Ảnh banner sẽ hỏng, nhưng lỗi đó thấy ngay khi mở trang.
+ */
+function backendImagePatterns(): NonNullable<NextConfig["images"]>["remotePatterns"] {
+  const raw = process.env.NEXT_PUBLIC_USER_BASE_URL || "http://localhost:8080";
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return [];
+  }
+
+  return [
+    {
+      protocol: parsed.protocol.replace(":", "") as "http" | "https",
+      hostname: parsed.hostname,
+      // Cổng phải khớp CHÍNH XÁC chuỗi Next so sánh: "" nghĩa là cổng mặc định của
+      // protocol. `URL.port` đã trả "" cho 80/443 nên dùng thẳng được.
+      port: parsed.port,
+      /**
+       * Giới hạn ĐÚNG thư mục media, không phải `/**`.
+       *
+       * Mở cả host sẽ biến `/_next/image` thành một proxy tải ảnh bất kỳ từ backend —
+       * kể cả các đường dẫn có kiểm tra quyền, vì optimizer gọi bằng danh tính của
+       * server Next chứ không phải của người dùng đang xem.
+       */
+      pathname: "/uploads/media/**",
+    },
+  ];
+}
+
 const nextConfig: NextConfig = {
   /**
    * `lucide-react` xuất hơn 1600 icon từ một file index. Không có mục này, việc
@@ -48,6 +93,8 @@ const nextConfig: NextConfig = {
      * tải lên, nên cache lâu là an toàn: đổi ảnh thì đổi luôn tên file.
      */
     minimumCacheTTL: 60 * 60 * 24 * 30,
+
+    remotePatterns: backendImagePatterns(),
   },
 };
 
