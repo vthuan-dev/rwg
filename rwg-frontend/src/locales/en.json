@@ -388,6 +388,7 @@
       "inbox_empty": "No thread matches the current filter.",
       "select_hint": "Pick a thread on the left to read it.",
       "unassigned_badge": "Unassigned",
+      "geo_unknown": "Location unknown",
       "assigned_to": "Agent: {name}",
       "assign": "Take ownership",
       "close": "Close thread",

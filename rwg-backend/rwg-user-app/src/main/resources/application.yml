@@ -167,6 +167,23 @@ rwg:
     # Chặn trên: chùm quá lớn là NAT nhà mạng/quán net chứ không phải một người, và
     # nối cặp trong chùm tăng theo O(n^2).
     same-ip-cluster-cap: ${RWG_RISK_IP_CLUSTER_CAP:20}
+  geoip:
+    # Tra tinh/nuoc cua khach tu IP, hien tren header chat ho tro o khu quan tri.
+    #
+    # APP NAY LA NOI THUC SU GOI dich vu ngoai: nguoi choi mo khung chat va gui tin
+    # o day, nen IP thay duoc la IP that cua khach. App admin chi DOC lai ket qua da
+    # luu trong DB, khong tu tra.
+    #
+    # Tat di (false) khi may chu khong ra duoc Internet hoac khi dich vu ngoai sap:
+    # luong chat van luu IP binh thuong, chi khong co phan tinh/nuoc.
+    enabled: ${RWG_GEOIP_ENABLED:true}
+    # Dau {ip} duoc thay bang IP can tra. ip-api.com khong can khoa API.
+    # Han muc 45 lan/phut -> ket qua duoc luu vao DB, chi tra lai khi IP doi.
+    endpoint: ${RWG_GEOIP_ENDPOINT:http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,isp}
+    # NGAN CO CHU Y: loi goi nay nam tren duong nguoi choi gui tin nhan.
+    timeout: ${RWG_GEOIP_TIMEOUT:PT2S}
+    # Cung mot IP thi vi tri khong doi trong ngay.
+    cache-ttl: ${RWG_GEOIP_CACHE_TTL:P1D}
 
 logging:
   level:

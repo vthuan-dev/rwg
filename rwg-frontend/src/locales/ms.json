@@ -388,6 +388,7 @@
       "inbox_empty": "Tiada perbualan yang sepadan dengan penapis semasa.",
       "select_hint": "Pilih satu perbualan di sebelah kiri untuk membacanya.",
       "unassigned_badge": "Belum diambil",
+      "geo_unknown": "Lokasi tidak diketahui",
       "assigned_to": "Ejen: {name}",
       "assign": "Ambil alih",
       "close": "Tutup perbualan",

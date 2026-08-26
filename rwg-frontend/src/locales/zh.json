@@ -388,6 +388,7 @@
       "inbox_empty": "没有符合当前筛选条件的会话。",
       "select_hint": "请在左侧列表选择一个会话查看。",
       "unassigned_badge": "未接手",
+      "geo_unknown": "位置未知",
       "assigned_to": "负责人：{name}",
       "assign": "接手处理",
       "close": "关闭会话",

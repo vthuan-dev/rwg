@@ -125,6 +125,16 @@ rwg:
     # Ma xac nhan tham tac khong hoan tac duoc (xoa tai khoan, v.v.).
     # De trong = chan toan bo nhung thao tac do. Thay doi chi can restart, khong can redeploy.
     destructive-pin: ${RWG_ADMIN_DESTRUCTIVE_PIN:171204}
+  geoip:
+    # TAT o app quan tri — CO CHU Y, khong phai bo sot.
+    #
+    # App nay khong co endpoint nao cua nguoi choi, nen IP no thay duoc la IP cua NHAN
+    # SU dang dung backoffice, khong phai cua khach. Bat len chi de tra sai nguoi va
+    # dot han muc cua dich vu ngoai.
+    #
+    # Header chat o khu quan tri doc vi tri tu cot da luu trong bang chat_conversations
+    # (do app nguoi choi ghi), nen tinh nang van hien day du.
+    enabled: false
 
 logging:
   level:

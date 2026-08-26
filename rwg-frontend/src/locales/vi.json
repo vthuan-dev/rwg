@@ -388,6 +388,7 @@
       "inbox_empty": "Không có luồng nào khớp bộ lọc hiện tại.",
       "select_hint": "Chọn một luồng ở danh sách bên trái để xem nội dung.",
       "unassigned_badge": "Chưa nhận",
+      "geo_unknown": "Không rõ vị trí",
       "assigned_to": "Phụ trách: {name}",
       "assign": "Nhận phụ trách",
       "close": "Đóng luồng",

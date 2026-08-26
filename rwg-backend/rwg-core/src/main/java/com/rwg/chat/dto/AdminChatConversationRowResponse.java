@@ -30,7 +30,25 @@ public record AdminChatConversationRowResponse(
         /** Đoạn xem trước tin cuối; null khi luồng chưa có tin. */
         String lastMessagePreview,
         Instant lastMessageAt,
-        Instant createdAt
+        Instant createdAt,
+
+        // ===== VỊ TRÍ ĐỊA LÝ SUY TỪ IP =====
+        //
+        // ĐƯA CẢ IP THÔ LẪN VỊ TRÍ ĐÃ SUY RA: nhân sự cần thấy IP khi đối chiếu với
+        // báo cáo rủi ro (nhiều tài khoản cùng một IP), còn vị trí là thứ đọc được
+        // ngay. Chỉ trả vị trí thì mất đường nối sang dữ liệu rủi ro; chỉ trả IP thì
+        // người trả lời phải tự đi tra.
+
+        /** IP gần nhất của khách; null khi chưa ghi nhận được lần nào. */
+        String lastIp,
+        /** Mã ISO 3166-1 alpha-2 để giao diện vẽ cờ; null khi không xác định được. */
+        String geoCountryCode,
+        String geoCountryName,
+        /** Tỉnh / thành phố trực thuộc / vùng. */
+        String geoRegion,
+        String geoCity,
+        /** Nhà mạng — dấu hiệu nhận ra VPN. */
+        String geoIsp
 ) {
 
     public static AdminChatConversationRowResponse from(ChatConversation c,
@@ -46,6 +64,12 @@ public record AdminChatConversationRowResponse(
                 c.getUnreadForAdmin(),
                 c.getLastMessagePreview(),
                 c.getLastMessageAt(),
-                c.getCreatedAt());
+                c.getCreatedAt(),
+                c.getLastIp(),
+                c.getGeoCountryCode(),
+                c.getGeoCountryName(),
+                c.getGeoRegion(),
+                c.getGeoCity(),
+                c.getGeoIsp());
     }
 }

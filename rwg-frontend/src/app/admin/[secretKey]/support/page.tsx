@@ -23,6 +23,7 @@ import { useAdminChatSocket, type AdminChatEvent } from "@/components/admin/useA
 import { ChatAttachmentPreview } from "@/components/chat/ChatAttachmentPreview";
 import { ChatImageAttachment } from "@/components/chat/ChatImageAttachment";
 import { WalletAdjustPanel } from "@/components/admin/WalletAdjustPanel";
+import { ChatGeoBadge } from "@/components/admin/ChatGeoBadge";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { ImageLightbox } from "@/components/chat/ImageLightbox";
 import {
@@ -57,6 +58,19 @@ interface ConversationRow {
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
   createdAt: string;
+  /**
+   * Vi tri dia ly suy tu IP cua khach — do backend tra va luu san trong DB.
+   *
+   * TAT CA DEU NULLABLE: dich vu tra IP thuong chi biet quoc gia ma khong biet tinh,
+   * hoac khong biet gi (IP mang noi bo, dich vu an danh). Khach KHONG can dong y chia
+   * se vi tri — day la suy tu IP, khong phai Geolocation API cua trinh duyet.
+   */
+  lastIp: string | null;
+  geoCountryCode: string | null;
+  geoCountryName: string | null;
+  geoRegion: string | null;
+  geoCity: string | null;
+  geoIsp: string | null;
 }
 
 /** Một tin nhắn, khớp `ChatMessageResponse` của backend. */
@@ -887,15 +901,29 @@ export default function AdminSupportPage() {
                       <span className="truncate text-sm font-extrabold text-slate-900">
                         {activeRow.username}
                       </span>
-                      <span className="truncate text-[11px] font-medium text-slate-500">
-                        {activeRow.assignedAdminId
-                          ? t("admin.chat.assigned_to", {
-                              name:
-                                activeRow.assignedAdminId === myId
-                                  ? t("admin.chat.you")
-                                  : activeRow.assignedAdminUsername ?? "-",
-                            })
-                          : t("admin.chat.unassigned_badge")}
+                      {/* Nguoi phu trach va vi tri khach tren CUNG MOT DONG: header chat
+                          chi cao 3 dong va them mot dong nua se day phan tin nhan xuong.
+                          Dau cham giua hai phan de tach thi giac ma khong ton chieu cao. */}
+                      <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                        <span className="truncate">
+                          {activeRow.assignedAdminId
+                            ? t("admin.chat.assigned_to", {
+                                name:
+                                  activeRow.assignedAdminId === myId
+                                    ? t("admin.chat.you")
+                                    : activeRow.assignedAdminUsername ?? "-",
+                              })
+                            : t("admin.chat.unassigned_badge")}
+                        </span>
+                        <span aria-hidden="true" className="text-slate-300">·</span>
+                        <ChatGeoBadge
+                          countryCode={activeRow.geoCountryCode}
+                          countryName={activeRow.geoCountryName}
+                          region={activeRow.geoRegion}
+                          city={activeRow.geoCity}
+                          isp={activeRow.geoIsp}
+                          ip={activeRow.lastIp}
+                        />
                       </span>
                     </div>
 

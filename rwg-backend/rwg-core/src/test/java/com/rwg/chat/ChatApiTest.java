@@ -170,6 +170,44 @@ class ChatApiTest {
     }
 
     @Test
+    @DisplayName("IP của khách được ghi vào luồng và trả về trong hộp thư quản trị")
+    void playerIpIsRecordedAndExposedToAdminInbox() throws Exception {
+        String username = register("chatgeo");
+        String player = playerBearer(username);
+
+        // MockMvc đặt remoteAddr mặc định là 127.0.0.1. Đó chính là điều cần kiểm ở đây:
+        // IP PHẢI được ghi lại kể cả khi không tra ra vị trí nào — hai việc đó tách rời.
+        sendAsPlayer(player, "Toi o dau khong quan trong", null);
+
+        String conversationId = myConversationId(player);
+        var conversation = conversationRepository.findById(UUID.fromString(conversationId))
+                .orElseThrow();
+
+        assertThat(conversation.getLastIp())
+                .as("IP phải được ghi vào luồng khi người chơi gửi tin")
+                .isNotBlank();
+
+        // Hồ sơ test tắt rwg.geoip.enabled nên KHÔNG có lời gọi mạng nào, và vị trí để
+        // trống. Khẳng định điều này để bộ test không bao giờ phụ thuộc dịch vụ ngoài:
+        // nếu có ai bật cờ đó lên, test này đỏ và nói rõ lý do.
+        assertThat(conversation.getGeoCountryCode())
+                .as("test phải chạy với geoip tắt, không gọi dịch vụ ngoài")
+                .isNull();
+
+        // Hộp thư quản trị PHẢI trả các trường này ra: header chat đọc chúng để hiện vị
+        // trí, và thiếu một trường thì giao diện nhận undefined chứ không phải null.
+        String staff = staffBearer(UserRole.SUPPORT);
+        mockMvc.perform(get("/api/v1/admin/chat/conversations")
+                        .header("Authorization", staff)
+                        .param("q", username))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].lastIp").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].geoCountryCode").isEmpty())
+                .andExpect(jsonPath("$.content[0].geoRegion").isEmpty())
+                .andExpect(jsonPath("$.content[0].geoCity").isEmpty());
+    }
+
+    @Test
     @DisplayName("Nhân sự trả lời: tự nhận luồng, người chơi thấy tin và số chưa đọc của mình")
     void staffReplyAutoAssignsAndReachesPlayer() throws Exception {
         String username = register("chatr");

@@ -5,10 +5,13 @@ import com.rwg.chat.dto.ChatConversationResponse;
 import com.rwg.chat.dto.ChatMessageResponse;
 import com.rwg.chat.dto.ChatUnreadResponse;
 import com.rwg.chat.dto.SendChatMessageRequest;
+import com.rwg.chat.service.ChatGeoService;
 import com.rwg.chat.service.ChatService;
+import com.rwg.common.web.ClientAddresses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
@@ -45,15 +48,31 @@ import java.util.UUID;
 public class ChatController {
 
     private final ChatService service;
+    private final ChatGeoService geoService;
 
-    public ChatController(ChatService service) {
+    public ChatController(ChatService service, ChatGeoService geoService) {
         this.service = service;
+        this.geoService = geoService;
     }
 
+    /**
+     * Luồng hội thoại của tôi.
+     *
+     * GHI NHẬN IP Ở ĐÂY, không chỉ ở lúc gửi tin: nhân sự cần thấy vị trí của cả những
+     * người đã mở khung chat mà chưa gõ gì — đó đúng là nhóm cần chủ động hỏi trước.
+     *
+     * Gọi SAU khi phương thức nghiệp vụ trả về, không gọi bên trong nó: bước này có thể
+     * đi ra Internet, và giữ một connection của pool trong lúc chờ mạng là thứ
+     * {@code ChatGeoService} được tách ra để tránh.
+     */
     @GetMapping("/conversation")
     @Operation(summary = "Luồng hội thoại hỗ trợ của tôi (tạo mới nếu chưa có)")
-    public ChatConversationResponse myConversation(@AuthenticationPrincipal Jwt jwt) {
-        return service.myConversation(UUID.fromString(jwt.getSubject()));
+    public ChatConversationResponse myConversation(@AuthenticationPrincipal Jwt jwt,
+                                                   HttpServletRequest httpRequest) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        ChatConversationResponse conversation = service.myConversation(userId);
+        geoService.track(userId, ClientAddresses.clientIp(httpRequest));
+        return conversation;
     }
 
     /**
@@ -74,13 +93,23 @@ public class ChatController {
         return service.myMessages(UUID.fromString(jwt.getSubject()), before);
     }
 
+    /**
+     * Gửi một tin.
+     *
+     * IP được ghi nhận SAU khi tin đã lưu thành công. Thứ tự đó là chủ ý: bước ghi nhận
+     * vị trí không bao giờ được làm một tin nhắn đã gửi được trở thành lỗi.
+     */
     @PostMapping("/messages")
     @Operation(summary = "Gửi một tin nhắn tới bộ phận hỗ trợ (có thể kèm ảnh)")
     public ChatMessageResponse send(@AuthenticationPrincipal Jwt jwt,
-                                    @Valid @RequestBody SendChatMessageRequest request) {
-        return service.sendAsPlayer(UUID.fromString(jwt.getSubject()),
+                                    @Valid @RequestBody SendChatMessageRequest request,
+                                    HttpServletRequest httpRequest) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        ChatMessageResponse sent = service.sendAsPlayer(userId,
                 request.body(), request.clientMsgId(),
                 request.attachmentUrl(), request.attachmentName(), request.attachmentSize());
+        geoService.track(userId, ClientAddresses.clientIp(httpRequest));
+        return sent;
     }
 
     /**

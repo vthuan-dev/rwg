@@ -65,6 +65,39 @@ public class ChatConversation {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    // ===== VỊ TRÍ ĐỊA LÝ SUY TỪ IP =====
+    //
+    // ĐẶT TRÊN LUỒNG, KHÔNG ĐẶT TRÊN TỪNG TIN NHẮN: nhân sự cần biết "khách này ở
+    // đâu" một lần ở đầu đoạn chat, không phải vị trí của từng câu. Lưu theo tin nhắn
+    // sẽ nhân số dòng dữ liệu lên hàng nghìn lần mà không thêm thông tin nào dùng được.
+
+    /** IP gần nhất thấy khách dùng. */
+    @Column(name = "last_ip", length = 45)
+    private String lastIp;
+
+    @Column(name = "geo_country_code", length = 2)
+    private String geoCountryCode;
+
+    @Column(name = "geo_country_name", length = 64)
+    private String geoCountryName;
+
+    @Column(name = "geo_region", length = 96)
+    private String geoRegion;
+
+    @Column(name = "geo_city", length = 96)
+    private String geoCity;
+
+    @Column(name = "geo_isp", length = 128)
+    private String geoIsp;
+
+    /** Lần tra IP gần nhất. null = chưa tra bao giờ. */
+    @Column(name = "geo_resolved_at")
+    private Instant geoResolvedAt;
+
+    /** IP đã được tra. Khác {@link #lastIp} nghĩa là kết quả hiện tại đã cũ. */
+    @Column(name = "geo_resolved_ip", length = 45)
+    private String geoResolvedIp;
+
     protected ChatConversation() {
         // cho JPA
     }
@@ -145,6 +178,47 @@ public class ChatConversation {
     }
 
     /**
+     * Ghi nhận IP khách đang dùng.
+     *
+     * @return true nếu cần TRA LẠI vị trí — IP mới, hoặc kết quả cũ hơn {@code cacheTtl}.
+     *         Chỗ gọi dùng giá trị này để quyết định có gọi dịch vụ ngoài hay không.
+     *
+     * ĐỂ ENTITY TỰ TRẢ LỜI CÂU "CÓ CẦN TRA LẠI KHÔNG" thay vì để service so sánh các
+     * cột: điều kiện này đụng tới ba cột ({@code lastIp}, {@code geoResolvedIp},
+     * {@code geoResolvedAt}) và viết lại ở mọi chỗ gọi là cách chắc chắn nhất để chúng
+     * lệch nhau — cùng lý do bốn cột phi chuẩn hoá ở trên chỉ được đổi qua phương thức.
+     */
+    public boolean recordIp(String ip, Instant now, java.time.Duration cacheTtl) {
+        if (ip == null || ip.isBlank()) {
+            return false;
+        }
+        this.lastIp = ip;
+
+        if (!ip.equals(geoResolvedIp)) {
+            return true;
+        }
+        return geoResolvedAt == null || geoResolvedAt.plus(cacheTtl).isBefore(now);
+    }
+
+    /**
+     * Lưu kết quả tra IP.
+     *
+     * GHI {@code geoResolvedAt} VÀ {@code geoResolvedIp} KỂ CẢ KHI KHÔNG TRA ĐƯỢC GÌ.
+     * Không ghi thì {@link #recordIp} luôn báo "cần tra lại", và hệ thống sẽ gọi dịch vụ
+     * ngoài mỗi lần khách gửi tin cho những IP chắc chắn không bao giờ ra kết quả.
+     */
+    public void applyGeo(String ip, String countryCode, String countryName,
+                         String region, String city, String isp, Instant now) {
+        this.geoCountryCode = countryCode;
+        this.geoCountryName = countryName;
+        this.geoRegion = region;
+        this.geoCity = city;
+        this.geoIsp = isp;
+        this.geoResolvedIp = ip;
+        this.geoResolvedAt = now;
+    }
+
+    /**
      * Đóng luồng.
      *
      * @return true nếu trạng thái thực sự đổi (chống bấm hai lần).
@@ -180,4 +254,12 @@ public class ChatConversation {
     public int getUnreadForPlayer() { return unreadForPlayer; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String getLastIp() { return lastIp; }
+    public String getGeoCountryCode() { return geoCountryCode; }
+    public String getGeoCountryName() { return geoCountryName; }
+    public String getGeoRegion() { return geoRegion; }
+    public String getGeoCity() { return geoCity; }
+    public String getGeoIsp() { return geoIsp; }
+    public Instant getGeoResolvedAt() { return geoResolvedAt; }
+    public String getGeoResolvedIp() { return geoResolvedIp; }
 }

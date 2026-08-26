@@ -59,6 +59,16 @@ rwg:
   admin:
     # Mã xác nhận thao tác không hoàn tác — chỉ dùng trong test.
     destructive-pin: "171204"
+  geoip:
+    # TẮT trong test — BẮT BUỘC, không phải tuỳ chọn.
+    #
+    # Bật lên thì mỗi test gửi tin nhắn sẽ gọi ra ip-api.com: bộ test không chạy được
+    # khi máy không có mạng, chạy chậm thêm vài giây mỗi lần, và có thể đỏ vì hạn mức
+    # của dịch vụ ngoài — tức là đỏ vì lý do không liên quan gì tới mã của chúng ta.
+    #
+    # Phần logic vẫn được kiểm: IP vẫn được ghi vào cột last_ip khi tắt cờ này, chỉ
+    # bước gọi mạng bị bỏ qua.
+    enabled: false
 
 management:
   health:

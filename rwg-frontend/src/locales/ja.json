@@ -388,6 +388,7 @@
       "inbox_empty": "現在の絞り込みに一致する会話はありません。",
       "select_hint": "左の一覧から会話を選んでください。",
       "unassigned_badge": "未担当",
+      "geo_unknown": "位置不明",
       "assigned_to": "担当：{name}",
       "assign": "担当する",
       "close": "会話を終了",

@@ -388,6 +388,7 @@
       "inbox_empty": "현재 필터에 해당하는 대화가 없습니다.",
       "select_hint": "왼쪽 목록에서 대화를 선택하세요.",
       "unassigned_badge": "미배정",
+      "geo_unknown": "위치 불명",
       "assigned_to": "담당자: {name}",
       "assign": "담당하기",
       "close": "대화 종료",
