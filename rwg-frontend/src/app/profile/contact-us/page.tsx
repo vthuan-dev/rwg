@@ -402,6 +402,66 @@ export default function ContactUsPage() {
 
   const isClosed = conversation?.status === "CLOSED";
 
+  /**
+   * Vị trí của lời chào trong dòng thời gian: mọi tin CŨ hơn nó nằm trên, mọi tin MỚI
+   * hơn nằm dưới.
+   *
+   * VÌ SAO KHÔNG GHIM CỨNG XUỐNG CUỐI DANH SÁCH: ghim cứng thì mọi tin đến SAU khi mở
+   * trang — nhân sự vừa trả lời, hoặc chính tin khách vừa gửi — đều bị vẽ Ở TRÊN lời
+   * chào, tức là câu trả lời mới nhất nằm trên một lời chào cũ hơn nó. Đọc từ trên
+   * xuống thì thứ tự thời gian bị đảo.
+   *
+   * Chèn theo mốc thời gian giải quyết cả hai yêu cầu bằng một quy tắc: lúc mở trang,
+   * mốc này là "bây giờ" nên toàn bộ lịch sử cũ hơn và lời chào nằm cuối, hiện ngay
+   * trước mắt; sau đó mọi tin mới đều mới hơn mốc nên xếp xuống dưới nó.
+   *
+   * So sánh bằng số milli giây, KHÔNG so sánh chuỗi ISO: hai chuỗi cùng một giây nhưng
+   * khác số chữ số lẻ (máy chủ trả "...:00Z", trình duyệt tạo "...:00.123Z") sẽ so sai
+   * vì dấu "." nhỏ hơn "Z" trong bảng mã.
+   */
+  const promoAt = Date.parse(promoTimestamp);
+  const splitAt = messages.findIndex((m) => Date.parse(m.createdAt) > promoAt);
+  const beforePromo = splitAt === -1 ? messages : messages.slice(0, splitAt);
+  const afterPromo = splitAt === -1 ? [] : messages.slice(splitAt);
+
+  /**
+   * Vẽ một dãy bong bóng liên tiếp.
+   *
+   * @param list      Các tin cần vẽ.
+   * @param prevOfFirst Tin đứng ngay TRƯỚC phần tử đầu của `list` trong dòng thời gian,
+   *                  hoặc "PROMO" nếu đó là lời chào. Cần tham số này vì quy ước nhóm
+   *                  (chỉ tin mở đầu một chuỗi cùng người gửi mới hiện avatar) phải
+   *                  đúng CẢ khi dãy bị lời chào cắt làm hai.
+   */
+  const renderBubbles = (
+    list: typeof messages,
+    prevOfFirst: "PROMO" | null
+  ) =>
+    list.map((message, index) => {
+      const prev = index > 0 ? list[index - 1] : null;
+
+      // Lời chào do CSKH gửi, nên một tin STAFF ngay sau nó là phần tiếp của cùng chuỗi
+      // và KHÔNG vẽ lại avatar.
+      const showSender =
+        index === 0
+          ? prevOfFirst === "PROMO"
+            ? message.senderType !== "STAFF"
+            : true
+          : !prev ||
+            prev.senderType !== message.senderType ||
+            prev.senderUsername !== message.senderUsername;
+
+      return (
+        <ChatBubble
+          key={message.id}
+          message={message}
+          showSender={showSender}
+          loadAttachment={loadAttachment}
+          onOpenImage={(src, alt) => setLightbox({ src, alt })}
+        />
+      );
+    });
+
   return (
     <MobileShell
       header={
@@ -462,32 +522,14 @@ export default function ContactUsPage() {
               )}
 
               <ul className="flex flex-col">
-                {messages.map((message, index) => {
-                  // Nhóm bong bóng theo người gửi: chỉ tin ĐẦU của một chuỗi liên tiếp mới
-                  // hiện avatar và tên. Tin đầu danh sách luôn hiện.
-                  const prev = index > 0 ? messages[index - 1] : null;
-                  const showSender =
-                    !prev ||
-                    prev.senderType !== message.senderType ||
-                    prev.senderUsername !== message.senderUsername;
+                {renderBubbles(beforePromo, null)}
 
-                  return (
-                    <ChatBubble
-                      key={message.id}
-                      message={message}
-                      showSender={showSender}
-                      loadAttachment={loadAttachment}
-                      onOpenImage={(src, alt) => setLightbox({ src, alt })}
-                    />
-                  );
-                })}
+                {/* LỜI CHÀO ĐỨNG ĐÚNG CHỖ CỦA NÓ TRONG DÒNG THỜI GIAN.
 
-                {/* LỜI CHÀO NẰM CUỐI DANH SÁCH — tức là tin MỚI NHẤT.
-
-                    Trước đây nó ở đầu cuộc trò chuyện, nên với người chơi đã nhắn vài chục
-                    tin thì nó bị đẩy lên tít trên và họ không bao giờ thấy: khung chat luôn
-                    mở ở cuối. Đặt xuống cuối thì mỗi lần mở trang, đây là thứ nằm ngay
-                    trước mắt.
+                    Lúc mở trang thì toàn bộ lịch sử cũ hơn nó, nên nó nằm cuối và hiện
+                    ngay trước mắt — khung chat luôn cuộn xuống đáy. Tin đến sau đó (nhân
+                    sự trả lời, hoặc khách vừa gửi) mới hơn mốc này nên xếp xuống dưới.
+                    Xem chú thích của `promoAt` để biết vì sao không ghim cứng xuống cuối.
 
                     KHÔNG PHẢI TIN THẬT TRONG CƠ SỞ DỮ LIỆU — vẫn chỉ vẽ ở phía giao diện.
                     Xem chú thích trong ChatPromoMessages để biết vì sao không lưu: ghi một
@@ -495,14 +537,16 @@ export default function ContactUsPage() {
                     sao, và làm mọi dòng trong hộp thư quản trị hiện nội dung quảng cáo thay
                     vì câu hỏi của khách.
 
-                    showSender theo tin CUỐI của danh sách, không cố định true: nếu nhân sự
-                    vừa trả lời thì hai bong bóng liền nhau cùng là STAFF, và vẽ lại avatar
-                    giữa chuỗi đó phá quy ước nhóm mà phần trên vừa áp dụng. */}
+                    showSender theo tin ngay TRƯỚC nó, không cố định true: nếu nhân sự vừa
+                    trả lời thì hai bong bóng liền nhau cùng là CSKH, và vẽ lại avatar giữa
+                    chuỗi đó phá quy ước nhóm đang dùng ở phần trên. */}
                 <ChatPromoMessages
                   timestamp={promoTimestamp}
-                  showSender={messages[messages.length - 1]?.senderType !== "STAFF"}
+                  showSender={beforePromo[beforePromo.length - 1]?.senderType !== "STAFF"}
                   onOpenImage={(src, alt) => setLightbox({ src, alt })}
                 />
+
+                {renderBubbles(afterPromo, "PROMO")}
               </ul>
             </>
           )}
