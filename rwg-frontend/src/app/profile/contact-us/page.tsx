@@ -462,24 +462,14 @@ export default function ContactUsPage() {
               )}
 
               <ul className="flex flex-col">
-                {/* Tin nhắn quảng bá/lời chào tự động luôn nằm ở ĐẦU cuộc trò chuyện.
-                    Các tin nhắn trao đổi thực tế của User & Admin sẽ xuất hiện ở BÊN DƯỚI
-                    theo đúng thứ tự thời gian nhắn tin thông thường. */}
-                <ChatPromoMessages
-                  timestamp={promoTimestamp}
-                  showSender
-                  onOpenImage={(src, alt) => setLightbox({ src, alt })}
-                />
-
                 {messages.map((message, index) => {
-                  // Với tin nhắn đầu tiên (index === 0): nếu là tin từ STAFF thì không hiện lại avatar/tên (vì ChatPromoMessages đã hiện ở trên), nếu là từ PLAYER thì hiện.
+                  // Nhóm bong bóng theo người gửi: chỉ tin ĐẦU của một chuỗi liên tiếp mới
+                  // hiện avatar và tên. Tin đầu danh sách luôn hiện.
                   const prev = index > 0 ? messages[index - 1] : null;
                   const showSender =
-                    index === 0
-                      ? message.senderType !== "STAFF"
-                      : !prev ||
-                        prev.senderType !== message.senderType ||
-                        prev.senderUsername !== message.senderUsername;
+                    !prev ||
+                    prev.senderType !== message.senderType ||
+                    prev.senderUsername !== message.senderUsername;
 
                   return (
                     <ChatBubble
@@ -491,6 +481,28 @@ export default function ContactUsPage() {
                     />
                   );
                 })}
+
+                {/* LỜI CHÀO NẰM CUỐI DANH SÁCH — tức là tin MỚI NHẤT.
+
+                    Trước đây nó ở đầu cuộc trò chuyện, nên với người chơi đã nhắn vài chục
+                    tin thì nó bị đẩy lên tít trên và họ không bao giờ thấy: khung chat luôn
+                    mở ở cuối. Đặt xuống cuối thì mỗi lần mở trang, đây là thứ nằm ngay
+                    trước mắt.
+
+                    KHÔNG PHẢI TIN THẬT TRONG CƠ SỞ DỮ LIỆU — vẫn chỉ vẽ ở phía giao diện.
+                    Xem chú thích trong ChatPromoMessages để biết vì sao không lưu: ghi một
+                    tin thật mỗi lần mở trang sẽ chôn lịch sử khiếu nại giữa hàng chục bản
+                    sao, và làm mọi dòng trong hộp thư quản trị hiện nội dung quảng cáo thay
+                    vì câu hỏi của khách.
+
+                    showSender theo tin CUỐI của danh sách, không cố định true: nếu nhân sự
+                    vừa trả lời thì hai bong bóng liền nhau cùng là STAFF, và vẽ lại avatar
+                    giữa chuỗi đó phá quy ước nhóm mà phần trên vừa áp dụng. */}
+                <ChatPromoMessages
+                  timestamp={promoTimestamp}
+                  showSender={messages[messages.length - 1]?.senderType !== "STAFF"}
+                  onOpenImage={(src, alt) => setLightbox({ src, alt })}
+                />
               </ul>
             </>
           )}
