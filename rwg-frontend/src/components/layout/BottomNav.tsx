@@ -91,8 +91,13 @@ export const BottomNav: React.FC = () => {
                 href={item.href}
                 onClick={(e) => handleNavClick(e, item.href)}
                 // min-h-11 = 44px: mức tối thiểu cho mục bấm bằng ngón tay.
+                //
+                // MỤC ĐANG CHỌN MÀU VÀNG, không phải đỏ: khớp với bốn icon lối tắt ở
+                // trang chủ, và để dành màu đỏ cho tín hiệu cần chú ý (số tin chưa đọc,
+                // cảnh báo) — dùng đỏ cho cả trạng thái bình thường thì mắt không còn
+                // phân biệt được đâu là việc cần xử lý.
                 className={`flex flex-col items-center justify-center gap-1 w-full min-h-11 transition-colors active:bg-white/5 ${
-                  isActive ? "text-primary" : "text-[#8b8b8b]"
+                  isActive ? "text-gold" : "text-[#8b8b8b]"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >

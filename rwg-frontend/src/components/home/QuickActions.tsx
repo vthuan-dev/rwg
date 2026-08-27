@@ -88,7 +88,11 @@ export const QuickActions: React.FC = () => {
                 // cân với khoảng cách mới giữa các ô.
                 className="relative w-full min-h-11 py-4 flex flex-col items-center justify-center gap-2.5 bg-[#1b1b1f] border border-[#28282e] transition-colors active:bg-[#242429]"
               >
-                <Icon className="w-5 h-5 text-primary" />
+                {/* VÀNG, không phải màu nhấn đỏ: bốn ô này là lối tắt trang trí, còn
+                    đỏ trong hệ thống này dành cho thứ cần chú ý (số tin chưa đọc, cảnh
+                    báo). Dùng đỏ cho cả hai làm mất ý nghĩa của màu đỏ. Vàng cũng khớp
+                    logo mạ vàng ngay phía trên và ảnh bìa của trang. */}
+                <Icon className="w-5 h-5 text-gold" />
                 {/* Cột rộng gấp đôi so với lần xếp 4 cột nên nhãn dài nhất ("Trò chuyện
                     trực tiếp") vừa một dòng — tăng chữ từ 10px lên 11px được. Vẫn giữ
                     `leading-tight` và `text-center` cho các ngôn ngữ có nhãn dài hơn. */}

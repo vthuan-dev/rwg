@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Check, CheckCheck, Clock, Headphones } from "lucide-react";
+import { Check, CheckCheck, Clock } from "lucide-react";
+import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 import type { ChatMessage } from "@/lib/playerApi";
 import { ChatImageAttachment } from "./ChatImageAttachment";
@@ -88,9 +89,25 @@ export const ChatBubble: React.FC<{
       {!isMine && (
         <div className="me-2 w-8 shrink-0">
           {showSender && (
-            <div className="flex size-8 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
-              <Headphones className="size-4 text-primary" />
-            </div>
+            // ẢNH THẬT thay cho icon tai nghe: một gương mặt làm khung chat giống nói
+            // chuyện với người hơn là với hệ thống tự động — đúng ấn tượng cần có ở
+            // kênh hỗ trợ, nơi khách đang muốn gặp người thật.
+            //
+            // ẢNH TẢI SẴN VÀO `public/`, KHÔNG nhúng đường dẫn từ pngtree.com: dẫn
+            // thẳng từ tên miền ngoài thì avatar biến mất ngay khi họ đổi đường dẫn
+            // hoặc chặn hotlink — và họ ĐÃ chặn theo header Referer.
+            //
+            // `unoptimized`: ảnh 360×360 được vẽ ở 32px nên bộ tối ưu ảnh của Next không
+            // tiết kiệm được gì đáng kể, trong khi nó đòi một vòng xử lý ở server cho
+            // mọi khách mở chat.
+            <Image
+              src="/images/chat-support-avatar.png"
+              alt={t("chat.staff")}
+              width={32}
+              height={32}
+              unoptimized
+              className="size-8 rounded-full border border-gold/25 bg-[#1b1b1f] object-cover"
+            />
           )}
         </div>
       )}

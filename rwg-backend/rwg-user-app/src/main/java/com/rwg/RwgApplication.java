@@ -17,6 +17,7 @@ import com.rwg.banner.api.AdminBannerController;
 import com.rwg.risk.api.AdminRiskController;
 import com.rwg.wallet.api.AdminWalletController;
 import com.rwg.report.api.AdminReportController;
+import com.rwg.settings.api.AdminAppSettingController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -68,7 +69,14 @@ import org.springframework.context.annotation.FilterType;
                         // công khai tới toàn bộ lịch sử trò chuyện của mọi người chơi khác.
                         AdminChatController.class,
                         // Báo cáo người chơi/đại lý, sao kê ví, thống kê doanh thu cược: chỉ thuộc khu quản trị.
-                        AdminReportController.class
+                        AdminReportController.class,
+                        // Sửa nội dung chữ hiện cho khách (lời chào khung chat): nếu lọt vào app
+                        // người chơi thì có một đường dẫn công khai tới điểm cuối đổi nội dung mà
+                        // MỌI khách đang đọc.
+                        //
+                        // Chỉ loại controller QUẢN TRỊ. AppSettingController (đường đọc) PHẢI ở
+                        // lại app này — đó là nơi khung chat của người chơi lấy lời chào.
+                        AdminAppSettingController.class
                 }))
 public class RwgApplication {
 

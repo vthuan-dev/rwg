@@ -116,6 +116,15 @@ public class SecurityConfig {
                         // /api/v1/chat/attachments/ có kiểm tra quyền.
                         .requestMatchers("/api/v1/banners/active", "/api/v1/banners/chat-promo",
                                 "/uploads/media/**").permitAll()
+                        // Noi dung chu do khu quan tri soan, hien cho khach.
+                        //
+                        // CONG KHAI vi day la loi chao gui cho MOI khach mo khung chat — cung
+                        // loai voi /banners/chat-promo ngay tren. Bat dang nhap chi lam bong bong
+                        // chao xuat hien tre hon phan con lai cua hoi thoai.
+                        //
+                        // Chi co duong DOC la cong khai; duong sua nam duoi /api/v1/admin/settings
+                        // va bi chan thanh chi ADMIN o phia duoi.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/settings/**").permitAll()
                         // Webhook provider thanh toán (provider gọi, không có JWT) — idempotent
                         // theo providerTxnId; chặng sau thêm xác thực chữ ký provider.
                         .requestMatchers("/api/v1/payments/callback").permitAll()
@@ -213,6 +222,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/banners/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/banners/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/banners/**").hasRole("ADMIN")
+
+                        // NOI DUNG CHU HIEN CHO KHACH: chi ADMIN duoc GHI.
+                        //
+                        // Cung ly do nhu banner ngay tren: doan chu nay hien ra truoc MOI khach,
+                        // nen sua no la dat noi dung truoc mat toan bo nguoi dung. De roi vao
+                        // matcher chung ben duoi thi SUPPORT va RISK cung sua duoc — rong hon moi
+                        // thao tac ghi khac trong khu quan tri. GET van mo cho ca bon vai tro.
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/admin/settings/**").hasRole("ADMIN")
 
                         // Còn lại trong khu admin (chủ yếu GET tra cứu/báo cáo): mọi nhân sự
                         // quản trị, gồm RISK chỉ đọc. Các POST/PATCH ghi đã bị chặn hẹp ở trên.

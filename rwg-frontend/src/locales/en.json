@@ -54,7 +54,6 @@
       "error_upload": "Upload failed, please try again"
     },
     "promo": {
-      "text": "DEAR VALUED CUSTOMER!\nFrom 01/01/2026, you may register to claim a reward after reaching the minimum accumulated deposit. Complete the next accumulation tiers to receive the corresponding rewards.\n- At an accumulated level of 10,000 USD, the total you can receive includes 388 USD + 888 USD credited to your account!\nNOTE: This reward can only be claimed ONCE from the time of registration, during the event period.",
       "image_alt": "Accumulated deposit reward table"
     }
   },
@@ -913,6 +912,17 @@
     "btn_save_rate": "Save rates",
     "save_ok": "Commission rates saved",
     "last_updated": "Last updated:"
+  },
+  "chat_promo_text": {
+    "title": "Chat greeting message",
+    "hint": "Sent automatically to every customer who opens Live Chat. Written in Vietnamese only.",
+    "placeholder": "Enter the greeting sent to customers…",
+    "save": "Save greeting",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "error_empty": "The greeting cannot be empty",
+    "error_save": "Could not save the greeting. Please try again.",
+    "last_updated": "Last edited by {name} at {time}"
   },
   "banners": {
     "title": "Banners & Media",

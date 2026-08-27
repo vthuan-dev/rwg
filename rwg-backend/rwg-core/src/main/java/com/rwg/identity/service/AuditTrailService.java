@@ -113,6 +113,14 @@ public class AuditTrailService {
     public static final String ADMIN_USER_DELETED = "ADMIN_USER_DELETED";
     /** Admin xóa tin nhắn trong cuộc trò chuyện hỗ trợ. */
     public static final String ADMIN_CHAT_MESSAGES_DELETED = "ADMIN_CHAT_MESSAGES_DELETED";
+    /**
+     * Admin sửa một đoạn chữ cấu hình (lời chào khung chat, v.v.).
+     *
+     * GHI AUDIT dù đây chỉ là đổi chữ: nội dung này hiện ra trước MỌI khách, nên một câu
+     * sai — hứa thưởng không có thật, số tiền gõ nhầm — là căn cứ khiếu nại thật. Không
+     * ghi lại thì không truy được ai đã đổi và đổi từ gì sang gì.
+     */
+    public static final String ADMIN_SETTING_UPDATED = "ADMIN_SETTING_UPDATED";
 
     private static final Logger log = LoggerFactory.getLogger(AuditTrailService.class);
 

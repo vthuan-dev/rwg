@@ -54,7 +54,6 @@
       "error_upload": "Tải ảnh lên thất bại, vui lòng thử lại"
     },
     "promo": {
-      "text": "KÍNH GỬI QUÝ KHÁCH HÀNG !\nKể từ ngày 01/01/2026 . Quý có thể đăng ký nhận phần thưởng sau khi nạp đủ mức tích lũy tối thiểu . Hoàn thành các mức tích lũy tiếp theo và nhận phần thưởng tương ứng\n- Mức tích lũy đạt 10.000 USD tổng số tiền bạn có thể nhận bao gồm 388 USD + 888 USD sẽ được thêm vào tài khoản !\nLƯU Ý : Phần thưởng này chỉ nhận được một lần duy nhất kể từ khi đăng kí trong thời gian diễn ra sự kiện !",
       "image_alt": "Bảng thưởng nạp tích lũy"
     }
   },
@@ -913,6 +912,17 @@
     "btn_save_rate": "Lưu tỷ lệ",
     "save_ok": "Đã lưu tỷ lệ hoa hồng",
     "last_updated": "Cập nhật lần cuối:"
+  },
+  "chat_promo_text": {
+    "title": "Lời chào khung chat",
+    "hint": "Đoạn chữ gửi tự động cho khách mỗi lần họ mở khung Trò chuyện trực tiếp. Chỉ soạn tiếng Việt.",
+    "placeholder": "Nhập lời chào gửi cho khách…",
+    "save": "Lưu lời chào",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu",
+    "error_empty": "Lời chào không được để trống",
+    "error_save": "Không lưu được lời chào. Vui lòng thử lại.",
+    "last_updated": "Sửa lần cuối bởi {name} lúc {time}"
   },
   "banners": {
     "title": "Banner & Media",

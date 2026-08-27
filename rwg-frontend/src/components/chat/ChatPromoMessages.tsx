@@ -18,6 +18,21 @@ import { ChatBubble, type PendingChatMessage } from "./ChatBubble";
 const FALLBACK_PROMO_IMAGE = "/images/chat-promo-tich-luy.jpg";
 
 /**
+ * Lời chào dự phòng, dùng khi chưa tải được nội dung từ máy chủ.
+ *
+ * KHÔNG NẰM TRONG FILE DỊCH — có chủ ý. Đoạn chữ này do người vận hành soạn và sửa ở khu
+ * quản trị, chỉ bằng tiếng Việt, nên nó không phải chuỗi cần dịch. Để trong file dịch thì
+ * mỗi lần đổi nội dung lại phải sửa cả sáu file locale, mà năm file kia không ai đọc.
+ *
+ * VẪN GIỮ BẢN DỰ PHÒNG dù nội dung đã ở cơ sở dữ liệu: bỏ hẳn thì khi backend chết hoặc
+ * mạng chậm, bong bóng ĐẦU TIÊN khách thấy sẽ trống — tệ hơn hẳn một nội dung hơi cũ.
+ */
+const FALLBACK_PROMO_TEXT = `KÍNH GỬI QUÝ KHÁCH HÀNG !
+Kể từ ngày 01/01/2026 . Quý có thể đăng ký nhận phần thưởng sau khi nạp đủ mức tích lũy tối thiểu . Hoàn thành các mức tích lũy tiếp theo và nhận phần thưởng tương ứng
+- Mức tích lũy đạt 10.000 USD tổng số tiền bạn có thể nhận bao gồm 388 USD + 888 USD sẽ được thêm vào tài khoản !
+LƯU Ý : Phần thưởng này chỉ nhận được một lần duy nhất kể từ khi đăng kí trong thời gian diễn ra sự kiện !`;
+
+/**
  * Id giả của hai bong bóng khuyến mãi.
  *
  * Tiền tố `promo-` để phân biệt rõ với id thật (UUID) trong log và trong React DevTools.
@@ -70,6 +85,33 @@ export const ChatPromoMessages: React.FC<{
    * phần còn lại của hội thoại — trông như khung chat bị giật.
    */
   const [promo, setPromo] = useState<ChatPromoBanner | null>(null);
+
+  /**
+   * Lời chào do khu quản trị soạn. `null` = chưa tải được, dùng bản dự phòng.
+   *
+   * Cùng cách xử lý như ảnh: vẽ bản dự phòng ngay rồi thay khi API trả về. Chờ API xong
+   * mới vẽ thì bong bóng chào xuất hiện trễ hơn phần còn lại — trông như khung chat giật.
+   */
+  const [promoText, setPromoText] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`${USER_API_BASE_URL}/settings/chat-promo-text`);
+        if (!res.ok) return;
+        const data: { value?: string } = await res.json();
+        if (!cancelled && data?.value) setPromoText(data.value);
+      } catch {
+        // Giữ bản dự phòng, không ghi gì ra console — xem lý do ở khối tải ảnh bên dưới.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +169,7 @@ export const ChatPromoMessages: React.FC<{
   const textMessage: PendingChatMessage = {
     ...base,
     id: TEXT_ID,
-    body: t("chat.promo.text"),
+    body: promoText ?? FALLBACK_PROMO_TEXT,
   };
 
   const imageMessage: PendingChatMessage = {

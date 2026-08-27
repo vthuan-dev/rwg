@@ -54,7 +54,6 @@
       "error_upload": "Muat naik gagal, sila cuba lagi"
     },
     "promo": {
-      "text": "KEPADA PELANGGAN YANG DIHORMATI!\nMulai 01/01/2026, anda boleh mendaftar untuk menuntut ganjaran selepas mencapai deposit terkumpul minimum. Lengkapkan tahap terkumpul seterusnya untuk menerima ganjaran yang sepadan.\n- Pada tahap terkumpul 10,000 USD, jumlah yang boleh anda terima termasuk 388 USD + 888 USD akan dikreditkan ke akaun anda!\nPERHATIAN: Ganjaran ini hanya boleh dituntut SEKALI sahaja dari masa pendaftaran, dalam tempoh acara berlangsung.",
       "image_alt": "Jadual ganjaran deposit terkumpul"
     }
   },
@@ -913,6 +912,17 @@
     "btn_save_rate": "Simpan kadar",
     "save_ok": "Kadar komisen telah disimpan",
     "last_updated": "Kemas kini terakhir:"
+  },
+  "chat_promo_text": {
+    "title": "Mesej sapaan sembang",
+    "hint": "Dihantar secara automatik kepada setiap pelanggan yang membuka Sembang Langsung. Ditulis dalam bahasa Vietnam sahaja.",
+    "placeholder": "Masukkan sapaan untuk pelanggan…",
+    "save": "Simpan sapaan",
+    "saving": "Menyimpan…",
+    "saved": "Disimpan",
+    "error_empty": "Sapaan tidak boleh kosong",
+    "error_save": "Tidak dapat menyimpan sapaan. Sila cuba lagi.",
+    "last_updated": "Disunting terakhir oleh {name} pada {time}"
   },
   "banners": {
     "title": "Sepanduk & Media",

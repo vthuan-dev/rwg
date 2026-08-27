@@ -20,6 +20,7 @@ import { USER_BASE_URL } from "@/lib/constants";
 import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { useTranslation } from "@/context/LanguageContext";
+import { ChatPromoTextEditor } from "@/components/admin/ChatPromoTextEditor";
 
 /**
  * Khu hiển thị của một banner, khớp enum {@code BannerPlacement} ở backend.
@@ -365,6 +366,14 @@ export default function AdminBannersPage() {
             );
           })}
         </div>
+
+        {/* Ô SOẠN LỜI CHÀO — chỉ hiện ở khu chat.
+
+            ĐẶT NGAY DƯỚI TAB, TRÊN danh sách ảnh: hai bong bóng chào hiện liền nhau
+            trước mặt khách (chữ rồi ảnh), nên người vận hành cần thấy cả hai trên cùng
+            một màn hình. Tách sang trang riêng thì rất dễ đổi chữ mà quên đổi ảnh, để
+            lại lời chào của đợt khuyến mãi này kèm bảng số liệu của đợt trước. */}
+        {placement === "CHAT_PROMO" && <ChatPromoTextEditor />}
 
         {/* ===== Thanh hành động ===== */}
         <div className="flex items-center justify-between gap-3 flex-wrap">

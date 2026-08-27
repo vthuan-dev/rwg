@@ -47,6 +47,13 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  /* Đăng ký vàng thương hiệu thành màu Tailwind để dùng được `text-gold`,
+     `border-gold/25`, `bg-gold/10`… KHÔNG viết mã màu thẳng vào component:
+     ba sắc vàng ở trên là một bộ, và một chỗ dùng số riêng sẽ lệch khỏi bộ đó
+     ngay lần đầu ai đó tinh chỉnh màu. */
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-deep: var(--gold-deep);
   --font-sans: var(--font-roboto), "Roboto", sans-serif;
 }
 
