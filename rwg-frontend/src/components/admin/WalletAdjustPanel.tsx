@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldOff,
+  Wallet,
 } from "lucide-react";
 import { adminFetch, AdminApiError } from "@/lib/adminApi";
 import { canAdjustWallet, getAdminIdentity } from "@/lib/adminIdentity";
@@ -151,6 +152,31 @@ export const WalletAdjustPanel: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* SỐ DƯ HIỆN TẠI — luôn hiện, KHÔNG chờ nhập số tiền.
+
+          Khối "số dư dự kiến" bên dưới chỉ xuất hiện sau khi đã nhập một số tiền hợp lệ,
+          nên trước đó người vận hành không thấy ví đang có bao nhiêu. Với thao tác TRỪ
+          tiền thì đó là con số phải biết TRƯỚC khi gõ: trừ quá số dư là lệnh bị backend
+          từ chối, còn trừ sai số thì đã chuyển tiền thật rồi mới phát hiện.
+
+          Hiện kèm tên đăng nhập vì modal này mở từ khung chat, nơi có thể đang xem nhiều
+          hội thoại — nhìn thấy đúng tên trước khi bấm là rào chắn cuối cùng chống việc
+          cộng/trừ tiền vào ví người khác. */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+        <div className="flex items-center gap-2.5">
+          <Wallet className="h-4 w-4 shrink-0 text-slate-400" />
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {t("admin.users.wallet.balance")}
+            </span>
+            <span className="text-[11px] font-semibold text-slate-500">{username}</span>
+          </div>
+        </div>
+        <span className="text-sm font-extrabold tabular-nums text-slate-900">
+          {formatMoney(currentBalance)} <span className="text-slate-400">{currency}</span>
+        </span>
+      </div>
+
       {/* Ket qua da thuc thi */}
       {done && (
         <div className="flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl">
