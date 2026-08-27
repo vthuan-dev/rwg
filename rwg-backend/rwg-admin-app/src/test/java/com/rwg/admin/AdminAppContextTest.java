@@ -44,6 +44,39 @@ class AdminAppContextTest {
     }
 
     /**
+     * Route SỬA nội dung chữ hiện cho khách PHẢI được map ở app này.
+     *
+     * VÌ SAO CÓ TEST NÀY: {@code AdminApplication} chỉ quét ĐÚNG danh sách package liệt
+     * kê tay, khác {@code RwgApplication} (quét cả "com.rwg" rồi loại trừ). Thêm một
+     * package mới mà quên thêm vào danh sách đó thì controller trong nó không được đăng
+     * ký, và lời gọi trả 404 "Resource not found" — trông y như lỗi đường dẫn ở frontend,
+     * nên rất dễ mất thời gian đi tìm sai chỗ. Đúng lỗi đã xảy ra một lần.
+     */
+    @Test
+    void adminSettingsRoutesAreMapped() {
+        List<String> routes = mappedRoutes();
+
+        assertThat(routes)
+                .as("thiếu route sửa nội dung chữ — kiểm AdminApplication.basePackages")
+                .anyMatch(route -> route.contains("/api/v1/admin/settings"));
+    }
+
+    /**
+     * Đường ĐỌC công khai của nội dung chữ KHÔNG được map ở app quản trị.
+     *
+     * Đường đó không cần xác thực và chỉ phục vụ khung chat của người chơi. Để nó lọt vào
+     * đây là mở thêm một điểm cuối công khai trên backoffice mà không ai cần tới.
+     */
+    @Test
+    void publicSettingsRouteIsNotMapped() {
+        List<String> routes = mappedRoutes();
+
+        // KHÔNG dùng contains("/api/v1/settings") trần: chuỗi đó là chuỗi con của
+        // "/api/v1/admin/settings", nên assert sẽ đỏ ngay cả khi cấu hình đúng.
+        assertThat(routes).noneMatch(route -> route.contains("[/api/v1/settings/"));
+    }
+
+    /**
      * Nhân sự quản trị PHẢI đăng nhập được ở app này. Trước đây không có route nào
      * để lấy token nên toàn bộ khu quản trị không thể truy cập từ trình duyệt.
      */

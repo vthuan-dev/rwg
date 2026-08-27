@@ -15,6 +15,7 @@ import com.rwg.identity.api.AuthController;
 import com.rwg.identity.api.UserController;
 import com.rwg.notification.api.NotificationController;
 import com.rwg.payment.api.PaymentController;
+import com.rwg.settings.api.AppSettingController;
 import com.rwg.wallet.api.WalletController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
@@ -99,7 +100,15 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 "com.rwg.notification",
                 "com.rwg.chat",
                 // Báo cáo sổ sách — CHỈ có Ở ĐÂY, không ở app người chơi.
-                "com.rwg.report"
+                "com.rwg.report",
+                // Nội dung chữ hiện cho khách (lời chào khung chat), soạn ở khu quản trị.
+                //
+                // PHẢI LIỆT KÊ Ở ĐÂY: khác RwgApplication (quét cả "com.rwg" rồi loại trừ),
+                // app này chỉ quét ĐÚNG các package trong danh sách trên. Thiếu một package
+                // nghĩa là controller trong đó không được đăng ký, và lời gọi tới nó trả 404
+                // "Resource not found" — trông y như lỗi đường dẫn ở frontend, nên rất dễ
+                // mất thời gian đi tìm sai chỗ.
+                "com.rwg.settings"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
@@ -112,6 +121,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                         NotificationController.class,
                         // API của người chơi — không thuộc khu quản trị.
                         ChatController.class,
+                        // Đường ĐỌC công khai của nội dung chữ: thuộc app người chơi, nơi khung
+                        // chat lấy lời chào. App này chỉ cần đường SỬA
+                        // (AdminAppSettingController) và đường đó ĐƯỢC giữ lại.
+                        //
+                        // Loại ra để app quản trị không mở thêm một điểm cuối không cần xác thực
+                        // nào — bề mặt công khai của backoffice càng nhỏ càng tốt.
+                        AppSettingController.class,
                         MyAffiliateController.class,
                         GameController.class,
                         // Runtime game: CHỈ chạy ở rwg-user-app (xem javadoc ở trên).
