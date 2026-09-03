@@ -20,6 +20,7 @@ import {
   Landmark,
   ChevronDown,
   Percent,
+  History,
 } from "lucide-react";
 import {
   adminFetch,
@@ -27,11 +28,14 @@ import {
   adminOverrideUserWithdrawalPassword,
 } from "@/lib/adminApi";
 import { formatMoney } from "@/lib/money";
+import { formatRelativeTime, formatAbsoluteDateTime } from "@/lib/datetime";
 import { useTranslation } from "@/context/LanguageContext";
 import { WalletAdjustPanel } from "@/components/admin/WalletAdjustPanel";
 import { UserGameOddsPanel } from "@/components/admin/UserGameOddsPanel";
 import { WalletLedgerPanel } from "@/components/admin/WalletLedgerPanel";
 import { PayoutMethodsPanel } from "@/components/admin/PayoutMethodsPanel";
+import { LoginHistoryPanel } from "@/components/admin/LoginHistoryPanel";
+import { PresenceBadge } from "@/components/admin/PresenceBadge";
 import { AdminErrorState } from "@/components/admin/AdminStates";
 import { AdminModal } from "@/components/admin/AdminModal";
 import {
@@ -52,11 +56,46 @@ interface UserItem {
   email: string | null;
   role: "PLAYER" | "SUPPORT" | "FINANCE" | "RISK" | "ADMIN";
   status: "ACTIVE" | "LOCKED" | "BANNED";
+  /**
+   * Lần đăng nhập gần nhất; null khi tài khoản CHƯA TỪNG đăng nhập.
+   *
+   * Giữ null CHỨ KHÔNG thay bằng chuỗi rỗng hay một mốc giả: "đăng ký rồi bỏ đó" là một
+   * thông tin thật về tài khoản, không phải dữ liệu thiếu cần che đi.
+   */
+  lastLoginAt: string | null;
   createdAt: string;
   /** Luôn có giá trị: người dùng chưa có ví được backend trả "0.00" chứ không null. */
   balance: string;
   currency: string;
+  /**
+   * Người này có đang truy cập NGAY LÚC NÀY không.
+   *
+   * KHÁC HẲN `lastLoginAt`, không phải bản chi tiết hơn của nó: `lastLoginAt` chỉ được ghi
+   * một lần lúc đăng nhập, nên người đang chơi và người đăng nhập rồi tắt máy ngay đều cho
+   * cùng một giá trị.
+   *
+   * Kết luận do BACKEND tính, không tự suy ra ở đây — ngưỡng "im lặng bao lâu thì coi là
+   * offline" là cấu hình phía server, và đồng hồ máy người vận hành có thể lệch.
+   */
+  online: boolean;
+  /** Mốc hoạt động cuối; null nghĩa là CHƯA RÕ, không phải "đã rời đi từ lâu". */
+  lastSeenAt: string | null;
 }
+
+/** Một dòng của điểm cuối làm mới — khớp PresenceEntryResponse của backend. */
+interface PresenceEntry {
+  userId: string;
+  online: boolean;
+  lastSeenAt: string | null;
+}
+
+/**
+ * Nhịp làm mới trạng thái online.
+ *
+ * Khớp với chu kỳ quét WebSocket ở backend (rwg.presence.refresh-interval): làm mới dày hơn
+ * cũng không sớm hơn được, vì mốc ở Redis chỉ đổi theo nhịp đó.
+ */
+const PRESENCE_REFRESH_MS = 30_000;
 
 /**
  * Chi tiết user — khớp AdminUserDetailResponse của backend.
@@ -112,7 +151,7 @@ type ModalTab = "finance" | "account" | "odds";
  * vì mỗi panel tự gọi API riêng của nó khi mount — mở cả ba cùng lúc là ba request
  * cho một lần mở modal.
  */
-type ModalSectionId = "payout" | "adjust" | "ledger" | "permission";
+type ModalSectionId = "payout" | "adjust" | "ledger" | "permission" | "login-history";
 
 /**
  * Mục gấp trong modal: hàng tiêu đề bấm được, nội dung chỉ mount khi MỞ.
@@ -166,7 +205,7 @@ const ModalSection: React.FC<{
 const KYC_LEVELS = ["NONE", "LEVEL_1", "LEVEL_2", "LEVEL_3"];
 
 export default function AdminUsersPage() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   // Quyen quyet dinh tab nao hien ra. An han tab khong co quyen thay vi de bam
   // roi nhan 403 khong hieu vi sao.
@@ -187,6 +226,18 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  /**
+   * Trạng thái online mới nhất, PHỦ LÊN giá trị đi kèm danh sách.
+   *
+   * VÌ SAO KHÔNG SỬA THẲNG VÀO `users`: làm mới sẽ ghi lại cả mảng, và mọi thứ khác trong
+   * dòng (số dư, trạng thái tài khoản) cũng bị thay bằng dữ liệu của lời gọi nhẹ — vốn
+   * không chứa những trường đó. Một map phủ lên giữ cho hai nguồn dữ liệu không trộn lẫn.
+   *
+   * Cũng nhờ vậy mà bảng KHÔNG bị vẽ lại toàn bộ mỗi 30 giây: người vận hành đang gõ trong
+   * ô tìm kiếm hay đang mở modal không bị mất thao tác.
+   */
+  const [presence, setPresence] = useState<Record<string, PresenceEntry>>({});
 
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [detail, setDetail] = useState<UserDetail | null>(null);
@@ -425,6 +476,55 @@ export default function AdminUsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter]);
 
+  /**
+   * Danh sách id đang hiện, dạng chuỗi ổn định.
+   *
+   * Dùng làm phụ thuộc của effect bên dưới thay vì chính mảng `users`: mảng đó là một tham
+   * chiếu mới sau mỗi lần tải, nên nó sẽ dựng lại bộ đếm thời gian dù nội dung không đổi.
+   */
+  const visibleUserIds = users.map((u) => u.id).join(",");
+
+  /**
+   * Làm mới trạng thái online theo nhịp, CHỈ cho các dòng đang hiện.
+   *
+   * Gọi điểm cuối nhẹ chứ không tải lại cả danh sách: tải lại sẽ chạy lại truy vấn tìm
+   * kiếm, truy vấn ví và phép phân trang mỗi 30 giây, cho mỗi nhân sự đang mở trang — tất
+   * cả chỉ để đổi một chấm màu.
+   */
+  useEffect(() => {
+    if (!visibleUserIds) {
+      // Bảng rỗng (đang tải, hoặc bộ lọc không có kết quả): không có gì để hỏi.
+      setPresence({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const pull = async () => {
+      try {
+        const rows = await adminFetch<PresenceEntry[]>(
+          `/admin/presence?ids=${encodeURIComponent(visibleUserIds)}`
+        );
+        if (cancelled) return;
+        setPresence(Object.fromEntries(rows.map((r) => [r.userId, r])));
+      } catch {
+        // IM LẶNG BỎ QUA, và GIỮ giá trị cũ.
+        //
+        // Đây là dữ liệu trang trí chạy nền mỗi 30 giây. Hiện một dải lỗi đỏ vì nó sẽ
+        // che mất lỗi thật của các thao tác người vận hành đang làm, còn xoá trạng thái
+        // đang có sẽ làm cả cột nhấp nháy mỗi lần mạng chập.
+      }
+    };
+
+    void pull();
+    const timer = setInterval(pull, PRESENCE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [visibleUserIds]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
@@ -524,6 +624,12 @@ export default function AdminUsersPage() {
                   <th className="py-3.5 px-4">{t("admin.users.table_username")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_email")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_status")}</th>
+                  {/* ĐẶT NGAY SAU TRẠNG THÁI: "tài khoản có bị khoá không" và "người đó có
+                      đang ở đây không" là hai câu đọc liền nhau khi xử lý một khiếu nại. */}
+                  <th className="py-3.5 px-4">{t("admin.users.presence.column")}</th>
+                  {/* ĐẶT CẠNH TRẠNG THÁI: "tài khoản này có bị khoá không" và "nó còn
+                      được dùng không" là hai câu đọc cùng nhau khi đánh giá một tài khoản. */}
+                  <th className="py-3.5 px-4">{t("admin.users.table_last_login")}</th>
                   <th className="py-3.5 px-4 text-right">{t("admin.users.table_balance")}</th>
                   <th className="py-3.5 px-4">{t("admin.users.table_created")}</th>
                   <th className="py-3.5 px-4 text-right">{t("admin.users.table_action")}</th>
@@ -533,7 +639,7 @@ export default function AdminUsersPage() {
                 {users.length === 0 && !loading && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={8}
                       className="py-12 text-center text-xs text-slate-500 font-medium"
                     >
                       {t("admin.users.empty_filtered")}
@@ -568,6 +674,48 @@ export default function AdminUsersPage() {
                         </span>
                       )}
                     </td>
+
+                    {/* ĐANG ONLINE HAY KHÔNG.
+
+                        Giá trị của lần làm mới gần nhất được ưu tiên hơn giá trị đi kèm danh
+                        sách: danh sách chỉ tải lại khi đổi trang hoặc đổi bộ lọc, nên sau vài
+                        phút mở trang thì trường trong đó đã cũ. */}
+                    <td className="py-3.5 px-4">
+                      <PresenceBadge
+                        online={presence[u.id]?.online ?? u.online}
+                        lastSeenAt={presence[u.id]?.lastSeenAt ?? u.lastSeenAt}
+                        lastLoginAt={u.lastLoginAt}
+                        locale={locale}
+                      />
+                    </td>
+
+                    {/* LẦN ĐĂNG NHẬP GẦN NHẤT.
+
+                        Thời gian TƯƠNG ĐỐI chứ không phải ngày giờ đầy đủ: ở một bảng mười
+                        dòng, "3 giờ trước" trả lời ngay câu đang được hỏi, còn
+                        "29/08/2026 18:04" bắt người đọc tự trừ với hiện tại — mười lần cho
+                        một lần xem bảng. Ngày giờ chính xác vẫn có trong tooltip khi cần
+                        đối chiếu với nhật ký khác.
+
+                        ĐÃ BỎ CHẤM MÀU Ở CỘT NÀY. Chấm đó dựa trên "đăng nhập trong vòng 24
+                        giờ" và trông y như một đèn báo đang hoạt động, trong khi nó không hề
+                        biết người đó còn ở đây hay không. Giờ đã có cột ONLINE trả lời đúng
+                        câu đó, nên hai chấm cạnh nhau với hai nghĩa khác nhau chỉ gây nhầm. */}
+                    <td className="py-3.5 px-4">
+                      {u.lastLoginAt ? (
+                        <span
+                          className="font-semibold text-slate-700"
+                          title={formatAbsoluteDateTime(u.lastLoginAt, locale)}
+                        >
+                          {formatRelativeTime(u.lastLoginAt, locale)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 font-medium">
+                          {t("admin.users.never_logged_in")}
+                        </span>
+                      )}
+                    </td>
+
                     {/* Số dư đặt sau trạng thái: đây là hai thứ người vận hành đọc cùng
                         nhau khi quyết định mở tài khoản nào.
                         `tabular-nums` để các chữ số thẳng cột theo chiều dọc, đọc nhanh hơn
@@ -1006,16 +1154,25 @@ export default function AdminUsersPage() {
 
 
 
-                {detail.lastLoginAt && (
-                  <div className="flex items-center justify-between px-1 text-[11px]">
-                    <span className="text-slate-500 font-semibold">
-                      {t("admin.users.wallet.last_login")}
-                    </span>
-                    <span className="text-slate-700 font-bold">
-                      {new Date(detail.lastLoginAt).toLocaleString("vi-VN")}
-                    </span>
-                  </div>
-                )}
+                {/* LỊCH SỬ ĐĂNG NHẬP.
+
+                    Thay cho dòng "lần đăng nhập gần nhất" trước đây ở đúng chỗ này: mốc đơn
+                    lẻ đó GIỜ ĐÃ CÓ ngay trên bảng danh sách, nên giữ lại trong modal là hiện
+                    cùng một con số hai lần. Đổi thành cả chuỗi đăng nhập thì trả lời được câu
+                    mà một mốc không nói được — mười lần thất bại liên tiếp rồi một lần thành
+                    công là chuyện khác hẳn một lần đăng nhập bình thường.
+
+                    GẤP LẠI MẶC ĐỊNH: panel gọi API lúc mount, nên mở sẵn sẽ tốn một request
+                    cho mỗi lần mở modal dù người vận hành chỉ vào đây để đổi mật khẩu. */}
+                <ModalSection
+                  id="login-history"
+                  label={t("admin.users.login_history.section")}
+                  icon={History}
+                  open={openSection === "login-history"}
+                  onToggle={toggleSection}
+                >
+                  <LoginHistoryPanel userId={detail.id} />
+                </ModalSection>
               </div>
             )}
 

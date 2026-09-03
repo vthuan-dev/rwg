@@ -18,6 +18,22 @@ import java.util.UUID;
  * `balance` không bao giờ null: người dùng chưa có ví được trả về "0.00" thay vì null, để
  * phía hiển thị không phải phân biệt "chưa có ví" với "số dư bằng không" — hai thứ đó giống
  * nhau đối với người vận hành.
+ *
+ * `lastLoginAt` LÀ Instant CHỨ KHÔNG PHẢI String: quy ước "tiền phải là String" chỉ áp cho
+ * BigDecimal, nơi Jackson tuần tự hoá thành số thực và làm tròn sai. Thời gian không có vấn
+ * đề đó — Instant ra chuỗi ISO-8601 và {@code new Date(...)} phía giao diện đọc trực tiếp.
+ *
+ * `lastLoginAt` null khi tài khoản CHƯA TỪNG đăng nhập, và giá trị null này có ý nghĩa nên
+ * không được thay bằng giá trị giả: "đăng ký rồi bỏ đó" khác hẳn "vừa đăng nhập xong" đối
+ * với người đang đánh giá tài khoản.
+ *
+ * `online` và `lastSeenAt` LÀ THỨ KHÁC HẲN `lastLoginAt`, không phải bản chi tiết hơn của nó.
+ * `lastLoginAt` chỉ được ghi MỘT LẦN lúc đăng nhập, nên nó không phân biệt được người đang
+ * chơi lúc này với người đăng nhập rồi tắt máy ngay — hai trường hợp đó cho cùng một giá trị.
+ * Hai trường mới trả lời câu "ngay lúc này người đó có ở đây không".
+ *
+ * `lastSeenAt` null nghĩa là KHÔNG RÕ (mốc đã hết hạn, hoặc Redis không sẵn sàng), KHÔNG
+ * phải "đã rời đi từ lâu". Phía hiển thị phải lùi về `lastLoginAt` trong trường hợp đó.
  */
 public record AdminUserListItemResponse(
         UUID id,
@@ -28,8 +44,11 @@ public record AdminUserListItemResponse(
         String kycLevel,
         boolean hasWithdrawalPassword,
         String locale,
+        Instant lastLoginAt,
         Instant createdAt,
         String balance,
-        String currency
+        String currency,
+        boolean online,
+        Instant lastSeenAt
 ) {
 }

@@ -139,6 +139,16 @@
       "table_email": "邮箱",
       "table_role": "角色",
       "table_status": "状态",
+      "table_last_login": "最近登录",
+      "never_logged_in": "从未登录",
+      "presence": {
+        "column": "在线状态",
+        "online": "当前在线",
+        "offline": "离线",
+        "unknown": "未知",
+        "online_hint": "最近几分钟内有活动",
+        "last_seen": "最后活动于 {time}"
+      },
       "table_created": "创建时间",
       "table_action": "操作",
       "btn_detail": "详情",
@@ -159,6 +169,14 @@
         "empty": "钱包账本中没有交易记录。",
         "loading": "正在加载交易历史...",
         "title": "钱包交易历史 (账本)"
+      },
+      "login_history": {
+        "section": "登录记录",
+        "empty": "暂无登录记录。",
+        "loading": "正在加载登录记录...",
+        "success": "登录成功",
+        "failed": "登录失败",
+        "channel_backoffice": "后台管理"
       },
       "odds": {
         "apply_pair": "应用于两边",

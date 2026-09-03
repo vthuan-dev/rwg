@@ -139,7 +139,17 @@
       "table_email": "EMAIL",
       "table_role": "VAI TRÒ",
       "table_status": "TRẠNG THÁI",
-      "table_created": "NGÀY TẠO",
+      "table_last_login": "LOG MASUK TERAKHIR",
+      "never_logged_in": "Belum pernah log masuk",
+      "presence": {
+        "column": "ONLINE",
+        "online": "Sedang online",
+        "offline": "Luar talian",
+        "unknown": "Tidak diketahui",
+        "online_hint": "Aktif dalam beberapa minit lalu",
+        "last_seen": "Terakhir dilihat {time}"
+      },
+      "table_created": "TARIKH DAFTAR",
       "table_action": "THAO TÁC",
       "btn_detail": "Chi tiết",
       "btn_change_status": "Đổi Status",
@@ -159,6 +169,14 @@
         "empty": "Tiada transaksi dalam lejar dompet.",
         "loading": "Memuatkan sejarah transaksi...",
         "title": "Sejarah Transaksi Dompet (Lejar)"
+      },
+      "login_history": {
+        "section": "Sejarah log masuk",
+        "empty": "Belum ada rekod log masuk.",
+        "loading": "Memuatkan sejarah log masuk...",
+        "success": "Log masuk berjaya",
+        "failed": "Log masuk gagal",
+        "channel_backoffice": "Panel pentadbir"
       },
       "odds": {
         "apply_pair": "Guna pada kedua",

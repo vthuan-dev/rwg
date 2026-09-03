@@ -139,6 +139,16 @@
       "table_email": "EMAIL",
       "table_role": "ROLE",
       "table_status": "STATUS",
+      "table_last_login": "LAST LOGIN",
+      "never_logged_in": "Never logged in",
+      "presence": {
+        "column": "ONLINE",
+        "online": "Online now",
+        "offline": "Offline",
+        "unknown": "Unknown",
+        "online_hint": "Active within the last few minutes",
+        "last_seen": "Last seen {time}"
+      },
       "table_created": "CREATED AT",
       "table_action": "ACTIONS",
       "btn_detail": "Details",
@@ -159,6 +169,14 @@
         "empty": "No transactions in wallet ledger.",
         "loading": "Loading transaction history...",
         "title": "Wallet Transaction History (Ledger)"
+      },
+      "login_history": {
+        "section": "Login history",
+        "empty": "No login attempts recorded yet.",
+        "loading": "Loading login history...",
+        "success": "Successful login",
+        "failed": "Failed login",
+        "channel_backoffice": "Backoffice"
       },
       "odds": {
         "apply_pair": "Apply to pair",

@@ -77,6 +77,22 @@ class AdminAppContextTest {
     }
 
     /**
+     * Route ĐỌC trạng thái online PHẢI được map ở app này.
+     *
+     * Cùng lý do như {@link #adminSettingsRoutesAreMapped()}: package {@code com.rwg.presence}
+     * phải nằm trong {@code AdminApplication.basePackages}, nếu không bảng danh sách người
+     * dùng sẽ nhận 404 ở lời gọi làm mới mỗi 30 giây.
+     */
+    @Test
+    void adminPresenceRouteIsMapped() {
+        List<String> routes = mappedRoutes();
+
+        assertThat(routes)
+                .as("thiếu route đọc trạng thái online — kiểm AdminApplication.basePackages")
+                .anyMatch(route -> route.contains("/api/v1/admin/presence"));
+    }
+
+    /**
      * Nhân sự quản trị PHẢI đăng nhập được ở app này. Trước đây không có route nào
      * để lấy token nên toàn bộ khu quản trị không thể truy cập từ trình duyệt.
      */

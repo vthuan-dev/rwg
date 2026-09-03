@@ -139,6 +139,16 @@
       "table_email": "EMAIL",
       "table_role": "VAI TRÒ",
       "table_status": "TRẠNG THÁI",
+      "table_last_login": "ĐĂNG NHẬP GẦN NHẤT",
+      "never_logged_in": "Chưa từng đăng nhập",
+      "presence": {
+        "column": "ONLINE",
+        "online": "Đang online",
+        "offline": "Ngoại tuyến",
+        "unknown": "Chưa rõ",
+        "online_hint": "Đang truy cập trong vài phút gần đây",
+        "last_seen": "Thấy lần cuối {time}"
+      },
       "table_created": "NGÀY TẠO",
       "table_action": "THAO TÁC",
       "btn_detail": "Chi tiết",
@@ -159,6 +169,14 @@
         "empty": "Không có giao dịch nào trong sổ ví.",
         "loading": "Đang tải lịch sử giao dịch...",
         "title": "Lịch sử Giao dịch Ví (Ledger)"
+      },
+      "login_history": {
+        "section": "Lịch sử đăng nhập",
+        "empty": "Chưa có lần đăng nhập nào được ghi nhận.",
+        "loading": "Đang tải lịch sử đăng nhập...",
+        "success": "Đăng nhập thành công",
+        "failed": "Đăng nhập thất bại",
+        "channel_backoffice": "Khu quản trị"
       },
       "odds": {
         "apply_pair": "Áp cả cặp",

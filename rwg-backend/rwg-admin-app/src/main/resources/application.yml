@@ -85,6 +85,13 @@ rwg:
     refresh-token-ttl: P30D
   redis:
     enabled: ${RWG_REDIS_ENABLED:true}
+  presence:
+    # App này chỉ ĐỌC trạng thái có mặt. PHẢI khớp giá trị của app người chơi: hai bên
+    # lệch nhau thì cùng một mốc cho ra hai kết luận khác nhau.
+    online-window: ${RWG_PRESENCE_ONLINE_WINDOW:PT90S}
+    retention: ${RWG_PRESENCE_RETENTION:P30D}
+    # KHÔNG khai refresh-interval: việc quét WebSocket bị loại khỏi app này
+    # (xem AdminApplication.excludeFilters), nên một giá trị ở đây chỉ gây hiểu sai.
   captcha:
     enforced: ${RWG_CAPTCHA_ENFORCED:true}
     provider: ${RWG_CAPTCHA_PROVIDER:dev}

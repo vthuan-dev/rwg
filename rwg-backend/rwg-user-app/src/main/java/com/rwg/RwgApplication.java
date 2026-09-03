@@ -17,6 +17,7 @@ import com.rwg.banner.api.AdminBannerController;
 import com.rwg.risk.api.AdminRiskController;
 import com.rwg.wallet.api.AdminWalletController;
 import com.rwg.report.api.AdminReportController;
+import com.rwg.presence.api.AdminPresenceController;
 import com.rwg.settings.api.AdminAppSettingController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
@@ -76,7 +77,17 @@ import org.springframework.context.annotation.FilterType;
                         //
                         // Chỉ loại controller QUẢN TRỊ. AppSettingController (đường đọc) PHẢI ở
                         // lại app này — đó là nơi khung chat của người chơi lấy lời chào.
-                        AdminAppSettingController.class
+                        AdminAppSettingController.class,
+                        // Ai đang online: chỉ khu quản trị được biết.
+                        //
+                        // Nếu lọt vào app người chơi thì bất kỳ người chơi nào cũng tra được
+                        // ai đang có mặt, chỉ cần biết id của họ — một kênh theo dõi lẫn nhau
+                        // mà sản phẩm không hề có ý định cung cấp.
+                        //
+                        // Phần GHI mốc hoạt động (PlayerPresenceInterceptor,
+                        // WebSocketPresenceRefresher) PHẢI ở lại app này: đây chính là nơi
+                        // người chơi gửi request và mở WebSocket.
+                        AdminPresenceController.class
                 }))
 public class RwgApplication {
 

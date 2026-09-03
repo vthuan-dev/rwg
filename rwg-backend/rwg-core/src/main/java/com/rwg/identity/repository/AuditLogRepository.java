@@ -48,4 +48,25 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
      * Vẫn là thao tác ĐỌC: bảng audit_log append-only, repository này không có method sửa/xoá.
      */
     List<AuditLog> findByActionInAndTargetIdIn(Collection<String> actions, Collection<String> targetIds);
+
+    /**
+     * Lịch sử đăng nhập của MỘT tài khoản, mới nhất trước.
+     *
+     * <h2>VÌ SAO LỌC THEO actorId MÀ KHÔNG PHẢI targetId</h2>
+     * Với sự kiện đăng nhập, {@code actor_id} và {@code target_id} mang CÙNG một giá trị —
+     * người đăng nhập vừa là người thực hiện vừa là đối tượng. Nhưng chỉ {@code actor_id}
+     * có index ({@code idx_audit_log_actor_id} trong V1__init_schema.sql); {@code target_id}
+     * KHÔNG có. Lọc theo cột không index trên bảng tăng nhanh nhất hệ thống là quét toàn
+     * bảng mỗi lần một người vận hành mở modal.
+     *
+     * <h2>HỆ QUẢ ĐÃ BIẾT</h2>
+     * Lần đăng nhập sai mà KHÔNG tìm ra tài khoản nào (gõ sai cả tên đăng nhập) được ghi
+     * với {@code actor_id = null} nên KHÔNG xuất hiện ở đây. Đúng như mong muốn: lần đó
+     * không thuộc về tài khoản nào cả. Muốn tra loại đó thì dùng
+     * {@code GET /admin/audit/logs?action=LOGIN_FAILED}.
+     *
+     * Vẫn là thao tác ĐỌC — bảng audit_log append-only.
+     */
+    List<AuditLog> findByActorIdAndActionInOrderByCreatedAtDesc(
+            UUID actorId, Collection<String> actions, Pageable pageable);
 }

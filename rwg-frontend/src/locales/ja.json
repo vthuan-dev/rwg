@@ -139,7 +139,17 @@
       "table_email": "EMAIL",
       "table_role": "VAI TRÒ",
       "table_status": "TRẠNG THÁI",
-      "table_created": "NGÀY TẠO",
+      "table_last_login": "最終ログイン",
+      "never_logged_in": "ログイン履歴なし",
+      "presence": {
+        "column": "オンライン",
+        "online": "オンライン中",
+        "offline": "オフライン",
+        "unknown": "不明",
+        "online_hint": "直近数分間に操作あり",
+        "last_seen": "最終確認 {time}"
+      },
+      "table_created": "作成日",
       "table_action": "THAO TÁC",
       "btn_detail": "Chi tiết",
       "btn_change_status": "Đổi Status",
@@ -159,6 +169,14 @@
         "empty": "ウォレット台帳に取引履歴がありません。",
         "loading": "取引履歴を読み込み中…",
         "title": "ウォレット取引履歴（台帳）"
+      },
+      "login_history": {
+        "section": "ログイン履歴",
+        "empty": "ログイン記録はまだありません。",
+        "loading": "ログイン履歴を読み込み中...",
+        "success": "ログイン成功",
+        "failed": "ログイン失敗",
+        "channel_backoffice": "管理画面"
       },
       "odds": {
         "apply_pair": "両方に適用",

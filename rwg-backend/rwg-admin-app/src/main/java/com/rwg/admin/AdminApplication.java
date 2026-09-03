@@ -15,6 +15,9 @@ import com.rwg.identity.api.AuthController;
 import com.rwg.identity.api.UserController;
 import com.rwg.notification.api.NotificationController;
 import com.rwg.payment.api.PaymentController;
+import com.rwg.presence.service.WebSocketPresenceRefresher;
+import com.rwg.presence.web.PlayerPresenceInterceptor;
+import com.rwg.presence.web.PresenceWebConfig;
 import com.rwg.settings.api.AppSettingController;
 import com.rwg.wallet.api.WalletController;
 import org.springframework.boot.SpringApplication;
@@ -108,7 +111,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                 // nghĩa là controller trong đó không được đăng ký, và lời gọi tới nó trả 404
                 // "Resource not found" — trông y như lỗi đường dẫn ở frontend, nên rất dễ
                 // mất thời gian đi tìm sai chỗ.
-                "com.rwg.settings"
+                "com.rwg.settings",
+                // Ai đang online: app này ĐỌC trạng thái để vẽ bảng danh sách người dùng.
+                // Phần ghi mốc bị loại bên dưới.
+                "com.rwg.presence"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
@@ -137,7 +143,20 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                         GameEventBroadcaster.class,
                         WagerSettledListener.class,
                         BetService.class,
-                        GameQueryService.class
+                        GameQueryService.class,
+                        // GHI mốc hoạt động: CHỈ chạy ở app người chơi.
+                        //
+                        // Ở đây chúng vô nghĩa và còn gây sai lệch. Interceptor lọc theo vai
+                        // trò PLAYER nên request của nhân sự vốn đã không được ghi, nhưng để
+                        // lại thì mỗi request của khu quản trị vẫn phải chạy thêm một lớp
+                        // kiểm tra không bao giờ đúng.
+                        //
+                        // WebSocketPresenceRefresher thì tệ hơn thế: SimpUserRegistry của app
+                        // này chỉ chứa NHÂN SỰ (WebSocketProperties.audience chặn token
+                        // PLAYER), nên nó sẽ ghi nhân sự vào danh sách người chơi đang online.
+                        PlayerPresenceInterceptor.class,
+                        PresenceWebConfig.class,
+                        WebSocketPresenceRefresher.class
                 }))
 public class AdminApplication {
 

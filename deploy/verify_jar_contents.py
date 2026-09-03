@@ -20,6 +20,10 @@ import zipfile
 REQUIRED = [
     "com/rwg/banner/domain/BannerPlacement.class",
     "db/migration/V20260826_02__them_placement_cho_banners.sql",
+    # Lich su dang nhap cua khach tren khu quan tri. KHONG co migration di kem: ca
+    # users.last_login_at va audit_log deu da co tu truoc, tinh nang nay chi lo du lieu
+    # san co ra API. Nen class DTO nay la dau hieu DUY NHAT xac nhan ma moi vao jar.
+    "com/rwg/identity/dto/LoginHistoryEntryResponse.class",
 ]
 
 NESTED_CORE = "BOOT-INF/lib/rwg-core-0.1.0-SNAPSHOT.jar"

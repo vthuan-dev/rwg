@@ -101,6 +101,18 @@ rwg:
   redis:
     # false -> dùng fallback in-memory cho refresh-token store + rate-limit (chỉ dev 1 instance).
     enabled: ${RWG_REDIS_ENABLED:true}
+  presence:
+    # Theo dõi người chơi đang có mặt, để khu quản trị hiện online/offline.
+    #
+    # Im lặng quá online-window là coi như đã rời đi. Xấp xỉ ba lần refresh-interval:
+    # chịu được vài lần trượt mạng liên tiếp mà không nháy qua lại giữa hai trạng thái.
+    online-window: ${RWG_PRESENCE_ONLINE_WINDOW:PT90S}
+    # TTL của mốc. Dài hơn hẳn online-window vì hết cửa sổ đó thì mốc chuyển vai,
+    # từ "đang ở đây" thành "thấy lần cuối lúc nào".
+    retention: ${RWG_PRESENCE_RETENTION:P30D}
+    # Chu kỳ quét các phiên WebSocket đang mở. CẦN vì người ngồi im trên trang game
+    # không gọi REST nào — chỉ dựa vào request HTTP thì họ bị coi là đã rời đi.
+    refresh-interval: ${RWG_PRESENCE_REFRESH_INTERVAL:PT30S}
   captcha:
     # Enforce captcha phía server khi rate-limiter báo captchaRequired.
     # provider=dev -> dùng stub (chấp nhận token khác rỗng); TODO: tích hợp provider thật ở bước sau.

@@ -8,6 +8,7 @@ import com.rwg.identity.dto.ChangeUserStatusRequest;
 import com.rwg.identity.dto.DeleteUserRequest;
 import com.rwg.identity.dto.UpdateKycLevelRequest;
 import com.rwg.identity.dto.AdminUserListItemResponse;
+import com.rwg.identity.dto.LoginHistoryEntryResponse;
 import com.rwg.identity.dto.UserResponse;
 import com.rwg.identity.service.AdminUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -68,6 +70,21 @@ public class AdminUserController {
     @Operation(summary = "Chi tiết user kèm số dư ví, tổng nạp/rút đã hoàn tất, số lệnh rút chờ duyệt")
     public AdminUserDetailResponse detail(@PathVariable UUID id) {
         return adminUserService.detail(id);
+    }
+
+    /**
+     * Lịch sử đăng nhập của một tài khoản, dựng từ {@code audit_log} (append-only).
+     *
+     * Trả {@code List} chứ KHÔNG phải {@code PageResponse}: đây là ô "N lần gần nhất" trong
+     * modal chi tiết, không có nút sang trang. Bọc bằng PageResponse sẽ hứa một khả năng
+     * phân trang mà giao diện không có, và buộc phía hiển thị bóc thêm một lớp vô ích.
+     */
+    @GetMapping("/{id}/login-history")
+    @Operation(summary = "Lịch sử đăng nhập gần nhất (thành công + thất bại) kèm IP và kênh đăng nhập")
+    public List<LoginHistoryEntryResponse> loginHistory(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "20") int limit) {
+        return adminUserService.loginHistory(id, limit);
     }
 
     @PatchMapping("/{id}/status")

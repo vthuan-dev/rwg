@@ -17,12 +17,15 @@ import com.rwg.identity.domain.UserRole;
 import com.rwg.identity.domain.UserStatus;
 import com.rwg.identity.dto.AdminUserDetailResponse;
 import com.rwg.identity.dto.AdminUserListItemResponse;
+import com.rwg.presence.service.PresenceQueryService;
 import com.rwg.identity.dto.ChangeUserRoleRequest;
 import com.rwg.identity.dto.ChangeUserStatusRequest;
 import com.rwg.identity.dto.DeleteUserRequest;
 import com.rwg.identity.dto.UpdateKycLevelRequest;
 import com.rwg.identity.dto.UserResponse;
+import com.rwg.identity.dto.LoginHistoryEntryResponse;
 import com.rwg.identity.repository.AdminApprovalRequestRepository;
+import com.rwg.identity.repository.AuditLogRepository;
 import com.rwg.identity.repository.UserRepository;
 import com.rwg.identity.service.AdminDestructivePinService;
 import com.rwg.payment.domain.PaymentStatus;
@@ -41,8 +44,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -78,12 +84,14 @@ public class AdminUserService {
     private final AccountSignalRepository accountSignalRepository;
     private final AdminApprovalRequestRepository approvalRequestRepository;
     private final UserGameOddsRepository userGameOddsRepository;
+    private final AuditLogRepository auditLogRepository;
     private final RefreshTokenStore refreshTokenStore;
     private final SessionRevocationStore sessionRevocationStore;
     private final GameEventRelay gameEventRelay;
     private final AuditTrailService audit;
     private final AdminDestructivePinService pinService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final PresenceQueryService presenceQueryService;
 
     public AdminUserService(UserRepository userRepository,
                             WalletRepository walletRepository,
@@ -98,12 +106,14 @@ public class AdminUserService {
                             AccountSignalRepository accountSignalRepository,
                             AdminApprovalRequestRepository approvalRequestRepository,
                             UserGameOddsRepository userGameOddsRepository,
+                            AuditLogRepository auditLogRepository,
                             RefreshTokenStore refreshTokenStore,
                             SessionRevocationStore sessionRevocationStore,
                             GameEventRelay gameEventRelay,
                             AuditTrailService audit,
                             AdminDestructivePinService pinService,
-                            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+                            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder,
+                            PresenceQueryService presenceQueryService) {
         this.userRepository = userRepository;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
@@ -117,12 +127,14 @@ public class AdminUserService {
         this.accountSignalRepository = accountSignalRepository;
         this.approvalRequestRepository = approvalRequestRepository;
         this.userGameOddsRepository = userGameOddsRepository;
+        this.auditLogRepository = auditLogRepository;
         this.refreshTokenStore = refreshTokenStore;
         this.sessionRevocationStore = sessionRevocationStore;
         this.gameEventRelay = gameEventRelay;
         this.audit = audit;
         this.pinService = pinService;
         this.passwordEncoder = passwordEncoder;
+        this.presenceQueryService = presenceQueryService;
     }
 
     /**
@@ -161,6 +173,10 @@ public class AdminUserService {
      * Kèm số dư ví của từng dòng: người vận hành cần thấy số dư ngay trên bảng để biết nên
      * mở tài khoản nào, thay vì phải bấm vào từng người mới biết.
      *
+     * Kèm cả trạng thái đang online. Cột "đăng nhập gần nhất" KHÔNG trả lời được câu đó:
+     * {@code last_login_at} chỉ ghi một lần lúc đăng nhập, nên người đang chơi và người đã
+     * tắt máy từ lâu hiện y như nhau nếu họ đăng nhập cùng lúc.
+     *
      * KHÔNG nhận filter vai trò: truy vấn ở repository đã gắt PLAYER (xem
      * {@code UserRepository.searchForAdmin}). Nhân sự không bao giờ có mặt trong danh
      * sách này, nên một tham số role chỉ tạo ảo giác là lọc được.
@@ -186,11 +202,20 @@ public class AdminUserService {
 
         // MỘT truy vấn cho toàn bộ ví của trang, không phải mỗi dòng một lượt: với size mặc
         // định 20 thì cách kia thành 21 truy vấn cho một lần vẽ bảng.
-        Map<UUID, Wallet> walletByUser = found.getContent().isEmpty()
+        List<UUID> pageUserIds = found.getContent().stream().map(User::getId).toList();
+
+        Map<UUID, Wallet> walletByUser = pageUserIds.isEmpty()
                 ? Map.of()
-                : walletRepository.findByUserIdIn(
-                        found.getContent().stream().map(User::getId).toList()).stream()
+                : walletRepository.findByUserIdIn(pageUserIds).stream()
                 .collect(Collectors.toMap(Wallet::getUserId, w -> w));
+
+        // MỘT lượt đọc Redis cho cả trang, cùng lý do như truy vấn ví ở trên.
+        //
+        // Không có trong map nghĩa là chưa rõ, KHÔNG phải offline từ lâu: Redis bị xoá hay
+        // tạm không sẵn sàng đều cho kết quả rỗng, và lúc đó cột này lùi về lastLoginAt.
+        Map<UUID, Instant> lastSeenByUser = pageUserIds.isEmpty()
+                ? Map.of()
+                : presenceQueryService.lastSeen(pageUserIds);
 
         return PageResponse.from(found, user -> {
             Wallet wallet = walletByUser.get(user.getId());
@@ -202,11 +227,19 @@ public class AdminUserService {
                     : Money.of(wallet.getBalance()).amount().toPlainString();
             String currency = wallet == null ? Wallet.DEFAULT_CURRENCY : wallet.getCurrency();
 
+            Instant lastSeenAt = lastSeenByUser.get(user.getId());
+
             return new AdminUserListItemResponse(
                     user.getId(), user.getUsername(), user.getEmail(),
                     user.getRole().name(), user.getStatus().name(), user.getKycLevel().name(),
                     user.getWithdrawalPasswordHash() != null, user.getLocale(),
-                    user.getCreatedAt(), balance, currency);
+                    // lastLoginAt là cột của chính entity User đã nạp ở searchForAdmin, không
+                    // phải quan hệ lazy — thêm nó vào đây KHÔNG phát sinh truy vấn nào.
+                    user.getLastLoginAt(), user.getCreatedAt(), balance, currency,
+                    // Kết luận online tính Ở ĐÂY chứ không để phía hiển thị tự so với hiện
+                    // tại: ngưỡng im lặng là quyết định nghiệp vụ nằm trong cấu hình, và
+                    // đồng hồ của máy người vận hành có thể lệch.
+                    presenceQueryService.isOnline(lastSeenAt), lastSeenAt);
         });
     }
 
@@ -250,6 +283,52 @@ public class AdminUserService {
                 Money.of(withdrawn).amount().toPlainString(),
                 paymentOrderRepository.countByUserIdAndTypeAndStatus(
                         userId, PaymentType.WITHDRAWAL, PaymentStatus.PENDING));
+    }
+
+    /**
+     * Ba loại sự kiện tạo nên lịch sử đăng nhập của một tài khoản.
+     *
+     * {@code ADMIN_LOGIN_FORBIDDEN} KHÔNG nằm ở đây: đó là người chơi bị chặn ở cửa
+     * backoffice, tức mật khẩu ĐÚNG nhưng không có quyền vào. Xếp nó thành "đăng nhập thất
+     * bại" sẽ khiến người vận hành đọc lịch sử tưởng có ai đang dò mật khẩu. Sự kiện đó tra
+     * qua {@code GET /admin/audit/logs?action=ADMIN_LOGIN_FORBIDDEN}.
+     */
+    private static final Set<String> LOGIN_HISTORY_ACTIONS = Set.of(
+            AuditTrailService.LOGIN_SUCCESS,
+            AuditTrailService.LOGIN_FAILED,
+            AuditTrailService.ADMIN_LOGIN_SUCCESS);
+
+    /** Trần số dòng trả về, chặn client yêu cầu cả nghìn dòng trong một lượt. */
+    private static final int MAX_LOGIN_HISTORY = 100;
+
+    /**
+     * Lịch sử đăng nhập gần nhất của một tài khoản: khi nào, từ IP nào, thành công hay không.
+     *
+     * ĐỌC LẠI {@code audit_log} THAY VÌ TẠO BẢNG MỚI: mỗi lần đăng nhập vốn đã ghi một dòng
+     * ở đó kèm IP (xem {@code AuthService.login} / {@code authenticate}). Thêm một bảng
+     * riêng sẽ là ghi TRÙNG cùng một sự kiện vào hai chỗ, và khi hai chỗ lệch nhau thì không
+     * còn biết tin cái nào — đúng vấn đề mà một dòng thời gian duy nhất tránh được.
+     *
+     * KIỂM TRA TÀI KHOẢN TỒN TẠI TRƯỚC: id sai phải trả 404 chứ không phải danh sách rỗng.
+     * Với người đang điều tra, "tài khoản này chưa từng đăng nhập" và "không có tài khoản
+     * nào như vậy" là hai kết luận hoàn toàn khác nhau.
+     */
+    @Transactional(readOnly = true)
+    public List<LoginHistoryEntryResponse> loginHistory(UUID userId, int limit) {
+        requireUser(userId);
+
+        int capped = Math.min(Math.max(limit, 1), MAX_LOGIN_HISTORY);
+        return auditLogRepository.findByActorIdAndActionInOrderByCreatedAtDesc(
+                        userId, LOGIN_HISTORY_ACTIONS, PageRequest.of(0, capped))
+                .stream()
+                .map(entry -> new LoginHistoryEntryResponse(
+                        entry.getCreatedAt(),
+                        !AuditTrailService.LOGIN_FAILED.equals(entry.getAction()),
+                        entry.getIpAddress(),
+                        AuditTrailService.ADMIN_LOGIN_SUCCESS.equals(entry.getAction())
+                                ? LoginHistoryEntryResponse.CHANNEL_BACKOFFICE
+                                : LoginHistoryEntryResponse.CHANNEL_PLAYER))
+                .toList();
     }
 
     // ===== GHI =====

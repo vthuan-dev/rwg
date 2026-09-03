@@ -139,7 +139,17 @@
       "table_email": "EMAIL",
       "table_role": "VAI TRÒ",
       "table_status": "TRẠNG THÁI",
-      "table_created": "NGÀY TẠO",
+      "table_last_login": "최근 로그인",
+      "never_logged_in": "로그인 기록 없음",
+      "presence": {
+        "column": "온라인",
+        "online": "접속 중",
+        "offline": "오프라인",
+        "unknown": "알 수 없음",
+        "online_hint": "최근 몇 분 내 활동",
+        "last_seen": "마지막 접속 {time}"
+      },
+      "table_created": "생성일",
       "table_action": "THAO TÁC",
       "btn_detail": "Chi tiết",
       "btn_change_status": "Đổi Status",
@@ -159,6 +169,14 @@
         "empty": "지갑 내역에 거래가 없습니다.",
         "loading": "거래 내역을 불러오는 중...",
         "title": "지갑 거래 내역 (Ledger)"
+      },
+      "login_history": {
+        "section": "로그인 기록",
+        "empty": "아직 로그인 기록이 없습니다.",
+        "loading": "로그인 기록을 불러오는 중...",
+        "success": "로그인 성공",
+        "failed": "로그인 실패",
+        "channel_backoffice": "관리자 페이지"
       },
       "odds": {
         "apply_pair": "양쪽에 적용",
