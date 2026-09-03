@@ -37,6 +37,9 @@ rwg:
     issuer: rwg-backend
     access-token-ttl: PT15M
     refresh-token-ttl: P30D
+    # BẬT trong test: redis.enabled=false nên InMemoryActiveSessionStore được dùng, và cả
+    # ghi lẫn đọc đều trong cùng một tiến trình -> kiểm được đúng hành vi nghiệp vụ.
+    single-session-enabled: true
   crypto:
     # Khóa mã hóa số TK ngân hàng CHỈ dành cho test (base không có default).
     bank-enc-key: test-only-rwg-bank-enc-key-0123456789abcdef

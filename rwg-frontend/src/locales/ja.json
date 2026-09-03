@@ -603,6 +603,10 @@
     "account_locked": "このアカウントはロックされています。サポートへご連絡ください。",
     "network_error": "サーバーに接続できません。通信環境をご確認ください。",
     "unknown_error": "エラーが発生しました。もう一度お試しください。",
+
+    "session_superseded_title": "ログアウトされました",
+
+    "session_superseded_body": "別の端末でこのアカウントにログインがありました。ご本人でない場合は、すぐにパスワードを変更してください。",
     "all_rights_reserved": "All Rights Reserved."
   },
   "notification": {

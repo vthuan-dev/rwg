@@ -13,6 +13,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import {
   ApiError,
   clearPlayerTokens,
+  getPlayerSessionId,
   getPlayerToken,
   getUnreadNotificationsCount,
   getChatUnreadCount,
@@ -284,11 +285,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       });
 
-      // 3c) Phiên bị thu hồi (admin khóa tài khoản, đổi quyền, hoặc đặt lại mật khẩu).
+      // 3c) Phiên bị thu hồi. Hai nguồn, xử lý khác nhau:
       //
-      // KHÔNG hiện thông báo gì: đây là yêu cầu nghiệp vụ. Người bị khóa chỉ thấy mình
-      // đang ở trang đăng nhập; lý do khóa không được tiết lộ ra giao diện.
-      client.subscribe("/user/queue/session", () => {
+      // - Admin khóa tài khoản / đổi quyền: KHÔNG kèm lý do. Đây là yêu cầu nghiệp vụ —
+      //   người bị khóa chỉ thấy mình đang ở trang đăng nhập, lý do không được tiết lộ.
+      // - Đăng nhập ở thiết bị khác: CÓ kèm lý do, vì nếu không phải họ làm thì đó là dấu
+      //   hiệu mật khẩu đã bị lộ và họ cần biết để đổi.
+      client.subscribe("/user/queue/session", (msg) => {
+        let reason: string | null = null;
+        try {
+          const payload = JSON.parse(msg.body) as {
+            reason?: unknown;
+            session?: unknown;
+          };
+
+          // BỎ QUA gói nói về CHÍNH phiên đang giữ.
+          //
+          // Đích `/user/queue/...` tới mọi phiên STOMP của người này, kể cả phiên vừa được
+          // tạo bởi lần đăng nhập gây ra gói này. Thiếu phép so dưới đây thì đăng nhập lại
+          // ngay trên tab đang mở sẽ tự đăng xuất chính nó.
+          if (typeof payload.session === "string") {
+            if (payload.session === getPlayerSessionId()) return;
+          }
+          if (typeof payload.reason === "string") reason = payload.reason;
+        } catch {
+          // Gói không đọc được: vẫn đăng xuất. Đây là lệnh bảo vệ — bỏ qua vì không phân
+          // tích được nội dung sẽ để người dùng ở lại một giao diện đã mất quyền.
+        }
+
         clearPlayerTokens();
 
         // Ngắt socket TRƯỚC khi điều hướng: token đã bị xoá nên lần kết nối lại tự động
@@ -302,7 +326,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         // vẫn còn dữ liệu cũ trong bộ nhớ và các vòng gọi API của chúng vẫn chạy tiếp một
         // lúc. `replace` cũng không để lại mục lịch sử, nên bấm nút quay lại không đưa họ
         // về trang đã bị tước quyền.
-        window.location.replace("/login");
+        //
+        // Lý do đi qua ĐƯỜNG DẪN, không qua sessionStorage: `replace` làm trang tải lại từ
+        // đầu nên mọi state trong bộ nhớ mất hết, và tham số truy vấn là thứ duy nhất sống
+        // qua được ranh giới đó mà không cần thêm chỗ lưu.
+        window.location.replace(
+          reason === "CONCURRENT_LOGIN" ? "/login?reason=concurrent_login" : "/login"
+        );
       });
 
       // 4) Subscribe chat hỗ trợ.

@@ -98,6 +98,11 @@ rwg:
     issuer: rwg-backend
     access-token-ttl: PT15M
     refresh-token-ttl: P30D
+    # Ép MỘT phiên cho mỗi tài khoản khách: đăng nhập ở thiết bị mới thì thiết bị cũ mất
+    # quyền ngay. KHÔNG áp cho nhân sự quản trị (xem AuthService.sessionScoped).
+    #
+    # Có công tắc vì đây là thay đổi trên đường xác thực — thứ mà mọi request đều đi qua.
+    single-session-enabled: ${RWG_SINGLE_SESSION_ENABLED:true}
   redis:
     # false -> dùng fallback in-memory cho refresh-token store + rate-limit (chỉ dev 1 instance).
     enabled: ${RWG_REDIS_ENABLED:true}

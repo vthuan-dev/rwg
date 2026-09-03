@@ -65,7 +65,7 @@ class RedisRefreshTokenStoreTest {
     void setUp() {
         SecurityProperties props = new SecurityProperties(
                 "test-only-rwg-jwt-secret-0123456789abcdef-9876543210",
-                "rwg-backend", Duration.ofMinutes(15), Duration.ofDays(30));
+                "rwg-backend", Duration.ofMinutes(15), Duration.ofDays(30), true);
         store = new RedisRefreshTokenStore(redis, props);
     }
 

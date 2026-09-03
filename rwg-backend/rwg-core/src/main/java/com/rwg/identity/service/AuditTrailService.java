@@ -29,6 +29,14 @@ public class AuditTrailService {
     public static final String REFRESH_TOKEN_ROTATED = "REFRESH_TOKEN_ROTATED";
     public static final String REFRESH_TOKEN_REUSE = "REFRESH_TOKEN_REUSE";
     public static final String LOGOUT = "LOGOUT";
+    /**
+     * Một phiên bị thay thế bởi lần đăng nhập mới hơn (quy tắc một tài khoản một phiên).
+     *
+     * Ghi lại vì đây là tín hiệu điều tra: nhiều bản ghi liên tiếp trên cùng một tài khoản
+     * nghĩa là hai người đang tranh nhau một tài khoản — có thể là mật khẩu bị lộ, có thể là
+     * tài khoản dùng chung.
+     */
+    public static final String SESSION_SUPERSEDED = "SESSION_SUPERSEDED";
     public static final String WITHDRAWAL_PASSWORD_SET = "WITHDRAWAL_PASSWORD_SET";
     public static final String WITHDRAWAL_PASSWORD_VERIFY_FAILED = "WITHDRAWAL_PASSWORD_VERIFY_FAILED";
     public static final String USER_LOCALE_UPDATED = "USER_LOCALE_UPDATED";

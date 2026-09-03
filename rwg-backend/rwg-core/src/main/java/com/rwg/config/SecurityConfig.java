@@ -1,6 +1,7 @@
 package com.rwg.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.rwg.identity.service.ActiveSessionStore;
 import com.rwg.identity.service.SessionRevocationStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Cấu hình bảo mật: JWT resource server (HS256) + phân quyền theo vai trò.
  * Mật khẩu băm BCrypt strength 12 (DECISIONS.md / Bước 1).
@@ -44,6 +48,14 @@ public class SecurityConfig {
     public static final String ROLE_CLAIM = "roles";
     public static final String USERNAME_CLAIM = "username";
 
+    /**
+     * Claim mang định danh PHIÊN của token (giá trị là familyId của chuỗi refresh rotation).
+     *
+     * Tên ngắn "sid" theo thông lệ OpenID Connect. Token thiếu claim này vẫn hợp lệ — xem
+     * {@link SingleSessionValidator} để biết vì sao đó là hành vi cố ý.
+     */
+    public static final String SESSION_CLAIM = "sid";
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
@@ -57,7 +69,9 @@ public class SecurityConfig {
      * khai báo hai lần và không có nguy cơ hai bên lệch nhau.
      */
     @Bean
-    public JwtDecoder jwtDecoder(SecurityProperties props, SessionRevocationStore revocationStore) {
+    public JwtDecoder jwtDecoder(SecurityProperties props,
+                                 SessionRevocationStore revocationStore,
+                                 ActiveSessionStore activeSessionStore) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(props.hmacKey()).build();
 
         // Validate issuer (mặc định kèm chữ ký + exp): token phát hành bởi issuer khác bị từ chối.
@@ -68,10 +82,20 @@ public class SecurityConfig {
         //
         // Dùng `DelegatingOAuth2TokenValidator` chứ không thay hẳn validator mặc định: thay hẳn
         // sẽ bỏ luôn kiểm tra chữ ký, hạn dùng và issuer.
-        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(props.issuer()),
-                new RevokedSessionValidator(revocationStore));
-        decoder.setJwtValidator(validator);
+        // Ghép thêm quy tắc MỘT PHIÊN: token của thiết bị cũ bị từ chối sau khi người dùng
+        // đăng nhập ở thiết bị mới. Xem {@link SingleSessionValidator}.
+        //
+        // Dựng danh sách rồi mới gộp, thay vì viết hai nhánh if trả về hai decoder khác nhau:
+        // hai nhánh sẽ nhân đôi phần khai báo validator mặc định, và một lần sửa chỉ một
+        // nhánh là đủ để hai đường lệch nhau.
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
+        validators.add(JwtValidators.createDefaultWithIssuer(props.issuer()));
+        validators.add(new RevokedSessionValidator(revocationStore));
+        if (props.singleSessionActive()) {
+            validators.add(new SingleSessionValidator(activeSessionStore));
+        }
+
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
         return decoder;
     }
 

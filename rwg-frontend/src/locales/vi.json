@@ -603,6 +603,10 @@
     "account_locked": "Tài khoản đang bị khoá. Vui lòng liên hệ hỗ trợ.",
     "network_error": "Không kết nối được máy chủ. Kiểm tra lại đường truyền.",
     "unknown_error": "Đã xảy ra lỗi. Vui lòng thử lại.",
+
+    "session_superseded_title": "Bạn đã đăng xuất",
+
+    "session_superseded_body": "Tài khoản của bạn vừa đăng nhập trên một thiết bị khác. Nếu không phải bạn, hãy đổi mật khẩu ngay.",
     "all_rights_reserved": "All Rights Reserved."
   },
   "notification": {

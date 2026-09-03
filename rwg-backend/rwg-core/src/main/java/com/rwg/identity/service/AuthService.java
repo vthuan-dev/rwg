@@ -64,6 +64,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
+    /**
+     * Phiên đang hiệu lực của mỗi khách — nền tảng của quy tắc một tài khoản một phiên.
+     */
+    private final ActiveSessionStore activeSessionStore;
+    /**
+     * Kênh đá thiết bị cũ khỏi MÀN HÌNH. Đây là lớp trải nghiệm, không phải lớp bảo vệ:
+     * việc chặn thật do {@code SingleSessionValidator} làm ở phía server, nên người chặn
+     * WebSocket vẫn không gọi được API — họ chỉ không bị đá ra ngay.
+     */
+    private final com.rwg.game.service.GameEventRelay gameEventRelay;
     private final LoginRateLimiter rateLimiter;
     private final AuditTrailService audit;
     private final SecurityProperties securityProperties;
@@ -89,6 +99,8 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        RefreshTokenStore refreshTokenStore,
+                       ActiveSessionStore activeSessionStore,
+                       com.rwg.game.service.GameEventRelay gameEventRelay,
                        LoginRateLimiter rateLimiter,
                        AuditTrailService audit,
                        SecurityProperties securityProperties,
@@ -101,6 +113,8 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenStore = refreshTokenStore;
+        this.activeSessionStore = activeSessionStore;
+        this.gameEventRelay = gameEventRelay;
         this.rateLimiter = rateLimiter;
         this.audit = audit;
         this.securityProperties = securityProperties;
@@ -199,10 +213,40 @@ public class AuthService {
     public TokenResponse login(LoginRequest request, String ip) {
         User user = authenticate(request, ip);
         // Mỗi lần đăng nhập mở một family rotation mới.
-        TokenResponse tokens = issueTokens(user, UUID.randomUUID().toString());
+        String familyId = UUID.randomUUID().toString();
+        boolean scoped = sessionScoped(user);
+
+        if (scoped) {
+            // THỨ TỰ HAI LỆNH DƯỚI ĐÂY SO VỚI issueTokens QUYẾT ĐỊNH TÍNH ĐÚNG ĐẮN.
+            //
+            // `revokeAllForUser` quét tập chỉ mục token của người dùng rồi xoá từng cái. Gọi
+            // nó SAU khi phát token mới thì token vừa phát cũng đã nằm trong tập đó và bị xoá
+            // luôn — người vừa đăng nhập không gia hạn được phiên của chính mình, và sẽ bị
+            // đăng xuất sau đúng một vòng access token.
+            refreshTokenStore.revokeAllForUser(user.getId());
+            activeSessionStore.claim(user.getId(), familyId, securityProperties.refreshTokenTtl());
+        }
+
+        TokenResponse tokens = issueTokens(user, familyId, scoped ? familyId : null);
         audit.record(user.getId(), user.getUsername(), AuditTrailService.LOGIN_SUCCESS,
                 "USER", user.getId().toString(), null, ip);
+
+        if (scoped) {
+            // Gửi SAU khi phiên mới đã được chốt: nếu gửi trước, thiết bị cũ có thể kịp gọi
+            // gia hạn trong khoảng giữa hai lệnh và giành lại quyền sở hữu phiên.
+            gameEventRelay.publishSessionSuperseded(user.getId(), familyId);
+        }
         return tokens;
+    }
+
+    /**
+     * Tài khoản này có bị ràng buộc MỘT phiên hay không.
+     *
+     * CHỈ áp cho khách. Nhân sự quản trị thường mở backoffice trên nhiều máy cùng lúc — ép
+     * một phiên ở đó chỉ khiến họ liên tục đá nhau ra giữa lúc đang xử lý lệnh nạp/rút.
+     */
+    private boolean sessionScoped(User user) {
+        return securityProperties.singleSessionActive() && !user.getRole().isStaff();
     }
 
     /**
@@ -223,6 +267,13 @@ public class AuthService {
 
         audit.record(user.getId(), user.getUsername(), "GUEST_SUPPORT_SESSION",
                 "USER", user.getId().toString(), null, ip);
+
+        // KHÔNG chốt phiên và KHÔNG thu hồi gì — token phát ra ở đây cố tình không mang
+        // claim phiên.
+        //
+        // Phiên này mở được CHỈ bằng tên đăng nhập. Nếu nó cũng đẩy phiên cũ ra thì bất kỳ ai
+        // biết tên đăng nhập của người khác đều đá được người đó khỏi ván đang chơi, lặp lại
+        // liên tục — thành một cách chặn người chơi truy cập mà không cần mật khẩu.
         return issueTokens(user, UUID.randomUUID().toString());
     }
 
@@ -252,6 +303,8 @@ public class AuthService {
                     null, "error.forbidden.backoffice");
         }
 
+        // KHÔNG gắn phiên: xem {@link #sessionScoped}. Nhân sự đăng nhập nhiều máy là bình
+        // thường trong vận hành.
         TokenResponse tokens = issueTokens(user, UUID.randomUUID().toString());
         audit.record(user.getId(), user.getUsername(), AuditTrailService.ADMIN_LOGIN_SUCCESS,
                 "USER", user.getId().toString(), Map.of("role", user.getRole().name()), ip);
@@ -335,8 +388,33 @@ public class AuthService {
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                 .orElseThrow(() -> new ApiException(ErrorCode.REFRESH_TOKEN_INVALID));
 
-        // Rotation: token mới giữ NGUYÊN familyId.
-        TokenResponse tokens = issueTokens(user, consumed.familyId());
+        boolean scoped = sessionScoped(user);
+        if (scoped) {
+            // Chốt lại HAI việc ở đây, dù `revokeAllForUser` lúc đăng nhập đã cắt đường này.
+            //
+            // (1) TỪ CHỐI nếu family đang gia hạn không còn là phiên hiện hành. Việc thu hồi
+            //     lúc đăng nhập dựa vào tập chỉ mục `rwg:auth:refresh:user:*`; một lần ghi vào
+            //     tập đó thất bại là có token sống ngoài chỉ mục, và thiết bị cũ sẽ CHIẾM LẠI
+            //     quyền sở hữu phiên chỉ bằng cách gia hạn.
+            //
+            // (2) GHI LẠI để gia hạn TTL. Bản ghi phiên có TTL bằng TTL refresh token; nếu chỉ
+            //     ghi một lần lúc đăng nhập thì với người dùng đều đặn gia hạn, bản ghi hết hạn
+            //     TRƯỚC phiên mà nó đang bảo vệ và quy tắc mất hiệu lực trong im lặng.
+            String current = activeSessionStore.current(user.getId());
+            if (current != null && !current.equals(consumed.familyId())) {
+                refreshTokenStore.revokeFamily(consumed.familyId());
+                audit.record(user.getId(), user.getUsername(),
+                        AuditTrailService.SESSION_SUPERSEDED, "USER",
+                        user.getId().toString(), null, ip);
+                throw new ApiException(ErrorCode.REFRESH_TOKEN_INVALID);
+            }
+            activeSessionStore.claim(user.getId(), consumed.familyId(),
+                    securityProperties.refreshTokenTtl());
+        }
+
+        // Rotation: token mới giữ NGUYÊN familyId — nên claim phiên cũng không đổi.
+        TokenResponse tokens = issueTokens(user, consumed.familyId(),
+                scoped ? consumed.familyId() : null);
         audit.record(user.getId(), user.getUsername(), AuditTrailService.REFRESH_TOKEN_ROTATED,
                 "USER", user.getId().toString(), null, ip);
         return tokens;
@@ -575,10 +653,23 @@ public class AuthService {
         }
     }
 
+    /** Phát cặp token KHÔNG gắn phiên (nhân sự quản trị, phiên hỗ trợ khách quên mật khẩu). */
     private TokenResponse issueTokens(User user, String familyId) {
+        return issueTokens(user, familyId, null);
+    }
+
+    /**
+     * Phát cặp token, tuỳ chọn gắn định danh phiên vào access token.
+     *
+     * {@code sessionId} trùng {@code familyId} ở mọi chỗ gọi hiện tại. Vẫn để thành hai tham
+     * số riêng vì chúng là hai khái niệm khác nhau: family là chuỗi rotation của refresh
+     * token, còn session là thứ quyết định access token nào còn được chấp nhận. Gộp lại thì
+     * chỗ gọi mất khả năng phát token không gắn phiên trong khi vẫn cần một family.
+     */
+    private TokenResponse issueTokens(User user, String familyId, String sessionId) {
         String tokenId = UUID.randomUUID().toString();
         refreshTokenStore.save(tokenId, user.getId(), familyId, securityProperties.refreshTokenTtl());
-        return new TokenResponse(jwtService.issueAccessToken(user), tokenId,
+        return new TokenResponse(jwtService.issueAccessToken(user, sessionId), tokenId,
                 jwtService.accessTokenExpiresInSeconds());
     }
 

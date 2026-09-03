@@ -83,6 +83,12 @@ rwg:
     issuer: rwg-backend
     access-token-ttl: PT15M
     refresh-token-ttl: P30D
+    # TẮT ở app quản trị. Token của nhân sự không mang claim phiên nên validator sẽ cho qua
+    # dù có bật; đặt false ở đây là để KHÔNG nạp thêm một lần đọc Redis vào đường xác thực
+    # của mọi request backoffice mà không đổi được gì.
+    #
+    # Lưu ý: token của KHÁCH vẫn bị chặn đúng ở app người chơi, nơi họ thực sự dùng.
+    single-session-enabled: ${RWG_SINGLE_SESSION_ENABLED:false}
   redis:
     enabled: ${RWG_REDIS_ENABLED:true}
   presence:

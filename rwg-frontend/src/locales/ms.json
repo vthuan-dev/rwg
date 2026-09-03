@@ -603,6 +603,10 @@
     "account_locked": "Akaun ini dikunci. Sila hubungi khidmat pelanggan.",
     "network_error": "Tidak dapat menghubungi pelayan. Periksa sambungan anda.",
     "unknown_error": "Ada masalah berlaku. Sila cuba lagi.",
+
+    "session_superseded_title": "Anda telah dilog keluar",
+
+    "session_superseded_body": "Akaun anda baru sahaja log masuk pada peranti lain. Jika bukan anda, tukar kata laluan sekarang.",
     "all_rights_reserved": "All Rights Reserved."
   },
   "notification": {

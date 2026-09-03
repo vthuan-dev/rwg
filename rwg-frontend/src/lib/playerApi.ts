@@ -1122,6 +1122,40 @@ export function clearPlayerTokens(): void {
   }
 }
 
+/**
+ * Định danh phiên (claim `sid`) trong access token đang giữ, hoặc null.
+ *
+ * DÙNG ĐỂ LÀM GÌ: server gửi gói "phiên đã bị thay thế" tới MỌI phiên WebSocket của một
+ * người, kể cả phiên vừa mới tạo. Không so định danh thì một lần đăng nhập lại ngay trên
+ * chính trình duyệt đang mở sẽ khiến tab cũ xoá token trong localStorage — mà token trong
+ * đó lúc này là token MỚI vừa đăng nhập xong, tức tự đăng xuất chính mình.
+ *
+ * CHỈ ĐỌC, KHÔNG XÁC THỰC. Phần thân JWT là base64 nên ai cũng đọc được và sửa được; giá
+ * trị này chỉ dùng để so hai chuỗi rồi quyết định có nên dọn phiên trên máy hay không.
+ * Mọi quyết định về quyền vẫn do server làm, nơi chữ ký được kiểm.
+ */
+export function getPlayerSessionId(): string | null {
+  const token = getPlayerToken();
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+
+    // JWT dùng base64url: `-` và `_` thay cho `+` và `/`, và bỏ phần đệm `=`. `atob`
+    // chỉ hiểu base64 chuẩn nên phải chuyển lại, nếu không token có ký tự đó sẽ ném.
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+
+    const claims = JSON.parse(atob(padded)) as { sid?: unknown };
+    return typeof claims.sid === "string" ? claims.sid : null;
+  } catch {
+    // Token méo hoặc không phải JWT: coi như không có định danh phiên. Người gọi sẽ xử lý
+    // như trường hợp token cũ chưa mang claim này.
+    return null;
+  }
+}
+
 export interface DbNotification {
   id: string;
   type: string;

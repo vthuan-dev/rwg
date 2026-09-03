@@ -603,6 +603,10 @@
     "account_locked": "이 계정은 잠겨 있습니다. 고객센터에 문의해 주세요.",
     "network_error": "서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.",
     "unknown_error": "오류가 발생했습니다. 다시 시도해 주세요.",
+
+    "session_superseded_title": "로그아웃되었습니다",
+
+    "session_superseded_body": "다른 기기에서 이 계정으로 로그인했습니다. 본인이 아니라면 즉시 비밀번호를 변경하세요.",
     "all_rights_reserved": "All Rights Reserved."
   },
   "notification": {

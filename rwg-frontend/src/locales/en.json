@@ -603,6 +603,10 @@
     "account_locked": "This account is locked. Please contact support.",
     "network_error": "Cannot reach the server. Check your connection.",
     "unknown_error": "Something went wrong. Please try again.",
+
+    "session_superseded_title": "You have been signed out",
+
+    "session_superseded_body": "Your account just signed in on another device. If this was not you, change your password now.",
     "all_rights_reserved": "All Rights Reserved."
   },
   "notification": {

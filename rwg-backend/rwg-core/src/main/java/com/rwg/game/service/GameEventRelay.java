@@ -62,6 +62,22 @@ public class GameEventRelay {
         sendEnvelope(new RelayEnvelope(originId, "SESSION_REVOKED", userId.toString(), ""));
     }
 
+    /**
+     * Báo rằng phiên hiện hành của một người đã chuyển sang {@code newSessionId}.
+     *
+     * Khác {@link #publishSessionRevoked}: gói này MANG theo định danh phiên mới, và đó là
+     * phần thiết yếu chứ không phải thông tin thêm. Đích `/queue/session` gửi tới MỌI phiên
+     * STOMP của người đó, kể cả phiên vừa được tạo. Không có định danh để so, một lần đăng
+     * nhập lại ngay trên chính trình duyệt đang mở sẽ khiến tab cũ xoá token trong
+     * localStorage — mà token trong đó lúc này là token MỚI vừa đăng nhập xong.
+     *
+     * Client so định danh này với claim phiên trong token của chính nó: khớp thì bỏ qua,
+     * lệch thì tự đăng xuất.
+     */
+    public void publishSessionSuperseded(UUID userId, String newSessionId) {
+        sendEnvelope(new RelayEnvelope(originId, "SESSION_SUPERSEDED", userId.toString(), newSessionId));
+    }
+
     private void sendEnvelope(RelayEnvelope envelope) {
         // Gửi cục bộ trước
         deliverLocally(envelope);
@@ -91,8 +107,19 @@ public class GameEventRelay {
                 // thông báo hiện toast cho người dùng đọc, còn gói này là một lệnh cho client
                 // thực hiện. Gộp lại thì mỗi bên nhận đều phải kiểm loại để biết nên vẽ hay
                 // nên hành động.
+                //
+                // KHÔNG kèm lý do: đây là trường hợp tài khoản bị khoá, và lý do khoá không
+                // được tiết lộ ra giao diện.
                 messaging.convertAndSendToUser(envelope.userId(), "/queue/session",
                         Map.of("type", "REVOKED"));
+            } else if ("SESSION_SUPERSEDED".equals(envelope.type())) {
+                // CÓ kèm lý do, khác hẳn nhánh trên. "Tài khoản vừa đăng nhập ở thiết bị
+                // khác" là thứ người dùng CẦN biết: nếu không phải họ làm thì đó là dấu hiệu
+                // mật khẩu đã bị lộ.
+                messaging.convertAndSendToUser(envelope.userId(), "/queue/session",
+                        Map.of("type", "REVOKED",
+                                "reason", "CONCURRENT_LOGIN",
+                                "session", envelope.data()));
             }
         } catch (Exception e) {
             log.warn("Không thể gửi websocket cục bộ cho user={}: {}", envelope.userId(), e.getMessage());

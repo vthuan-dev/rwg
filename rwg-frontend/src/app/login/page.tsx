@@ -58,6 +58,14 @@ export default function LoginPage() {
    * trước đây trang chỉ hiện hộp thoại chung, người dùng không biết sai ở ô nào.
    */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  /**
+   * Thông báo vì sao người dùng bị đưa về đây, khi họ KHÔNG tự bấm đăng xuất.
+   *
+   * Tách khỏi `errorMessage`: hai hộp thoại có tiêu đề khác nhau. `errorMessage` luôn
+   * mang tiêu đề "Đăng nhập không thành công" — sai hoàn toàn ở đây, vì lần đăng nhập
+   * vừa rồi ĐÃ thành công, chỉ là ở một thiết bị khác.
+   */
+  const [notice, setNotice] = useState<string | null>(null);
 
   /**
    * Đã đăng nhập thì không có lý do ở lại trang này.
@@ -75,6 +83,25 @@ export default function LoginPage() {
    * `/login` mà không qua nút đó: gõ trực tiếp địa chỉ, nút quay lại của trình duyệt,
    * mở một liên kết cũ. Thiếu lớp này thì mọi đường đó vẫn dính vòng lặp.
    */
+  /**
+   * Đọc lý do bị đăng xuất từ tham số truy vấn rồi dọn nó khỏi thanh địa chỉ.
+   *
+   * ĐỌC TỪ `window.location` TRONG useEffect, KHÔNG dùng `useSearchParams()`: hook đó
+   * buộc trang phải nằm trong ranh giới Suspense, và nếu thiếu thì Next chuyển trang này
+   * từ tĩnh sang render theo yêu cầu — chậm hơn cho MỌI lượt mở trang đăng nhập, chỉ để
+   * phục vụ một thông báo hiếm khi xuất hiện.
+   *
+   * `replaceState` để xoá tham số: nếu để nguyên thì tải lại trang sẽ hiện lại thông báo,
+   * và người dùng vừa đổi mật khẩu xong vẫn thấy lời cảnh báo cũ.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reason") !== "concurrent_login") return;
+
+    setNotice(t("auth.session_superseded_body"));
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [t]);
+
   useEffect(() => {
     if (isGuestSupportOnly()) return;
 
@@ -264,6 +291,20 @@ export default function LoginPage() {
         onConfirm={() => setErrorMessage(null)}
         open={errorMessage !== null}
         title={t("auth.x_failed", { title: t("auth.login") })}
+        variant="error"
+      />
+
+      {/* Thông báo bị đăng xuất do đăng nhập ở thiết bị khác.
+
+          CÓ nói rõ lý do, khác hẳn trường hợp tài khoản bị quản trị viên khoá (chỗ đó cố
+          tình im lặng). Ở đây người dùng CẦN biết: nếu không phải họ vừa đăng nhập thì mật
+          khẩu đã bị lộ, và họ chỉ đổi được khi biết chuyện đang xảy ra. */}
+      <AuthModal
+        buttonLabel={t("auth.confirm")}
+        message={notice ?? ""}
+        onConfirm={() => setNotice(null)}
+        open={notice !== null}
+        title={t("auth.session_superseded_title")}
         variant="error"
       />
     </AuthLayout>
