@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, RotateCcw } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { setAdminToken, setAdminRefreshToken, adminFetch } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
@@ -17,33 +17,12 @@ interface TokenResponse {
   refreshToken?: string;
 }
 
-/** Bộ ký tự của mã xác thực. Bỏ I, O, 0, 1 vì nhìn dễ lẫn nhau. */
-const CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-/** Sinh một mã xác thực 5 ký tự. */
-function randomCaptcha(): string {
-  let code = "";
-  for (let i = 0; i < 5; i++) {
-    code += CAPTCHA_CHARS.charAt(Math.floor(Math.random() * CAPTCHA_CHARS.length));
-  }
-  return code;
-}
-
 export default function AdminLoginPage() {
   const router = useRouter();
   const { setLocale } = useTranslation();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [captchaInput, setCaptchaInput] = useState("");
-
-  const [isMounted, setIsMounted] = useState(false);
-  const [captchaCode, setCaptchaCode] = useState<string>("");
-
-  useEffect(() => {
-    setIsMounted(true);
-    setCaptchaCode(randomCaptcha());
-  }, []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,24 +31,9 @@ export default function AdminLoginPage() {
     setLocale("en");
   }, [setLocale]);
 
-  /** Sinh mã xác thực mới và xoá ô nhập. */
-  const generateCaptcha = useCallback(() => {
-    setCaptchaCode(randomCaptcha());
-    setCaptchaInput("");
-  }, []);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    if (
-      !captchaInput.trim() ||
-      captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()
-    ) {
-      setError("Verification code does not match.");
-      generateCaptcha();
-      return;
-    }
 
     setLoading(true);
 
@@ -96,11 +60,9 @@ export default function AdminLoginPage() {
         router.push(ADMIN_URL_PREFIX);
       } else {
         setError("Login failed. Invalid response from server.");
-        generateCaptcha();
       }
     } catch (err) {
       setError((err as Error).message || "Invalid username or password.");
-      generateCaptcha();
     } finally {
       setLoading(false);
     }
@@ -168,35 +130,6 @@ export default function AdminLoginPage() {
               placeholder="Password"
               className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#1e5fc4]"
             />
-
-            {/* Verification code */}
-            <div className="flex items-end gap-3">
-              <input
-                id="admin-captcha"
-                type="text"
-                required
-                maxLength={5}
-                autoComplete="off"
-                value={captchaInput}
-                onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                placeholder="Verification code"
-                className="min-w-0 flex-1 border-b border-slate-300 bg-transparent pb-2 text-[13px] uppercase tracking-[0.14em] text-slate-800 outline-none transition-colors placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#1e5fc4]"
-              />
-
-              <span className="select-none font-mono text-[15px] font-semibold tracking-[0.2em] text-slate-800">
-                {isMounted ? captchaCode : "•••••"}
-              </span>
-
-              <button
-                id="admin-refresh-captcha"
-                type="button"
-                onClick={generateCaptcha}
-                aria-label="Get a new verification code"
-                className="mb-0.5 text-slate-400 transition-colors hover:text-[#1e5fc4] cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            </div>
 
             {/* Submit */}
             <button
