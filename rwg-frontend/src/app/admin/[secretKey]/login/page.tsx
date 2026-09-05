@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { setAdminToken, setAdminRefreshToken, adminFetch } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
@@ -23,6 +23,7 @@ export default function AdminLoginPage() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -61,8 +62,19 @@ export default function AdminLoginPage() {
       } else {
         setError("Login failed. Invalid response from server.");
       }
-    } catch (err) {
-      setError((err as Error).message || "Invalid username or password.");
+    } catch (err: unknown) {
+      const anyErr = err as { status?: number; code?: string; message?: string };
+      const msg = anyErr?.message || "";
+      if (
+        anyErr?.status === 401 ||
+        msg.includes("401") ||
+        msg.toLowerCase().includes("unauthorized") ||
+        anyErr?.code === "INVALID_CREDENTIALS"
+      ) {
+        setError("Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.");
+      } else {
+        setError(msg || "Invalid username or password.");
+      }
     } finally {
       setLoading(false);
     }
@@ -120,16 +132,30 @@ export default function AdminLoginPage() {
             />
 
             {/* Password */}
-            <input
-              id="admin-password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full border-b border-slate-300 bg-transparent pb-2 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#1e5fc4]"
-            />
+            <div className="relative w-full">
+              <input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full border-b border-slate-300 bg-transparent pb-2 pr-8 text-[13px] text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#1e5fc4]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
 
             {/* Submit */}
             <button
