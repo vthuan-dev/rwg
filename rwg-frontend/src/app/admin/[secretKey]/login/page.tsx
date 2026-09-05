@@ -117,14 +117,14 @@ export default function AdminLoginPage() {
             </p>
           )}
 
-          <form onSubmit={handleLogin} className="mt-10 flex flex-col gap-7">
+          <form onSubmit={handleLogin} autoComplete="off" className="mt-10 flex flex-col gap-7">
             {/* Username */}
             <input
               id="admin-username"
               type="text"
               required
               autoFocus
-              autoComplete="username"
+              autoComplete="off"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
@@ -137,7 +137,7 @@ export default function AdminLoginPage() {
                 id="admin-password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
