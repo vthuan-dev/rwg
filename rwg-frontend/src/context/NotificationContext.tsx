@@ -256,17 +256,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
               t("notification.game_loss")
             );
           }
+
+          // Chuyển tiếp gói gốc cho màn game đang mở. Toast ở trên chỉ là thông báo
+          // chung chung; màn Xóc Đĩa cần `payout` / `balanceAfter` / `roundId` THẬT để
+          // hiện bảng thắng và hiệu ứng chip, nên gói được phát nguyên vẹn qua event nội
+          // bộ — cùng khuôn với `wallet_balance_updated` và `game_odds_updated`, và nhờ
+          // vậy KHÔNG phải mở thêm socket thứ hai trong component game.
+          window.dispatchEvent(new CustomEvent("game_result", { detail: payload }));
         } catch (err) {
           console.error("Lỗi xử lý websocket game result:", err);
         }
       });
 
       // 3) Subscribe wallet updates
+      //
+      // `detail` là CẢ gói `WalletBalancePayload` ({ balance, serverTime }), không chỉ
+      // riêng chuỗi số dư: người nhận cần `serverTime` để bỏ qua gói tới trễ. Gói HTTP
+      // (`/wallet/me`) và gói WebSocket có thể về lệch thứ tự, và nếu áp vô điều kiện thì
+      // số dư trên màn hình nhảy lùi về giá trị cũ.
       client.subscribe("/user/queue/wallet", (msg) => {
         try {
           const payload = JSON.parse(msg.body);
           window.dispatchEvent(
-            new CustomEvent("wallet_balance_updated", { detail: payload.balance })
+            new CustomEvent("wallet_balance_updated", { detail: payload })
           );
         } catch (err) {
           console.error("Lỗi xử lý websocket wallet update:", err);

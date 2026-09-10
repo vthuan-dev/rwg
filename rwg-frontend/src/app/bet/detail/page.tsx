@@ -223,12 +223,14 @@ function BetDetailContent() {
   // Cập nhật số dư ví real-time qua websocket
   useEffect(() => {
     const handleBalanceUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
+      // detail là cả gói WalletBalancePayload; ở đây chỉ cần số dư.
+      const { balance } = (e as CustomEvent<{ balance: string }>).detail ?? {};
+      if (balance === undefined || balance === null) return;
       setWallet((prev) => {
         if (prev) {
-          return { ...prev, balance: customEvent.detail };
+          return { ...prev, balance };
         }
-        return { balance: customEvent.detail, currency: table?.currency || "USD" } as any;
+        return { balance, currency: table?.currency || "USD" } as any;
       });
     };
     window.addEventListener("wallet_balance_updated", handleBalanceUpdate);

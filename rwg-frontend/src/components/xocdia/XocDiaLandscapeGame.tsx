@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   Volume2,
@@ -21,7 +21,8 @@ import {
   Bot,
   X,
 } from "lucide-react";
-import { me, walletMe, betsHistory, getExchangeRate, getXocDiaConfig, getXocDiaJackpot, PlayerBet, placeBet as apiPlaceBet, gameTables, currentRound, myBets, roundsHistory, parseXocDiaCoins, ApiError } from "@/lib/playerApi";
+import { me, walletMe, betsHistory, getExchangeRate, getXocDiaConfig, getXocDiaJackpot, PlayerBet, placeBet as apiPlaceBet, gameTables, currentRound, myBets, roundsHistory, parseXocDiaCoins, tableOdds, TableOdds, GameRound, ApiError } from "@/lib/playerApi";
+import { mergeServerOdds } from "@/lib/betOptions";
 import XocDiaCanvas from "./XocDiaCanvas";
 import { RubyDice } from "./RubyDice";
 import { JackpotCoinShower } from "./JackpotCoinShower";
@@ -328,6 +329,22 @@ const BOT_CHATS_DEALER_AND_TROLL = [
   "Genting mãi đỉnh, vừa nạp tiền là vào xóc đĩa chiến liền tay!",
 ];
 
+/**
+ * Định dạng hệ số thực nhận của server thành chuỗi hiển thị ("1.98", "16").
+ *
+ * Đặt ở phạm vi MODULE chứ không trong thân component: hàm trong thân component đọc
+ * biến của lượt render nên khi được gọi từ `placeBet` (một event handler), React
+ * Compiler coi cả thân `placeBet` là mã chạy trong lúc render — và mọi lời gọi
+ * `Math.random()` sẵn có ở đó bị báo lỗi `react-hooks/purity`.
+ */
+const formatOddsMultiplier = (raw: string | undefined): string => {
+  if (raw === undefined) return "";
+  const n = Number(raw);
+  return Number.isFinite(n)
+    ? n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")
+    : raw;
+};
+
 export const XocDiaLandscapeGame: React.FC = () => {
   // Virtual 1024x507 stage scaling
   const [scale, setScale] = useState(1);
@@ -350,8 +367,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(15);
   const [roundSeq, setRoundSeq] = useState(1088);
   const [coins, setCoins] = useState<number[]>([1, 1, 0, 0]); // 2 red 2 white
-  const [balance, setBalance] = useState(5030000); // 5.03M VND game currency
-  const [usdBalance, setUsdBalance] = useState<number>(201.2); // Real USD balance from wallet
+  const [balance, setBalance] = useState<number | null>(null); // VND quy đổi từ số dư thật
+  const [usdBalance, setUsdBalance] = useState<number | null>(null); // số dư USD thật trong ví
   const [exchangeRate, setExchangeRate] = useState<number>(25000); // Dynamic exchange rate USD -> VND
   const [exchangeRateFormatted, setExchangeRateFormatted] = useState<string>("1 USD = 25,000 VND");
   const [selectedChip, setSelectedChip] = useState<number>(10000); // 10K default
@@ -490,7 +507,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
   // If selected chip becomes unaffordable due to placing bets, auto-downgrade to highest affordable chip
   useEffect(() => {
-    if (balance < selectedChip) {
+    // Số dư chưa đọc được thì KHÔNG hạ chip: `null` là "chưa biết", không phải "hết tiền".
+    if (balance !== null && balance < selectedChip) {
       const affordable = CHIP_LIST.filter((c) => c.val <= balance);
       if (affordable.length > 0) {
         setSelectedChip(affordable[affordable.length - 1].val);
@@ -502,6 +520,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
   interface SessionBetLog {
     id: number;
     roundSeq: number;
+    /** Vòng SERVER của lần đặt này — khoá để khớp với `payout` thật khi chốt sổ. */
+    roundId: string | null;
+    /** Cửa đã đặt, dùng để khớp phiếu này với bản ghi cược tương ứng ở server. */
+    betType: keyof BetState;
     zoneName: string;
     stake: number;
     payout: number;
@@ -560,12 +582,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       }
 
       if (wData.status === "fulfilled" && wData.value?.balance) {
-        const usdVal = parseFloat(wData.value.balance);
-        if (!isNaN(usdVal) && usdVal >= 0) {
-          setUsdBalance(usdVal);
-          const convertedVnd = Math.round(usdVal * currentRate);
-          setBalance(convertedVnd);
-        }
+        applyUsdBalance(parseFloat(wData.value.balance));
       }
 
       const bRes = await betsHistory(undefined, 0, 25).catch(() => null);
@@ -634,13 +651,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 // Minh trung: refresh vi that tu server de khop so du
                 walletMe()
                   .then((w) => {
-                    if (w?.balance) {
-                      const usdVal = parseFloat(w.balance);
-                      if (!isNaN(usdVal) && usdVal >= 0) {
-                        setUsdBalance(usdVal);
-                        setBalance(Math.round(usdVal * exchangeRateRef.current));
-                      }
-                    }
+                    if (w?.balance) applyUsdBalance(parseFloat(w.balance));
                   })
                   .catch(() => {});
                 setSessionTotalWon((prev) => prev + winAmount);
@@ -1045,12 +1056,71 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const serverRoundIdRef = useRef<string | null>(null);
   const betSeqRef = useRef<number>(0);
   const placingRef = useRef<boolean>(false);
-  const applyUsdBalance = (usdVal: number) => {
-    if (isNaN(usdVal) || usdVal < 0) return;
-    const rate = exchangeRateRef.current || 25000;
+
+  // ===== Trạng thái vòng đời ván lấy từ SERVER =====
+  /** `phase` bản ref, để vòng poll đọc được giá trị mới nhất mà không cần vào deps. */
+  const phaseRef = useRef<Phase>("BETTING_OPEN");
+  /** Tỷ lệ cược hiệu lực của CHÍNH người này ở bàn đang chơi. */
+  const [serverOdds, setServerOdds] = useState<TableOdds | null>(null);
+  /** Mốc kết thúc pha hiện tại, theo đồng hồ SERVER (epoch ms). */
+  const phaseEndsAtRef = useRef<number | null>(null);
+  /** serverTime − Date.now(). Bù lệch đồng hồ máy người dùng khi đếm ngược. */
+  const serverClockOffsetRef = useRef<number>(0);
+  /** roundId đã chạy animation mở bát — tránh chạy lại mỗi nhịp poll 1 giây. */
+  const revealedRoundIdRef = useRef<string | null>(null);
+  /** roundId đã chốt sổ (cộng tiền thắng) — tránh cộng trùng khi WS và REST cùng về. */
+  const settledRoundIdsRef = useRef<Set<string>>(new Set());
+  /** Mốc serverTime của lần áp số dư gần nhất — chặn gói tới trễ làm nhảy lùi số dư. */
+  const lastBalanceAtRef = useRef<number>(0);
+  /** False sau lần đồng bộ vòng đầu tiên — xem `applyServerRound`. */
+  const firstSyncRef = useRef<boolean>(true);
+
+  /** Thời điểm hiện tại theo đồng hồ server (ước lượng từ lần đồng bộ gần nhất). */
+  const serverNowMs = () => Date.now() + serverClockOffsetRef.current;
+
+  /**
+   * Áp số dư USD THẬT đọc từ server; VND chỉ là bản quy đổi để hiển thị.
+   *
+   * Không có nhánh nào tự cộng/trừ ở đây: mọi thay đổi tiền đều đã xảy ra ở ví server, và
+   * con số truyền vào là số dư SAU giao dịch do server trả về.
+   *
+   * `serverTime` dùng để bỏ qua gói cũ: đường HTTP (`/wallet/me`) và đường WebSocket không
+   * bảo đảm thứ tự, gói cũ về sau mà vẫn áp thì số dư trên màn hình nhảy lùi.
+   */
+  const applyUsdBalance = (usdVal: number, serverTime?: string | null) => {
+    if (!Number.isFinite(usdVal) || usdVal < 0) return;
+    if (serverTime) {
+      const at = Date.parse(serverTime);
+      if (!Number.isNaN(at)) {
+        if (at < lastBalanceAtRef.current) return;
+        lastBalanceAtRef.current = at;
+      }
+    }
+    // Đọc tỷ giá từ ref TẠI THỜI ĐIỂM quy đổi, không dùng biến chụp trong closure cũ.
+    const rate = exchangeRateRef.current;
     setUsdBalance(usdVal);
-    setBalance(Math.round(usdVal * rate));
+    setBalance(rate > 0 ? Math.round(usdVal * rate) : null);
   };
+  // Còn sống hay đã unmount — cùng khuôn ở `bet/detail/page.tsx`, để không `setState`
+  // sau khi màn đã gỡ.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  /** Tải tỷ lệ hiệu lực của CHÍNH người này ở một bàn. Xem khối chú thích bên dưới. */
+  const loadOdds = useCallback(async (tableId: string) => {
+    try {
+      const data = await tableOdds(tableId);
+      if (aliveRef.current) setServerOdds(data);
+    } catch {
+      // Không tải được thì rơi về bảng mặc định cho phần hiển thị. Không có phép tính
+      // tiền nào dựa vào con số này.
+    }
+  }, []);
+
   // Giai quyet table XOC_DIA + round hien tai de co roundId that cho placeBet.
   useEffect(() => {
     let cancelled = false;
@@ -1061,6 +1131,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
         if (!xoc || cancelled) return;
         xocTableIdRef.current = xoc.id;
         setXocTableId(xoc.id);
+        // Tỷ lệ cược tải ngay tại đây chứ không bằng một effect riêng theo `xocTableId`:
+        // lời gọi trần trong thân effect làm React Compiler báo `set-state-in-effect`
+        // (nó không nhìn xuyên qua ranh giới `await` của `loadOdds`).
+        void loadOdds(xoc.id);
         try {
           const round = await currentRound(xoc.id);
           if (!cancelled && round?.roundId) serverRoundIdRef.current = round.roundId;
@@ -1074,8 +1148,60 @@ export const XocDiaLandscapeGame: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadOdds]);
   // Reset seq moi vong visual (seq la khoa chong trung trong 1 round server).
+
+  // ===== Tỷ lệ cược THẬT của chính người này ở bàn đang chơi =====
+  // Mỗi người chơi có thể được admin đặt tỷ lệ riêng, nên con số hiện trên màn hình chỉ
+  // đúng khi lấy từ server. Đây cũng là lý do không được tự nhân odds ở client: ví cộng
+  // đúng theo tỷ lệ riêng còn màn hình báo theo tỷ lệ chung là lệch ngay.
+  //
+  // `loadOdds` khai báo ở khối khởi động phía trên (cần cho lần tải đầu); chỗ này chỉ
+  // còn nhánh admin sửa tỷ lệ đẩy xuống.
+
+  // Admin sửa tỷ lệ -> server đẩy xuống; chỉ tải lại nếu đúng bàn đang chơi.
+  useEffect(() => {
+    const handleOddsUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ tableId?: string }>).detail;
+      if (detail?.tableId && detail.tableId === xocTableIdRef.current) {
+        void loadOdds(detail.tableId);
+      }
+    };
+    window.addEventListener("game_odds_updated", handleOddsUpdated);
+    return () => window.removeEventListener("game_odds_updated", handleOddsUpdated);
+  }, [loadOdds]);
+
+  /**
+   * Nhãn "1 ăn X" của từng cửa, lấy từ tỷ lệ hiệu lực của server.
+   *
+   * `multiplier` là hệ số THỰC NHẬN đã gồm tiền gốc (odds + 1) — không tự cộng 1 ở đây.
+   */
+  const oddsByType = new Map(
+    mergeServerOdds("XOC_DIA", serverOdds?.options ?? null).map((o) => [o.betType, o.multiplier])
+  );
+  const oddsText = (zone: keyof BetState): string => formatOddsMultiplier(oddsByType.get(zone));
+  /** Phần đuôi "— 1 ăn X" cho tooltip; rỗng khi chưa có tỷ lệ để tránh hiện "1 ăn ". */
+  const oddsHint = (zone: keyof BetState): string => {
+    const text = oddsText(zone);
+    return text ? ` — 1 ăn ${text}` : "";
+  };
+
+  /**
+   * Bản dựng sẵn của `oddsText` cho `placeBet` đọc lúc bấm cược.
+   *
+   * `placeBet` KHÔNG được gọi `oddsText`: hàm đó là closure của lượt render, và React
+   * Compiler sẽ coi lời gọi đó là mã render rồi báo lỗi cho những `Math.random()` sẵn
+   * có trong `placeBet`. Đọc ref là đường đi hợp lệ — cùng cách `balanceRef` /
+   * `exchangeRateRef` đang dùng.
+   */
+  const oddsTextRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const texts: Record<string, string> = {};
+    for (const o of mergeServerOdds("XOC_DIA", serverOdds?.options ?? null)) {
+      texts[o.betType] = formatOddsMultiplier(o.multiplier);
+    }
+    oddsTextRef.current = texts;
+  }, [serverOdds]);
 
   // Synchronized refs to avoid stale closure during payout and timers
   const tableChipsRef = useRef<TableChip[]>([]);
@@ -1145,6 +1271,16 @@ export const XocDiaLandscapeGame: React.FC = () => {
     { seq: 1086, redCount: 2, isEven: true },
     { seq: 1087, redCount: 3, isEven: false },
   ]);
+
+  // Bản ref của `history` cho các closure sống lâu (lời thoại dealer trong setTimeout):
+  // closure chụp biến state sẽ đọc mãi giá trị của lần render đầu.
+  const historyRef = useRef<RoundHistory[]>(history);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  // Giây cuối cùng đã phát tiếng "tích" — chặn phát lặp mỗi nhịp của đồng hồ 250ms.
+  const lastTickSecondRef = useRef<number>(-1);
 
   // Web Audio Synthesizer
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -1327,38 +1463,37 @@ export const XocDiaLandscapeGame: React.FC = () => {
   // 3. 3.5s periodic smart polling (guarantees instant detection of admin credit)
   useEffect(() => {
     const handleWalletBalanceUpdated = (e: Event) => {
-      const custom = e as CustomEvent<string | number>;
-      if (custom.detail !== undefined && custom.detail !== null) {
-        const newUsd =
-          typeof custom.detail === "number"
-            ? custom.detail
-            : parseFloat(String(custom.detail));
-        if (!isNaN(newUsd) && newUsd >= 0) {
-          const oldUsd = usdBalanceRef.current;
-          const rate = exchangeRateRef.current;
-          const newVnd = Math.round(newUsd * rate);
-          const oldVnd = balanceRef.current;
-          const diffVnd = newVnd - oldVnd;
-          const diffUsd = newUsd - oldUsd;
+      // detail là CẢ gói WalletBalancePayload ({ balance, serverTime }), không chỉ chuỗi
+      // số dư — cần `serverTime` để bỏ qua gói tới trễ.
+      const payload = (e as CustomEvent<{ balance?: string; serverTime?: string }>).detail;
+      const newUsd = parseFloat(String(payload?.balance ?? ""));
+      if (!Number.isFinite(newUsd) || newUsd < 0) return;
 
-          setUsdBalance(newUsd);
-          setBalance(newVnd);
+      const oldUsd = usdBalanceRef.current;
+      const oldVnd = balanceRef.current;
+      const rate = exchangeRateRef.current;
+      const newVnd = rate > 0 ? Math.round(newUsd * rate) : null;
+      // Chưa biết số dư cũ (vừa mở bàn) thì chỉ ÁP, không thông báo "vừa nạp": diff so
+      // với 0 sẽ báo có tiền chảy vào trong khi thực ra chỉ là lần đọc đầu tiên.
+      const diffVnd = newVnd !== null && oldVnd !== null ? newVnd - oldVnd : 0;
+      const diffUsd = oldUsd !== null ? newUsd - oldUsd : 0;
 
-          if (diffVnd > 0) {
-            playSound("bell");
-            showToast(
-              `💰 NẠP TIỀN THÀNH CÔNG: +${diffVnd.toLocaleString()} đ (≈ $${diffUsd.toFixed(2)} USD)`
-            );
-            speakDealer(
-              `Tài khoản đại gia vừa được nạp thêm +${diffVnd.toLocaleString()} đ! Cùng rinh lộc lớn thôi anh ơi! 💎✨`,
-              5200
-            );
-          } else if (diffVnd < 0) {
-            showToast(
-              `⚡ Số dư cập nhật: ${newVnd.toLocaleString()} đ (≈ $${newUsd.toFixed(2)} USD)`
-            );
-          }
-        }
+      applyUsdBalance(newUsd, payload?.serverTime);
+      if (oldUsd === null) return;
+
+      if (diffVnd > 0) {
+        playSound("bell");
+        showToast(
+          `💰 NẠP TIỀN THÀNH CÔNG: +${diffVnd.toLocaleString()} đ (≈ $${diffUsd.toFixed(2)} USD)`
+        );
+        speakDealer(
+          `Tài khoản đại gia vừa được nạp thêm +${diffVnd.toLocaleString()} đ! Cùng rinh lộc lớn thôi anh ơi! 💎✨`,
+          5200
+        );
+      } else if (diffVnd < 0) {
+        showToast(
+          `⚡ Số dư cập nhật: ${(newVnd ?? 0).toLocaleString()} đ (≈ $${newUsd.toFixed(2)} USD)`
+        );
       }
     };
 
@@ -1372,32 +1507,32 @@ export const XocDiaLandscapeGame: React.FC = () => {
     const pollTimer = setInterval(async () => {
       try {
         const wData = await walletMe();
-        if (wData?.balance) {
-          const newUsd = parseFloat(wData.balance);
-          if (!isNaN(newUsd) && newUsd >= 0) {
-            const oldUsd = usdBalanceRef.current;
-            if (Math.abs(newUsd - oldUsd) > 0.001) {
-              const rate = exchangeRateRef.current;
-              const newVnd = Math.round(newUsd * rate);
-              const diffVnd = newVnd - balanceRef.current;
-              const diffUsd = newUsd - oldUsd;
+        const newUsd = parseFloat(wData?.balance ?? "");
+        if (!Number.isFinite(newUsd) || newUsd < 0) return;
 
-              setUsdBalance(newUsd);
-              setBalance(newVnd);
+        const oldUsd = usdBalanceRef.current;
+        if (oldUsd !== null && Math.abs(newUsd - oldUsd) <= 0.001) return;
 
-              if (diffVnd > 0) {
-                playSound("bell");
-                showToast(
-                  `💰 NẠP TIỀN THÀNH CÔNG: +${diffVnd.toLocaleString()} đ (≈ $${diffUsd.toFixed(2)} USD)`
-                );
-                speakDealer(
-                  `Tài khoản đại gia vừa được nạp thêm +${diffVnd.toLocaleString()} đ! Cùng rinh lộc lớn thôi anh ơi! 💎✨`,
-                  5200
-                );
-              }
-            }
-          }
-        }
+        const oldVnd = balanceRef.current;
+        const rate = exchangeRateRef.current;
+        const newVnd = rate > 0 ? Math.round(newUsd * rate) : null;
+        const diffVnd = newVnd !== null && oldVnd !== null ? newVnd - oldVnd : 0;
+        const diffUsd = oldUsd !== null ? newUsd - oldUsd : 0;
+
+        // Không có `serverTime` trên đường HTTP, nhưng giá trị này VỪA được đọc nên là
+        // mốc mới nhất — ghi mốc theo đồng hồ server (ước lượng) để một gói WebSocket tới
+        // trễ không kéo số dư lùi về con số cũ.
+        applyUsdBalance(newUsd, new Date(serverNowMs()).toISOString());
+        if (oldUsd === null || diffVnd <= 0) return;
+
+        playSound("bell");
+        showToast(
+          `💰 NẠP TIỀN THÀNH CÔNG: +${diffVnd.toLocaleString()} đ (≈ $${diffUsd.toFixed(2)} USD)`
+        );
+        speakDealer(
+          `Tài khoản đại gia vừa được nạp thêm +${diffVnd.toLocaleString()} đ! Cùng rinh lộc lớn thôi anh ơi! 💎✨`,
+          5200
+        );
       } catch {
         // silent
       }
@@ -1428,204 +1563,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
     return () => clearInterval(interval);
   }, [phase]);
 
-  // Main Game Loop Timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev > 1) {
-          if (phase === "BETTING_OPEN") {
-            if (prev <= 5) playSound("tick");
-            if (prev === 6) {
-              speakDealer("Còn 5 giây chốt cược thôi ạ! Các anh nhanh tay nha~ ⏳");
-            }
-          }
-          return prev - 1;
-        }
-
-        // State Machine transitions
-        if (phase === "BETTING_OPEN") {
-          setPhase("BETTING_CLOSED");
-          playSound("bell");
-          speakDealer("Hết giờ đặt cược! Bát đĩa sẵn sàng, chúc cả bàn may mắn nha! 🎲");
-          return 2;
-        } else if (phase === "BETTING_CLOSED") {
-          setPhase("SPINNING");
-          playSound("shake");
-          speakDealer("Xóc đều tay nè... Leng keng tài lộc về tay ai đây? ✨");
-          return 4;
-        } else if (phase === "SPINNING") {
-          // KET QUA THAT DO SERVER QUYET DINH (RoundScheduler ep Tu Quy khi no hu).
-          // Client chi random visual tam; jackpotWin that duoc kich tu poll lastWon (ca ban cung thay),
-          // KHONG tu cong balance o day de tranh double-tien voi vi server.
-          const c1 = Math.random() > 0.5 ? 1 : 0;
-          const c2 = Math.random() > 0.5 ? 1 : 0;
-          const c3 = Math.random() > 0.5 ? 1 : 0;
-          const c4 = Math.random() > 0.5 ? 1 : 0;
-          const newCoins = [c1, c2, c3, c4];
-          const redCount = c1 + c2 + c3 + c4;
-          // Ne Tu Quy ngoai y muon: dice random nhung dam bao khong 4 mat giong nhau
-          // (khi server ep Tu Quy that, poll lastWon se hien quad + coin shower dung).
-          let dd = [1, 2, 3, 4].map(() => Math.floor(Math.random() * 6) + 1);
-          if (dd.every((v) => v === dd[0])) dd[3] = (dd[3] % 6) + 1;
-          setJackpotDice(dd);
-          const isEven = redCount % 2 === 0;
-
-          setCoins(newCoins);
-          setPhase("RESULT");
-
-          let totalWin = 0;
-          if (isEven && bets.XOC_DIA_EVEN > 0) totalWin += bets.XOC_DIA_EVEN * 1.98;
-          if (!isEven && bets.XOC_DIA_ODD > 0) totalWin += bets.XOC_DIA_ODD * 1.98;
-          if (redCount === 4 && bets.XOC_DIA_FOUR_RED > 0)
-            totalWin += bets.XOC_DIA_FOUR_RED * 16;
-          if (redCount === 0 && bets.XOC_DIA_FOUR_WHITE > 0)
-            totalWin += bets.XOC_DIA_FOUR_WHITE * 16;
-          if (redCount === 3 && bets.XOC_DIA_THREE_RED > 0)
-            totalWin += bets.XOC_DIA_THREE_RED * 4;
-          if (redCount === 1 && bets.XOC_DIA_THREE_WHITE > 0)
-            totalWin += bets.XOC_DIA_THREE_WHITE * 4;
-
-          // Dealer speaks real-time outcome & congratulates winners
-          const winDoorText = isEven ? "CHẴN" : "LẺ";
-          if (totalWin > 0) {
-            setSessionTotalWon((prev) => prev + Math.round(totalWin));
-            setSessionBetLogs((prev) =>
-              prev.map((log) =>
-                log.roundSeq === roundSeq
-                  ? { ...log, won: true, payout: Math.round(totalWin) }
-                  : log
-              )
-            );
-            if (redCount === 4 || redCount === 0) {
-              speakDealer(`TRỜI ƠI TỨ TỬ 1 ĂN 16! VIP Tôi nổ đậm +${(Math.round(totalWin) / 1000).toLocaleString()}K! Quá đỉnh luôn anh ơi!! 👑🎉`, 5000);
-            } else {
-              speakDealer(`Oaaa! Chúc mừng VIP Tôi húp trọn +${(Math.round(totalWin) / 1000).toLocaleString()}K ${winDoorText}! Tay anh son quá, tối bao em nha~ 😉🥂`, 5000);
-            }
-          } else {
-            const currentChips = tableChipsRef.current;
-            const winningSim = currentChips.find((tc) => {
-              if (tc.playerId === "user") return false;
-              if (tc.zone === "XOC_DIA_EVEN" && isEven) return true;
-              if (tc.zone === "XOC_DIA_ODD" && !isEven) return true;
-              if (tc.zone === "XOC_DIA_FOUR_RED" && redCount === 4) return true;
-              if (tc.zone === "XOC_DIA_FOUR_WHITE" && redCount === 0) return true;
-              if (tc.zone === "XOC_DIA_THREE_WHITE" && redCount === 1) return true;
-              if (tc.zone === "XOC_DIA_THREE_RED" && redCount === 3) return true;
-              return false;
-            });
-
-            if (winningSim) {
-              const pName = PLAYERS.find((p) => p.id === winningSim.playerId)?.name || "đại gia";
-              speakDealer(`Mở bát: ${winDoorText} (${redCount} Đỏ)! Chúc mừng đại gia ${pName} trúng lớn! VIP Tôi ván sau gỡ lại nha anh! ❤️`, 4500);
-            } else {
-              speakDealer(`Mở bát: ${winDoorText} (${redCount} Đỏ)! Chúc mừng các anh em đã vào đúng cửa nha! 🎉`, 4200);
-            }
-          }
-
-          // 0.8s after bowl opens: winning coins & bonus shower fly into winning players!
-          setTimeout(() => {
-            triggerPayoutAnimations(redCount, isEven, totalWin);
-          }, 800);
-
-          if (totalWin > 0) {
-            // TIEN THAT DO SERVER SETTLE: khong tu cong balance o day.
-            // Chi refresh vi that + hien win amount de tranh double-tien.
-            setLastWinAmount(Math.round(totalWin));
-            playSound("win");
-            walletMe()
-              .then((w) => {
-                if (w?.balance) applyUsdBalance(parseFloat(w.balance));
-              })
-              .catch(() => {});
-          } else {
-            setLastWinAmount(null);
-          }
-
-          setHistory((h) => [
-            ...h.slice(-79),
-            { seq: roundSeq, redCount, isEven },
-          ]);
-          return 5;
-        } else if (phase === "RESULT") {
-          setPhase("SETTLE");
-          return 2;
-        } else {
-          // Gracefully kick out bots that had bets in this round now that outcome & settlement are complete!
-          const toKick = pendingLeaveBotIdsRef.current;
-          const targetCount = targetBotCountRef.current;
-          const targetIds = PLAYERS.slice(0, Math.max(1, Math.min(targetCount, PLAYERS.length))).map((p) => p.id);
-
-          setSeatedBotIds((prev) => {
-            const filtered = prev.filter((id) => !toKick.includes(id) && targetIds.includes(id));
-            const updated = PLAYERS.filter((p) => filtered.includes(p.id)).map((p) => p.id);
-            seatedBotIdsRef.current = updated;
-            return updated;
-          });
-          setPendingLeaveBotIds([]);
-          pendingLeaveBotIdsRef.current = [];
-
-          const resetBets = {
-            XOC_DIA_EVEN: 0,
-            XOC_DIA_ODD: 0,
-            XOC_DIA_FOUR_RED: 0,
-            XOC_DIA_FOUR_WHITE: 0,
-            XOC_DIA_THREE_RED: 0,
-            XOC_DIA_THREE_WHITE: 0,
-          };
-          setBets(resetBets);
-          betsRef.current = resetBets;
-          setTableChips([]);
-          tableChipsRef.current = [];
-          setReturnChips([]);
-          setPayoutBursts([]);
-          setWinningPlayerIds([]);
-          setLastWinAmount(null);
-          setRoundSeq((s) => s + 1);
-          // Sang van visual moi: reset seq chong trung + mo khoa round server de resolve lai.
-          betSeqRef.current = 0;
-          serverRoundIdRef.current = null;
-          const nextTableId = xocTableIdRef.current;
-          if (nextTableId) {
-            currentRound(nextTableId)
-              .then((r) => {
-                if (r?.roundId) serverRoundIdRef.current = r.roundId;
-              })
-              .catch(() => {});
-          }
-          setPhase("BETTING_OPEN");
-          playSound("bell");
-
-          // Intelligent streak commentary or welcoming quote
-          setTimeout(() => {
-            const hList = history;
-            let streak = 1;
-            if (hList.length > 0) {
-              const lastOutcome = hList[hList.length - 1].isEven;
-              for (let i = hList.length - 2; i >= 0; i--) {
-                if (hList[i].isEven === lastOutcome) streak++;
-                else break;
-              }
-              if (streak >= 3) {
-                speakDealer(`Cầu đang bệt ${lastOutcome ? "CHẴN" : "LẺ"} ${streak} ván liên tiếp rồi đó! Bám cầu hay bẻ cầu đây các anh ơi? 🔥`);
-              } else {
-                const welcomes = [
-                  "Bàn mới mở cược rồi nè các VIP, hôm nay tay em son lắm, mời anh lên thuyền! ✨",
-                  "Ván mới mở rồi ạ! Chúc VIP Tôi và các đại gia ván này rực rỡ nha~ ❤️",
-                  "Vào tiền thôi các anh ơi! Anh thích Chẵn hay Lẻ để em chiều nào? 😉",
-                  "May mắn đang chờ đón, các anh tự tin vào tiền rinh thưởng khủng nhé! 💰",
-                ];
-                speakDealer(welcomes[Math.floor(Math.random() * welcomes.length)]);
-              }
-            }
-          }, 300);
-
-          return 15;
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [phase, bets, coins, roundSeq]);
 
   // Ambient bets from other players around the table during BETTING_OPEN
   useEffect(() => {
@@ -1833,18 +1770,30 @@ export const XocDiaLandscapeGame: React.FC = () => {
         });
       }
       // Bubble +tien bay cung dot chip cuoi + burst khi cham avatar (dong bo cong tien 1450ms)
-      const heroDelay = 80 + (streamCount - 1) * 55 + 900;
-      setTimeout(() => {
-        const bid = Date.now() + Math.random();
-        setPayoutBursts((prev) => [
-          ...prev.slice(-4),
-          { id: bid, x: userTarget.x, y: userTarget.y, amount: Math.round(totalWin) },
-        ]);
-        playSound("win");
+      //
+      // Chỉ nổ bong bóng khi ĐÃ có số tiền thật: gọi từ bước mở bát (chưa chốt sổ) thì
+      // `totalWin` bằng 0 và bong bóng "+0 VNĐ" vừa vô nghĩa vừa làm người chơi tưởng
+      // không được trả thưởng. Số tiền thật nổ ở `applySettlement`.
+      //
+      // Phải là `if` bọc lấy bong bóng, KHÔNG được `return` sớm. `return` ở đây thoát khỏi
+      // cả hàm, bỏ luôn đoạn dọn bàn bên dưới (`setReturnChips` / `setTableChips([])` /
+      // `setWinningPlayerIds`). Mà điều kiện vào khối này là `userBetWon`, nên nó rơi ĐÚNG
+      // ván người chơi thắng: màn chip thắng bay vào người chơi không bao giờ phát và chip
+      // trên bàn không được xoá — hỏng ở chính ván người chơi quan tâm nhất.
+      if (Math.round(totalWin) > 0) {
+        const heroDelay = 80 + (streamCount - 1) * 55 + 900;
         setTimeout(() => {
-          setPayoutBursts((prev) => prev.filter((b) => b.id !== bid));
-        }, 1400);
-      }, Math.max(900, heroDelay - 350));
+          const bid = Date.now() + Math.random();
+          setPayoutBursts((prev) => [
+            ...prev.slice(-4),
+            { id: bid, x: userTarget.x, y: userTarget.y, amount: Math.round(totalWin) },
+          ]);
+          playSound("win");
+          setTimeout(() => {
+            setPayoutBursts((prev) => prev.filter((b) => b.id !== bid));
+          }, 1400);
+        }, Math.max(900, heroDelay - 350));
+      }
     }
 
     // 3. Losing chips: Dealer sweeps towards center throne at (512, 175)
@@ -1867,6 +1816,361 @@ export const XocDiaLandscapeGame: React.FC = () => {
     setReturnChips(returns);
     setWinningPlayerIds(winners);
   };
+
+  // =====================================================================
+  // VÒNG ĐỜI VÁN BÁM SERVER
+  // ---------------------------------------------------------------------
+  // Server là nguồn sự thật DUY NHẤT cho: pha hiện tại, số ván, kết quả mở bát và tiền
+  // thắng. Client chỉ còn lo hình ảnh và âm thanh.
+  //
+  // Trước đây chỗ này là một `setInterval` tự chạy ván 28 giây (15+2+4+5+2) trong khi
+  // server cấu hình 63 giây/ván (`rwg.game.round.*` = 45+2+8+3+5). Hai đồng hồ lệch nhau
+  // làm `betSeqRef` bị reset GIỮA ván server, sinh khoá trùng
+  // `BET:{roundId}:{userId}:{seq}`; `BetService.placeBet` thấy khoá đã có thì trả về cược
+  // CŨ kèm mã thành công, còn cược mới bị nuốt im lặng — không trừ tiền, không báo lỗi.
+  // =====================================================================
+
+  /** Lời thoại dealer khi server chuyển pha (giữ nguyên giọng cũ). */
+  const narratePhase = (next: Phase) => {
+    if (next === "BETTING_CLOSED") {
+      playSound("bell");
+      speakDealer("Hết giờ đặt cược! Bát đĩa sẵn sàng, chúc cả bàn may mắn nha! 🎲");
+    } else if (next === "SPINNING") {
+      playSound("shake");
+      speakDealer("Xóc đều tay nè... Leng keng tài lộc về tay ai đây? ✨");
+    }
+  };
+
+  /** Dọn bàn khi server mở VÁN MỚI. Chỉ được gọi lúc `roundId` đổi. */
+  const onServerRoundChanged = () => {
+    // Bot xin rời chỉ được rút sau khi ván trước đã trả thưởng xong.
+    const toKick = pendingLeaveBotIdsRef.current;
+    const targetCount = targetBotCountRef.current;
+    const targetIds = PLAYERS.slice(
+      0,
+      Math.max(1, Math.min(targetCount, PLAYERS.length))
+    ).map((p) => p.id);
+    setSeatedBotIds((prev) => {
+      const filtered = prev.filter((id) => !toKick.includes(id) && targetIds.includes(id));
+      const updated = PLAYERS.filter((p) => filtered.includes(p.id)).map((p) => p.id);
+      seatedBotIdsRef.current = updated;
+      return updated;
+    });
+    setPendingLeaveBotIds([]);
+    pendingLeaveBotIdsRef.current = [];
+
+    const resetBets: BetState = {
+      XOC_DIA_EVEN: 0,
+      XOC_DIA_ODD: 0,
+      XOC_DIA_FOUR_RED: 0,
+      XOC_DIA_FOUR_WHITE: 0,
+      XOC_DIA_THREE_RED: 0,
+      XOC_DIA_THREE_WHITE: 0,
+    };
+    setBets(resetBets);
+    betsRef.current = resetBets;
+    setTableChips([]);
+    tableChipsRef.current = [];
+    setReturnChips([]);
+    setPayoutBursts([]);
+    setWinningPlayerIds([]);
+    setLastWinAmount(null);
+
+    playSound("bell");
+
+    // Bình luận cầu bệt / câu chào. Đọc từ `historyRef` chứ không phải biến `history`
+    // chụp trong closure — closure này sống lâu hơn một lần render.
+    setTimeout(() => {
+      const hList = historyRef.current;
+      if (hList.length === 0) return;
+      const lastOutcome = hList[hList.length - 1].isEven;
+      let streak = 1;
+      for (let i = hList.length - 2; i >= 0; i--) {
+        if (hList[i].isEven === lastOutcome) streak++;
+        else break;
+      }
+      if (streak >= 3) {
+        speakDealer(`Cầu đang bệt ${lastOutcome ? "CHẴN" : "LẺ"} ${streak} ván liên tiếp rồi đó! Bám cầu hay bẻ cầu đây các anh ơi? 🔥`);
+      } else {
+        const welcomes = [
+          "Bàn mới mở cược rồi nè các VIP, hôm nay tay em son lắm, mời anh lên thuyền! ✨",
+          "Ván mới mở rồi ạ! Chúc VIP Tôi và các đại gia ván này rực rỡ nha~ ❤️",
+          "Vào tiền thôi các anh ơi! Anh thích Chẵn hay Lẻ để em chiều nào? 😉",
+          "May mắn đang chờ đón, các anh tự tin vào tiền rinh thưởng khủng nhé! 💰",
+        ];
+        speakDealer(welcomes[Math.floor(Math.random() * welcomes.length)]);
+      }
+    }, 300);
+  };
+
+  /**
+   * Mở bát bằng kết quả THẬT của server.
+   *
+   * `revealedCoins` đến thẳng từ `round.xocDiaCoins` — hợp đồng đã ghi rõ ở `playerApi.ts`
+   * là màn chơi PHẢI dùng field này, không được tự random. `redCount` cũng lấy từ server
+   * nên hình ảnh và con số không bao giờ lệch nhau.
+   */
+  const revealServerResult = (round: GameRound, revealedCoins: number[], redCount: number) => {
+    const resultIsEven = redCount % 2 === 0;
+    setCoins(revealedCoins);
+
+    // Xúc xắc chỉ là hiệu ứng của hũ jackpot, không mang kết quả ván.
+    const dd = [1, 2, 3, 4].map(() => Math.floor(Math.random() * 6) + 1);
+    if (dd.every((v) => v === dd[0])) dd[3] = (dd[3] % 6) + 1;
+    setJackpotDice(dd);
+
+    const winDoorText = resultIsEven ? "CHẴN" : "LẺ";
+    // Tiền thắng THẬT về sau qua `game_result`; ở bước mở bát chỉ nói về KẾT QUẢ BÀN.
+    const winningSim = tableChipsRef.current.find((tc) => {
+      if (tc.playerId === "user") return false;
+      if (tc.zone === "XOC_DIA_EVEN" && resultIsEven) return true;
+      if (tc.zone === "XOC_DIA_ODD" && !resultIsEven) return true;
+      if (tc.zone === "XOC_DIA_FOUR_RED" && redCount === 4) return true;
+      if (tc.zone === "XOC_DIA_FOUR_WHITE" && redCount === 0) return true;
+      if (tc.zone === "XOC_DIA_THREE_WHITE" && redCount === 1) return true;
+      if (tc.zone === "XOC_DIA_THREE_RED" && redCount === 3) return true;
+      return false;
+    });
+    if (winningSim) {
+      const pName = PLAYERS.find((p) => p.id === winningSim.playerId)?.name || "đại gia";
+      speakDealer(`Mở bát: ${winDoorText} (${redCount} Đỏ)! Chúc mừng đại gia ${pName} trúng lớn! VIP Tôi ván sau gỡ lại nha anh! ❤️`, 4500);
+    } else {
+      speakDealer(`Mở bát: ${winDoorText} (${redCount} Đỏ)! Chúc mừng các anh em đã vào đúng cửa nha! 🎉`, 4200);
+    }
+
+    // Bảng soi cầu dùng kết quả và SỐ VÁN THẬT, không phải số đếm của đồng hồ local.
+    setHistory((h) => [...h.slice(-79), { seq: round.roundSeq, redCount, isEven: resultIsEven }]);
+
+    // Chip bay về người thắng + dealer gom chip thua. Số tiền thật chưa có ở bước này
+    // (server chốt sổ sau), nên chỉ chạy phần hình ảnh; bong bóng "+tiền" nổ ở
+    // `applySettlement` bằng số thật.
+    setTimeout(() => {
+      triggerPayoutAnimations(redCount, resultIsEven, 0);
+    }, 800);
+  };
+
+  /** Bong bóng "+tiền" nổ tại avatar người chơi, dùng số tiền THẬT từ server. */
+  const burstUserWin = (amount: number) => {
+    if (amount <= 0) return;
+    const target = getPlayerCoords("user");
+    const bid = Date.now() + Math.random();
+    setPayoutBursts((prev) => [...prev.slice(-4), { id: bid, x: target.x, y: target.y, amount }]);
+    setTimeout(() => {
+      setPayoutBursts((prev) => prev.filter((b) => b.id !== bid));
+    }, 1400);
+  };
+
+  /**
+   * Chốt sổ một ván bằng SỐ THẬT đọc từ `GET /games/me/bets?roundId=`.
+   *
+   * Đường WebSocket chỉ dùng để biết "đã tới lúc" và để cập nhật số dư ngay; mọi con số
+   * hiện lên bảng đều lấy từ REST. Nhờ vậy mất một gói WS (reconnect, mạng chập) không
+   * làm mất tiền thắng trên màn hình.
+   */
+  const applySettlement = async (roundId: string) => {
+    if (!roundId || settledRoundIdsRef.current.has(roundId)) return;
+    settledRoundIdsRef.current.add(roundId);
+
+    const settledBets = await myBets(roundId).catch(() => null);
+    if (!settledBets) {
+      // Đọc hụt: mở khoá để nhịp sau thử lại, không chốt sổ bằng số đoán.
+      settledRoundIdsRef.current.delete(roundId);
+      return;
+    }
+
+    // `payout` của server là stake-INCLUSIVE (M2): thắng thì nhận lại cả tiền gốc. Số dư
+    // tăng thêm thật sự = payout − tổng đã đặt, nên "tiền thắng" hiện trên màn hình phải
+    // trừ tiền gốc; không trừ thì báo thừa đúng bằng số tiền người chơi vừa bỏ ra.
+    const rate = exchangeRateRef.current;
+    const netUsd = settledBets.reduce(
+      (sum, b) => sum + (Number(b.payout || 0) - Number(b.stake || 0)),
+      0
+    );
+    const netVnd = rate > 0 ? Math.round(netUsd * rate) : 0;
+
+    // Ghép từng phiếu trong sổ phiên với bản ghi cược tương ứng để hiện đúng lời/lỗ của
+    // từng lần bấm, thay vì chia đều tổng cho mọi dòng cùng ván.
+    setSessionBetLogs((prev) => {
+      const byType = new Map<string, PlayerBet[]>();
+      for (const b of settledBets) {
+        byType.set(b.betType, [...(byType.get(b.betType) ?? []), b]);
+      }
+      const cursor = new Map<string, number>();
+      return prev.map((log) => {
+        if (log.roundId !== roundId) return log;
+        const group = byType.get(log.betType) ?? [];
+        const i = cursor.get(log.betType) ?? 0;
+        if (i >= group.length) return log;
+        cursor.set(log.betType, i + 1);
+        const bet = group[i];
+        const perBetNet =
+          rate > 0 ? Math.round((Number(bet.payout || 0) - Number(bet.stake || 0)) * rate) : 0;
+        return { ...log, won: perBetNet > 0, payout: perBetNet };
+      });
+    });
+
+    if (netVnd > 0) {
+      setSessionTotalWon((prev) => prev + netVnd);
+      setLastWinAmount(netVnd);
+      playSound("win");
+      burstUserWin(netVnd);
+      // Dealer chúc mừng bằng SỐ THẬT vừa nhận, không phải con số nhân tay từ odds cứng.
+      speakDealer(
+        `Oaaa! Chúc mừng VIP Tôi húp trọn +${Math.round(netVnd / 1000).toLocaleString()}K! Tay anh son quá, tối bao em nha~ 😉🥂`,
+        5000
+      );
+    } else {
+      setLastWinAmount(null);
+    }
+  };
+
+  /** Đồng bộ trạng thái từ một gói vòng của server. */
+  const applyServerRound = (round: GameRound) => {
+    // Đồng hồ: mọi mốc tính theo giờ SERVER. Máy người dùng lệch giờ là chuyện thường,
+    // so với giờ máy thì đồng hồ đếm ngược sai ngay từ nhịp đầu.
+    const srvNow = Date.parse(round.serverTime);
+    if (!Number.isNaN(srvNow)) serverClockOffsetRef.current = srvNow - Date.now();
+    phaseEndsAtRef.current = round.phaseEndsAt ? Date.parse(round.phaseEndsAt) : null;
+    if (!Number.isNaN(srvNow) && phaseEndsAtRef.current !== null) {
+      setTimeLeft(Math.max(0, Math.ceil((phaseEndsAtRef.current - srvNow) / 1000)));
+    }
+
+    const nextPhase = round.phase as Phase;
+    const prevPhase = phaseRef.current;
+    // Lần đồng bộ ĐẦU TIÊN không phải chuyển pha: người chơi vừa mở bàn và server đang ở
+    // giữa ván. Nói "hết giờ đặt cược" lúc đó là sai thời điểm.
+    const isFirstSync = firstSyncRef.current;
+
+    // VÁN MỚI: đây là chỗ DUY NHẤT được reset `betSeqRef`. Khoá chống trùng của ví gắn
+    // với `roundId` của SERVER, nên reset theo ván của đồng hồ local là mở đường cho hai
+    // lần đặt khác nhau dùng chung một khoá — và lần thứ hai bị server trả về cược cũ.
+    if (round.roundId !== serverRoundIdRef.current) {
+      const previousRoundId = serverRoundIdRef.current;
+      serverRoundIdRef.current = round.roundId;
+      betSeqRef.current = 0;
+      revealedRoundIdRef.current = null;
+      onServerRoundChanged();
+
+      // Khôi phục số thứ tự đã dùng trong ván này. Sau khi tải lại trang, `betSeqRef` về 0
+      // trong khi server đã có cược của chính người này ở ĐÚNG ván đó; đặt tiếp bằng seq 0
+      // sẽ trùng khoá và bị trả về cược CŨ — đúng lỗi đang sửa, chỉ khác đường vào.
+      void myBets(round.roundId)
+        .then((mine) => {
+          if (mine.length > betSeqRef.current) betSeqRef.current = mine.length;
+        })
+        .catch(() => {});
+
+      // Lưới an toàn cho đường REST: nếu gói WebSocket của ván vừa rồi thất lạc (mất mạng,
+      // đang kết nối lại), chốt sổ nốt ở đây. `settledRoundIdsRef` bảo đảm không cộng hai lần.
+      if (previousRoundId) void applySettlement(previousRoundId);
+    }
+    firstSyncRef.current = false;
+
+    phaseRef.current = nextPhase;
+    setPhase(nextPhase);
+    setRoundSeq(round.roundSeq);
+    if (!isFirstSync && prevPhase !== nextPhase) narratePhase(nextPhase);
+
+    // Mở bát: kết quả đã được server ghi vào vòng TRƯỚC khi chuyển sang pha RESULT.
+    // `parseXocDiaCoins` trả null khi dữ liệu hỏng -> giữ bát úp và thử lại ở nhịp poll
+    // sau, KHÔNG tự random ra một kết quả khác.
+    if (
+      (nextPhase === "RESULT" || nextPhase === "SETTLE") &&
+      revealedRoundIdRef.current !== round.roundId
+    ) {
+      const parsed = parseXocDiaCoins(round.xocDiaCoins);
+      if (parsed) {
+        revealedRoundIdRef.current = round.roundId;
+        revealServerResult(
+          round,
+          parsed,
+          round.xocDiaRedCount ?? parsed.reduce((a, b) => a + b, 0)
+        );
+      }
+    }
+  };
+
+  // Ref giữ bản mới nhất của các hàm đồng bộ, để vòng poll 1 giây không phải huỷ và tạo
+  // lại `setInterval` sau mỗi lần component render.
+  const applyServerRoundRef = useRef<(round: GameRound) => void>(() => {});
+  const applySettlementRef = useRef<(roundId: string) => void>(() => {});
+  useEffect(() => {
+    applyServerRoundRef.current = applyServerRound;
+    applySettlementRef.current = (roundId) => void applySettlement(roundId);
+  });
+
+  // Poll vòng hiện tại. 404 `ROUND_NOT_FOUND` giữa hai ván là BÌNH THƯỜNG (server đã đóng
+  // vòng cũ, chưa mở vòng mới) — giữ nguyên trạng thái cuối, không reset bàn.
+  useEffect(() => {
+    if (!xocTableId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const round = await currentRound(xocTableId);
+        if (!cancelled && round) applyServerRoundRef.current(round);
+      } catch (err) {
+        if (err instanceof ApiError && err.code !== "ROUND_NOT_FOUND") {
+          console.warn("Đồng bộ vòng Xóc Đĩa thất bại:", err);
+        }
+      }
+    };
+    void tick();
+    const timer = setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [xocTableId]);
+
+  // Đồng hồ đếm ngược: nội suy từ mốc kết thúc pha do server trả về, giữa hai nhịp poll.
+  // Tự trừ 1 giây mỗi nhịp như trước thì đồng hồ trôi dần và lệch hẳn khỏi server.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const endsAt = phaseEndsAtRef.current;
+      if (endsAt === null) return;
+      const left = Math.max(0, Math.ceil((endsAt - serverNowMs()) / 1000));
+      setTimeLeft(left);
+
+      // Nhắc "còn 5 giây" đúng MỘT lần cho mỗi giây, không phải mỗi nhịp 250ms.
+      if (phaseRef.current === "BETTING_OPEN" && left > 0 && left <= 5) {
+        if (lastTickSecondRef.current !== left) {
+          lastTickSecondRef.current = left;
+          playSound("tick");
+          if (left === 5) {
+            speakDealer("Còn 5 giây chốt cược thôi ạ! Các anh nhanh tay nha~ ⏳");
+          }
+        }
+      } else {
+        lastTickSecondRef.current = -1;
+      }
+    }, 250);
+    return () => clearInterval(timer);
+    // `soundEnabled` nằm trong deps vì `playSound` đọc nó: để `[]` thì effect giữ mãi
+    // closure của lượt render đầu, và tắt âm thanh rồi mà tiếng "tick" vẫn kêu.
+    // Vòng lặp chỉ đọc ref nên dựng lại khi bật/tắt tiếng là vô hại.
+  }, [soundEnabled]);
+
+  // Tiền thắng + số dư thật do server đẩy về sau khi chốt sổ.
+  useEffect(() => {
+    const handleGameResult = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        tableId?: string;
+        roundId?: string;
+        balanceAfter?: string;
+        serverTime?: string;
+      }>).detail;
+      if (!detail || detail.tableId !== xocTableIdRef.current) return;
+
+      // Số dư sau khi trả thưởng: áp ngay để người chơi thấy tiền về.
+      const after = parseFloat(String(detail.balanceAfter ?? ""));
+      if (Number.isFinite(after)) applyUsdBalance(after, detail.serverTime);
+
+      // Mọi con số hiện lên bảng lấy từ REST, kể cả khi gói này tới muộn hoặc không tới.
+      if (detail.roundId) applySettlementRef.current(detail.roundId);
+    };
+    window.addEventListener("game_result", handleGameResult);
+    return () => window.removeEventListener("game_result", handleGameResult);
+  }, []);
 
   // Place bet at EXACT mouse click location without missing/drift ("k dc trật")
   const placeBet = async (
@@ -1922,6 +2226,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
       return raw.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
     })();
     const seq = betSeqRef.current;
+    // Vòng server thực nhận cược này; gán trong `try`, đọc lại sau khi đặt xong.
+    let placedRoundId: string | null = null;
     placingRef.current = true;
     try {
       const tableId = await ensureTableAndRound();
@@ -1932,6 +2238,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       }
       const res = await apiPlaceBet(tableId, { betType: zone, selection: "", stake: stakeUsdStr, seq });
       if (res?.roundId) serverRoundIdRef.current = res.roundId;
+      placedRoundId = res?.roundId ?? null;
       betSeqRef.current = seq + 1;
       if (res?.balanceAfter) applyUsdBalance(parseFloat(res.balanceAfter));
     } catch (err) {
@@ -1941,7 +2248,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         if (err.code === "ROUND_BETTING_CLOSED" || err.code === "ROUND_NOT_FOUND") {
           showToast("Đã hết giờ đặt cược! Chờ ván mới vào tiền nhé! ⛔");
         } else if (err.code === "INSUFFICIENT_BALANCE") {
-          showToast(`Số dư không đủ! (Còn ${balanceRef.current.toLocaleString()} đ ≈ $${usdBalanceRef.current.toFixed(2)} USD)`);
+          showToast(`Số dư không đủ! (Còn ${balanceRef.current?.toLocaleString() ?? "—"} đ ≈ $${usdBalanceRef.current?.toFixed(2) ?? "—"} USD)`);
           try {
             const w = await walletMe();
             if (w?.balance) applyUsdBalance(parseFloat(w.balance));
@@ -2024,11 +2331,15 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
     // Intelligent NPC Dealer reaction to VIP Tôi's real bet
     const chipLabel = chipConfig.label;
+    // Tỷ lệ đọc từ server: người này có thể được đặt tỷ lệ riêng, nói "1 ăn 16" cứng
+    // là dealer đọc sai số tiền người chơi thật sự nhận được. Đọc qua `oddsTextRef`
+    // (không gọi `oddsText`) — xem chú thích ở khai báo ref.
+    const oddsTextForBet = (zone: keyof BetState): string => oddsTextRef.current[zone] ?? "";
     const doorTitles: Record<keyof BetState, string> = {
       XOC_DIA_EVEN: "cửa CHẴN",
       XOC_DIA_ODD: "cửa LẺ",
-      XOC_DIA_FOUR_RED: "TỨ ĐỎ (1 ăn 16)",
-      XOC_DIA_FOUR_WHITE: "TỨ TRẮNG (1 ăn 16)",
+      XOC_DIA_FOUR_RED: `TỨ ĐỎ (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_RED")})`,
+      XOC_DIA_FOUR_WHITE: `TỨ TRẮNG (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_WHITE")})`,
       XOC_DIA_THREE_RED: "3 ĐỎ 1 TRẮNG",
       XOC_DIA_THREE_WHITE: "3 TRẮNG 1 ĐỎ",
     };
@@ -2041,7 +2352,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       );
     } else if (zone === "XOC_DIA_FOUR_RED" || zone === "XOC_DIA_FOUR_WHITE") {
       speakDealer(
-        `VIP Tôi bắt ${doorTitles[zone]} kìa! Nổ một phát 1 ăn 16 là rực rỡ cả sảnh luôn anh ơi! 🚀✨`,
+        `VIP Tôi bắt ${doorTitles[zone]} kìa! Nổ một phát 1 ăn ${oddsTextForBet(zone)} là rực rỡ cả sảnh luôn anh ơi! 🚀✨`,
         4200
       );
     } else if (nextBetAmount >= 100000 && bets[zone] > 0) {
@@ -2073,6 +2384,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
       {
         id: Date.now() + Math.random(),
         roundSeq,
+        // Vòng SERVER mà server đã ghi cược này vào (server trả về), không phải vòng
+        // đang hiện trên đồng hồ local — hai thứ này từng lệch nhau.
+        roundId: placedRoundId ?? serverRoundIdRef.current,
+        betType: zone,
         zoneName: doorTitles[zone],
         stake: selectedChip,
         payout: 0,
@@ -2127,6 +2442,16 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const redCount = coins.reduce((a, b) => a + b, 0);
   const isEven = redCount % 2 === 0;
   const isBettingLocked = phase !== "BETTING_OPEN";
+  // Số dư chỉ hiện "—" khi CHƯA đọc được từ ví. Trước đây hai chỗ này khởi tạo cứng
+  // 5.030.000 đ nên tài khoản trắng vẫn trông như có tiền.
+  const balanceLabel = balance === null ? "—" : `${balance.toLocaleString()} đ`;
+  const balanceUsdLabel =
+    balance === null || exchangeRate <= 0
+      ? "—"
+      : `$${(balance / exchangeRate).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
 
   return (
     <div className="relative w-full h-full min-h-dvh bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
@@ -2315,7 +2640,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* 3.1 CARD CHẴN (GOLDEN 3D CARD) */}
         <div
           onClick={(e) => placeBet("XOC_DIA_EVEN", e, 310, 149)}
-          title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : "Đặt cửa Chẵn"}
+          title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa Chẵn${oddsHint("XOC_DIA_EVEN")}`}
           className={`absolute left-[195px] top-[95px] w-[225px] h-[142px] transition-all duration-200 select-none z-20 ${
             phase === "RESULT" && isEven
               ? "scale-105 filter drop-shadow-[0_0_30px_rgba(250,204,21,1)] animate-pulse cursor-default"
@@ -2349,7 +2674,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* 3.2 CARD LẺ (CRIMSON/MAGENTA 3D CARD) */}
         <div
           onClick={(e) => placeBet("XOC_DIA_ODD", e, 710, 149)}
-          title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : "Đặt cửa Lẻ"}
+          title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa Lẻ${oddsHint("XOC_DIA_ODD")}`}
           className={`absolute left-[605px] top-[95px] w-[225px] h-[142px] transition-all duration-200 select-none z-20 ${
             phase === "RESULT" && !isEven
               ? "scale-105 filter drop-shadow-[0_0_30px_rgba(244,63,94,1)] animate-pulse cursor-default"
@@ -2409,6 +2734,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.1 Hitbox & Slot 1: 4 ĐỎ (1:16) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_FOUR_RED", e, 285, 312)}
+            title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 4 Đỏ${oddsHint("XOC_DIA_FOUR_RED")}`}
             style={{
               borderRadius: "34px 14px 13px 16px / 24px 14px 13px 16px",
             }}
@@ -2436,6 +2762,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.2 Hitbox & Slot 2: 4 TRẮNG (1:16) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_FOUR_WHITE", e, 412, 312)}
+            title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 4 Trắng${oddsHint("XOC_DIA_FOUR_WHITE")}`}
             style={{ borderRadius: "14px" }}
             className={`absolute left-[160px] top-[17px] w-[121px] h-[97px] transition-all duration-300 ${
               (phase === "RESULT" || phase === "SETTLE") && redCount === 0
@@ -2460,6 +2787,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.3 Hitbox & Slot 3: 3 TRẮNG 1 ĐỎ (1:4) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_THREE_WHITE", e, 612, 312)}
+            title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 3 Trắng 1 Đỏ${oddsHint("XOC_DIA_THREE_WHITE")}`}
             style={{ borderRadius: "14px" }}
             className={`absolute left-[286px] top-[17px] w-[121px] h-[97px] transition-all duration-300 ${
               (phase === "RESULT" || phase === "SETTLE") && redCount === 1
@@ -2484,6 +2812,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.4 Hitbox & Slot 4: 3 ĐỎ 1 TRẮNG (1:4) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_THREE_RED", e, 740, 312)}
+            title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 3 Đỏ 1 Trắng${oddsHint("XOC_DIA_THREE_RED")}`}
             style={{
               borderRadius: "14px 34px 16px 13px / 14px 24px 16px 13px",
             }}
@@ -2607,9 +2936,9 @@ export const XocDiaLandscapeGame: React.FC = () => {
                   className={`text-[10px] font-mono font-black ${
                     isUserWinner ? "text-yellow-300 animate-bounce" : "text-emerald-400"
                   }`}
-                  title={`≈ $${((balance / exchangeRate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD (${exchangeRateFormatted})`}
+                  title={`≈ ${balanceUsdLabel} USD (${exchangeRateFormatted})`}
                 >
-                  {balance.toLocaleString()} đ
+                  {balanceLabel}
                 </div>
               </div>
               {isUserWinner && lastWinAmount && (
@@ -2697,7 +3026,9 @@ export const XocDiaLandscapeGame: React.FC = () => {
           >
             {CHIP_LIST.map((c) => {
               const isSelected = selectedChip === c.val;
-              const isAffordable = balance >= c.val;
+              // Chưa đọc được số dư thì không chặn chọn chip — server vẫn là chốt cuối
+              // và sẽ trả INSUFFICIENT_BALANCE nếu thật sự không đủ tiền.
+              const isAffordable = balance === null || balance >= c.val;
 
               return (
                 <div
@@ -3538,10 +3869,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
                     <span className="text-[10px] text-slate-400 font-mono">
                       Số dư:{" "}
                       <strong className="text-amber-300 font-bold">
-                        {balance.toLocaleString()} đ
+                        {balanceLabel}
                       </strong>{" "}
                       <span className="text-amber-400/80 text-[9px]">
-                        (≈ ${((balance / exchangeRate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)
+                        (≈ {balanceUsdLabel} USD)
                       </span>
                     </span>
                   </div>

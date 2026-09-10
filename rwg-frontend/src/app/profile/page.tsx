@@ -64,8 +64,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const handleBalanceUpdate = (e: Event) => {
-      const custom = e as CustomEvent<string>;
-      setWallet((prev) => (prev ? { ...prev, balance: custom.detail } : null));
+      // detail là cả gói WalletBalancePayload; ở đây chỉ cần số dư.
+      const { balance } = (e as CustomEvent<{ balance: string }>).detail ?? {};
+      if (balance === undefined || balance === null) return;
+      setWallet((prev) => (prev ? { ...prev, balance } : null));
     };
     window.addEventListener("wallet_balance_updated", handleBalanceUpdate);
 
