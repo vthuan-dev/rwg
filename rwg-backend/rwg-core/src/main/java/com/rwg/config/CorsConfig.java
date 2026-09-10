@@ -19,8 +19,10 @@ import java.util.List;
  *
  * Nguyên tắc thu hẹp áp dụng ở đây:
  * - Origin: chỉ những gì khai báo tường minh trong rwg.cors.allowed-origins.
- * - Header: chỉ Authorization + Content-Type, không mở "*".
- * - Method: chỉ các method thực dùng, KHÔNG có PUT hay TRACE.
+ * - Header: chỉ Authorization + Content-Type + Accept-Language + X-Device-Id, không mở "*".
+ * - Method: GET, POST, PUT, PATCH, DELETE, OPTIONS — đủ các method mà admin và player
+ *   API thực dùng. PUT cần thiết cho các endpoint lưu cấu hình khu quản trị
+ *   (settings, xocdia-config, chat-promo-text...).
  * - allowCredentials = false: hệ thống dùng Bearer token trong header, KHÔNG dùng
  *   cookie. Bật credentials sẽ cho phép trình duyệt đính kèm cookie phiên vào
  *   request chéo origin — mở đúng cửa cho CSRF mà CSRF protection đang tắt.
@@ -50,6 +52,7 @@ public class CorsConfig {
         config.setAllowedMethods(List.of(
                 HttpMethod.GET.name(),
                 HttpMethod.POST.name(),
+                HttpMethod.PUT.name(),
                 HttpMethod.PATCH.name(),
                 HttpMethod.DELETE.name(),
                 HttpMethod.OPTIONS.name()));

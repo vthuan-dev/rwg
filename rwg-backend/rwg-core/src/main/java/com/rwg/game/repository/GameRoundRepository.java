@@ -99,6 +99,25 @@ public interface GameRoundRepository extends JpaRepository<GameRound, GameRoundI
                        @Param("open") RoundStatus open,
                        @Param("now") Instant now);
 
+    /** Lưu kết quả ván Xóc Đĩa. */
+    @Modifying
+    @Query("update GameRound r set " +
+            "r.xocDiaCoins = :coins, " +
+            "r.xocDiaRedCount = :redCount, " +
+            "r.xocDiaSeed = :seed, " +
+            "r.xocDiaSeedHash = :seedHash, " +
+            "r.resultAt = :resultAt, " +
+            "r.updatedAt = :now " +
+            "where r.id = :id and r.createdAt = :createdAt and r.status = :open")
+    int markXocDiaResult(@Param("id") UUID id, @Param("createdAt") Instant createdAt,
+                         @Param("coins") String coins,
+                         @Param("redCount") Integer redCount,
+                         @Param("seed") String seed,
+                         @Param("seedHash") String seedHash,
+                         @Param("resultAt") Instant resultAt,
+                         @Param("open") RoundStatus open,
+                         @Param("now") Instant now);
+
     /**
      * Claim chuyển OPEN -> status mới (SETTLED hoặc VOIDED), kèm số trúng khi công bố.
      * Trả 1 nếu claim thành công, 0 nếu vòng đã bị xử lý bởi tiến trình khác.

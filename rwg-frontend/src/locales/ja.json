@@ -62,7 +62,8 @@
     "lucky28": "Lucky 28",
     "british28": "British Lucky 28",
     "korean28": "Korean Lucky 28",
-    "taiwantimes": "Taiwan Times"
+    "taiwantimes": "Taiwan Times",
+    "xocdia": "ソックディア"
   },
   "footer": {
     "partners": "パートナー",
@@ -603,9 +604,7 @@
     "account_locked": "このアカウントはロックされています。サポートへご連絡ください。",
     "network_error": "サーバーに接続できません。通信環境をご確認ください。",
     "unknown_error": "エラーが発生しました。もう一度お試しください。",
-
     "session_superseded_title": "ログアウトされました",
-
     "session_superseded_body": "別の端末でこのアカウントにログインがありました。ご本人でない場合は、すぐにパスワードを変更してください。",
     "all_rights_reserved": "All Rights Reserved."
   },
@@ -988,5 +987,23 @@
         "hint": "お客様がライブチャットを開いたとき自動送信されます。有効な最初の画像のみ使用します。"
       }
     }
+  },
+  "xocdia": {
+    "title": "Xoc Dia VIP",
+    "even": "Even",
+    "odd": "Odd",
+    "four_red": "4 Red",
+    "four_white": "4 White",
+    "three_red": "3 Red 1 White",
+    "three_white": "3 White 1 Red",
+    "loading": "Connecting to Xoc Dia VIP...",
+    "shaking": "Shaking...",
+    "betting_open": "Place Your Bets",
+    "betting_closed": "No More Bets",
+    "result": "Reveal",
+    "road_map": "Roadmap",
+    "total_bet": "Total Bet",
+    "history": "History",
+    "rotate_hint": "Please rotate device to landscape for best experience"
   }
 }

@@ -30,7 +30,20 @@ public class AppSettingService {
      * Thêm khoá mới thì thêm vào đây VÀ seed một dòng trong migration: khoá có trong danh
      * sách mà không có bản ghi sẽ trả 404 khi mở trang, trông như lỗi hệ thống.
      */
-    private static final Set<String> EDITABLE_KEYS = Set.of(AppSetting.CHAT_PROMO_TEXT);
+    private static final Set<String> EDITABLE_KEYS = Set.of(
+            AppSetting.CHAT_PROMO_TEXT,
+            AppSetting.EXCHANGE_RATE_USD_VND,
+            AppSetting.XOC_DIA_BOT_COUNT,
+            AppSetting.XOC_DIA_BOT_CHAT_ENABLED,
+            AppSetting.XOC_DIA_JACKPOT_POOL,
+            AppSetting.XOC_DIA_JACKPOT_MIN_POOL,
+            AppSetting.XOC_DIA_JACKPOT_TRIGGER_MODE,
+            AppSetting.XOC_DIA_JACKPOT_AUTO_RATE,
+            AppSetting.XOC_DIA_JACKPOT_TARGET_DOOR,
+            AppSetting.XOC_DIA_JACKPOT_WINNER_MODE,
+            AppSetting.XOC_DIA_JACKPOT_TARGET_USER,
+            AppSetting.XOC_DIA_JACKPOT_LAST_WON
+    );
 
     private final AppSettingRepository repository;
     private final AuditTrailService auditTrailService;

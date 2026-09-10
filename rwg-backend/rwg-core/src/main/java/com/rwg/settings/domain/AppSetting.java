@@ -36,6 +36,17 @@ public class AppSetting {
      * sẽ biên dịch bình thường rồi âm thầm trả về giá trị mặc định, và không có gì báo.
      */
     public static final String CHAT_PROMO_TEXT = "chat.promo.text";
+    public static final String EXCHANGE_RATE_USD_VND = "exchange.rate.usd_vnd";
+    public static final String XOC_DIA_BOT_COUNT = "xocdia.bot.count";
+    public static final String XOC_DIA_BOT_CHAT_ENABLED = "xocdia.bot.chat.enabled";
+    public static final String XOC_DIA_JACKPOT_POOL = "xocdia.jackpot.pool";
+    public static final String XOC_DIA_JACKPOT_MIN_POOL = "xocdia.jackpot.min_pool";
+    public static final String XOC_DIA_JACKPOT_TRIGGER_MODE = "xocdia.jackpot.trigger_mode";
+    public static final String XOC_DIA_JACKPOT_AUTO_RATE = "xocdia.jackpot.auto_rate";
+    public static final String XOC_DIA_JACKPOT_TARGET_DOOR = "xocdia.jackpot.target_door";
+    public static final String XOC_DIA_JACKPOT_WINNER_MODE = "xocdia.jackpot.winner_mode";
+    public static final String XOC_DIA_JACKPOT_TARGET_USER = "xocdia.jackpot.target_user";
+    public static final String XOC_DIA_JACKPOT_LAST_WON = "xocdia.jackpot.last_won";
 
     @Id
     @Column(name = "setting_key", length = 64, nullable = false, updatable = false)

@@ -20,6 +20,8 @@ import { useTranslation } from "@/context/LanguageContext";
 import { BaccaratSimulator } from "@/components/admin/BaccaratSimulator";
 import { RouletteSimulator } from "@/components/admin/RouletteSimulator";
 import { LotterySimulator } from "@/components/admin/LotterySimulator";
+import { XocDiaBotConfigCard } from "@/components/admin/XocDiaBotConfigCard";
+import { XocDiaJackpotConfigCard } from "@/components/admin/XocDiaJackpotConfigCard";
 
 /**
  * Bàn chơi — khớp GameTableResponse của backend.
@@ -203,6 +205,12 @@ export default function AdminGamesPage() {
             />
           </button>
         </div>
+
+        {/* Cấu Hình Bot Xóc Đĩa VIP (Admin CMS) */}
+        <XocDiaBotConfigCard />
+
+        {/* Jackpot & Nổ Hũ Xóc Đĩa (RubyDice Tứ Quý) */}
+        <XocDiaJackpotConfigCard />
 
         {loadError ? (
           <AdminErrorState message={loadError} onRetry={reload} />

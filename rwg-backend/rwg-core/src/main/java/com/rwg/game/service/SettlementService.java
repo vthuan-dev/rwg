@@ -94,6 +94,10 @@ public class SettlementService {
         return CompletableFuture.supplyAsync(() -> settleKl28Round(roundId, result), settlementExecutor);
     }
 
+    public CompletableFuture<Boolean> settleXocDiaRoundAsync(UUID roundId, XocDiaEngine.RoundResult result) {
+        return CompletableFuture.supplyAsync(() -> settleXocDiaRound(roundId, result), settlementExecutor);
+    }
+
     /**
      * Settle một vòng. Trả true nếu vòng được claim và trả thưởng xong.
      * Idempotent: guard DB "WIN:{roundId}:{userId}" + claim OPEN->SETTLED nguyên tử
@@ -412,6 +416,88 @@ public class SettlementService {
                 listener.onWagerSettled(userId, gameType + ":" + tableId, amountBet, amountWon);
             } catch (RuntimeException listenerFailed) {
                 log.warn("WagerSettledListener {} failed for {} userId={}", listener.getClass(), gameType, userId, listenerFailed);
+            }
+        }
+    }
+
+    public boolean settleXocDiaRound(UUID roundId, XocDiaEngine.RoundResult result) {
+        Instant settledAt = Instant.now();
+        SettlementOutcome outcome = txWrite.execute(status -> {
+            GameRound round = roundRepository.findFirstById(roundId).orElse(null);
+            if (round == null || round.getStatus() != RoundStatus.OPEN) {
+                return null;
+            }
+            int claimed = roundRepository.claimStatusTransition(round.getId(), round.getCreatedAt(),
+                    RoundStatus.SETTLED, RoundStatus.OPEN, settledAt);
+            if (claimed == 0) {
+                return null;
+            }
+
+            List<Bet> pendingBets = betRepository.findByRoundIdAndStatus(roundId, BetStatus.PENDING);
+            Map<UUID, Money> stakeByUser = new java.util.LinkedHashMap<>();
+            Map<UUID, Money> winByUser = new java.util.LinkedHashMap<>();
+
+            for (Bet bet : pendingBets) {
+                Money stake = Money.of(bet.getStake());
+                Money payout = XocDiaEngine.payout(bet.getBetType(), result.getRedCount(), stake, bet.getOdds());
+                bet.settle(payout.amount());
+
+                stakeByUser.merge(bet.getUserId(), stake, Money::add);
+                if (payout.isPositive()) {
+                    winByUser.merge(bet.getUserId(), payout, Money::add);
+                }
+            }
+
+            betRepository.saveAll(pendingBets);
+
+            Map<UUID, Money> balanceAfterWin = new java.util.LinkedHashMap<>();
+            for (Map.Entry<UUID, Money> entry : winByUser.entrySet()) {
+                String winKey = "WIN:" + roundId + ":" + entry.getKey();
+                Money balance = walletService.credit(entry.getKey(), entry.getValue(),
+                        WalletRefType.WIN, roundId.toString(), winKey);
+                balanceAfterWin.put(entry.getKey(), balance);
+            }
+
+            return new SettlementOutcome(round, stakeByUser, winByUser, balanceAfterWin, 0);
+        });
+
+        if (outcome == null) {
+            return false;
+        }
+
+        outcome.stakeByUser().forEach((userId, staked) -> {
+            boolean won = outcome.winByUser().containsKey(userId);
+            if (won) {
+                Money payout = outcome.winByUser().get(userId);
+                broadcaster.unicastXocDiaWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, payout.amount(),
+                        outcome.balanceAfterWin().get(userId).amount());
+            } else {
+                BigDecimal balanceAfter = walletService.getBalance(userId).amount();
+                broadcaster.unicastXocDiaWin(userId,
+                        outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        result, BigDecimal.ZERO, balanceAfter);
+            }
+        });
+
+        outcome.stakeByUser().forEach((userId, staked) -> notifyXocDiaListeners(userId,
+                outcome.round().getTableId(), staked.amount(),
+                outcome.winByUser().getOrDefault(userId, Money.zero()).amount()));
+
+        long lagMs = outcome.round().getResultAt() == null ? 0
+                : Duration.between(outcome.round().getResultAt(), Instant.now()).toMillis();
+        log.info("xocdia settlement_lag roundId={} bets={} winners={} lagMs={}",
+                roundId, outcome.stakeByUser().size(), outcome.winByUser().size(), lagMs);
+        return true;
+    }
+
+    private void notifyXocDiaListeners(UUID userId, UUID tableId, BigDecimal amountBet, BigDecimal amountWon) {
+        for (WagerSettledListener listener : wagerSettledListeners) {
+            try {
+                listener.onWagerSettled(userId, "XOC_DIA:" + tableId, amountBet, amountWon);
+            } catch (RuntimeException listenerFailed) {
+                log.warn("WagerSettledListener {} failed for Xoc Dia userId={}", listener.getClass(), userId, listenerFailed);
             }
         }
     }

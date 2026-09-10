@@ -62,7 +62,8 @@
     "lucky28": "Lucky 28",
     "british28": "British Lucky 28",
     "korean28": "Korean Lucky 28",
-    "taiwantimes": "Taiwan Times"
+    "taiwantimes": "Taiwan Times",
+    "xocdia": "쏙디아"
   },
   "footer": {
     "partners": "파트너",
@@ -603,9 +604,7 @@
     "account_locked": "이 계정은 잠겨 있습니다. 고객센터에 문의해 주세요.",
     "network_error": "서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.",
     "unknown_error": "오류가 발생했습니다. 다시 시도해 주세요.",
-
     "session_superseded_title": "로그아웃되었습니다",
-
     "session_superseded_body": "다른 기기에서 이 계정으로 로그인했습니다. 본인이 아니라면 즉시 비밀번호를 변경하세요.",
     "all_rights_reserved": "All Rights Reserved."
   },
@@ -988,5 +987,23 @@
         "hint": "고객이 실시간 상담을 열 때 자동으로 전송됩니다. 켜져 있는 첫 번째 이미지만 사용합니다."
       }
     }
+  },
+  "xocdia": {
+    "title": "Xoc Dia VIP",
+    "even": "Even",
+    "odd": "Odd",
+    "four_red": "4 Red",
+    "four_white": "4 White",
+    "three_red": "3 Red 1 White",
+    "three_white": "3 White 1 Red",
+    "loading": "Connecting to Xoc Dia VIP...",
+    "shaking": "Shaking...",
+    "betting_open": "Place Your Bets",
+    "betting_closed": "No More Bets",
+    "result": "Reveal",
+    "road_map": "Roadmap",
+    "total_bet": "Total Bet",
+    "history": "History",
+    "rotate_hint": "Please rotate device to landscape for best experience"
   }
 }

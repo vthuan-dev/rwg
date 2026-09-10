@@ -98,6 +98,22 @@ const BACCARAT_OPTIONS: BetOption[] = [
   { betType: "BANKER_PAIR", labelKey: "bet.banker_pair", multiplier: "12" },
 ];
 
+/**
+ * Xóc Đĩa Sunwin.
+ * Tỷ lệ trả thưởng stake-inclusive:
+ * - Chẵn, Lẻ: 1 ăn 1.98 (multiplier: "1.98")
+ * - 4 Trắng, 4 Đỏ: 1 ăn 16 (multiplier: "16")
+ * - 3 Trắng, 3 Đỏ: 1 ăn 4 (multiplier: "4")
+ */
+const XOC_DIA_OPTIONS: BetOption[] = [
+  { betType: "XOC_DIA_EVEN", labelKey: "xocdia.even", multiplier: "1.98" },
+  { betType: "XOC_DIA_ODD", labelKey: "xocdia.odd", multiplier: "1.98" },
+  { betType: "XOC_DIA_FOUR_RED", labelKey: "xocdia.four_red", multiplier: "16" },
+  { betType: "XOC_DIA_FOUR_WHITE", labelKey: "xocdia.four_white", multiplier: "16" },
+  { betType: "XOC_DIA_THREE_RED", labelKey: "xocdia.three_red", multiplier: "4" },
+  { betType: "XOC_DIA_THREE_WHITE", labelKey: "xocdia.three_white", multiplier: "4" },
+];
+
 /** Số lựa chọn tối đa một lần, theo đúng bản gốc. */
 export const MAX_BET_SELECTIONS = 7;
 
@@ -113,14 +129,16 @@ export function betOptionsFor(gameType: string): BetOption[] {
       return ROULETTE_OPTIONS;
     case "BACCARAT":
       return BACCARAT_OPTIONS;
+    case "XOC_DIA":
+      return XOC_DIA_OPTIONS;
     default:
       return [];
   }
 }
 
-/** Nhãn i18n theo `betType`, dựng từ ba bảng trên. */
+/** Nhãn i18n theo `betType`, dựng từ các bảng trên. */
 const LABEL_BY_BET_TYPE: Record<string, string> = Object.fromEntries(
-  [...KL28_OPTIONS, ...ROULETTE_OPTIONS, ...BACCARAT_OPTIONS].map((o) => [
+  [...KL28_OPTIONS, ...ROULETTE_OPTIONS, ...BACCARAT_OPTIONS, ...XOC_DIA_OPTIONS].map((o) => [
     o.betType,
     o.labelKey,
   ])

@@ -75,6 +75,18 @@ public class GameRound {
     @Column(name = "kl28_sum")
     private Integer kl28Sum;
 
+    @Column(name = "xoc_dia_coins", length = 32)
+    private String xocDiaCoins;
+
+    @Column(name = "xoc_dia_red_count")
+    private Integer xocDiaRedCount;
+
+    @Column(name = "xoc_dia_seed", length = 64)
+    private String xocDiaSeed;
+
+    @Column(name = "xoc_dia_seed_hash", length = 64)
+    private String xocDiaSeedHash;
+
     @Column(name = "result_at")
     private Instant resultAt;
 
@@ -115,6 +127,10 @@ public class GameRound {
     public void setBaccaratResult(String baccaratResult) { this.baccaratResult = baccaratResult; }
     public void setKl28Numbers(String kl28Numbers) { this.kl28Numbers = kl28Numbers; }
     public void setKl28Sum(Integer kl28Sum) { this.kl28Sum = kl28Sum; }
+    public void setXocDiaCoins(String xocDiaCoins) { this.xocDiaCoins = xocDiaCoins; }
+    public void setXocDiaRedCount(Integer xocDiaRedCount) { this.xocDiaRedCount = xocDiaRedCount; }
+    public void setXocDiaSeed(String xocDiaSeed) { this.xocDiaSeed = xocDiaSeed; }
+    public void setXocDiaSeedHash(String xocDiaSeedHash) { this.xocDiaSeedHash = xocDiaSeedHash; }
 
     public UUID getId() { return id; }
     public Instant getCreatedAt() { return createdAt; }
@@ -132,6 +148,10 @@ public class GameRound {
     public String getBaccaratResult() { return baccaratResult; }
     public String getKl28Numbers() { return kl28Numbers; }
     public Integer getKl28Sum() { return kl28Sum; }
+    public String getXocDiaCoins() { return xocDiaCoins; }
+    public Integer getXocDiaRedCount() { return xocDiaRedCount; }
+    public String getXocDiaSeed() { return xocDiaSeed; }
+    public String getXocDiaSeedHash() { return xocDiaSeedHash; }
     public Instant getResultAt() { return resultAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

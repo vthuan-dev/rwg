@@ -62,7 +62,8 @@
     "lucky28": "Lucky 28",
     "british28": "British Lucky 28",
     "korean28": "Korean Lucky 28",
-    "taiwantimes": "Taiwan Times"
+    "taiwantimes": "Taiwan Times",
+    "xocdia": "色碟"
   },
   "footer": {
     "partners": "合作伙伴",
@@ -522,7 +523,13 @@
       "SIX_LINE": "线注",
       "COLUMN": "列注",
       "DOZEN": "打注",
-      "KL28_NUMBER": "特码 (Lucky28 Number)"
+      "KL28_NUMBER": "特码 (Lucky28 Number)",
+      "XOC_DIA_EVEN": "双 (Even)",
+      "XOC_DIA_ODD": "单 (Odd)",
+      "XOC_DIA_FOUR_RED": "4红 (4 Red)",
+      "XOC_DIA_FOUR_WHITE": "4白 (4 White)",
+      "XOC_DIA_THREE_RED": "3红1白 (3 Red 1 White)",
+      "XOC_DIA_THREE_WHITE": "3白1红 (3 White 1 Red)"
     },
     "ledger": {
       "title": "玩家账目",
@@ -603,9 +610,7 @@
     "account_locked": "该账户已被锁定，请联系客服。",
     "network_error": "无法连接服务器，请检查网络。",
     "unknown_error": "出现错误，请重试。",
-
     "session_superseded_title": "您已退出登录",
-
     "session_superseded_body": "您的账号刚在另一台设备上登录。如果不是您本人操作，请立即修改密码。",
     "all_rights_reserved": "All Rights Reserved."
   },
@@ -988,5 +993,23 @@
         "hint": "客户打开在线客服时自动发送。仅使用第一张启用的图片。"
       }
     }
+  },
+  "xocdia": {
+    "title": "色碟 VIP",
+    "even": "双",
+    "odd": "单",
+    "four_red": "4红",
+    "four_white": "4白",
+    "three_red": "3红1白",
+    "three_white": "3白1红",
+    "loading": "正在进入色碟 VIP...",
+    "shaking": "摇碟中...",
+    "betting_open": "请下注",
+    "betting_closed": "下注截止",
+    "result": "开盘",
+    "road_map": "路单",
+    "total_bet": "下注总计",
+    "history": "历史记录",
+    "rotate_hint": "建议横屏模式体验最佳"
   }
 }

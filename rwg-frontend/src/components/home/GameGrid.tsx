@@ -16,6 +16,7 @@ interface GameItem {
    * seed lại dữ liệu. Trang chi tiết nhận cả hai dạng.
    */
   gameType: string;
+  customHref?: string;
 }
 
 /**
@@ -55,6 +56,13 @@ const GAMES: GameItem[] = [
     image: "/element/game4.webp",
     gameType: "TAIWAN_TIMES",
   },
+  {
+    id: "xocdia",
+    nameKey: "games.xocdia",
+    image: "/element/game-xocdia.jpg",
+    gameType: "XOC_DIA",
+    customHref: "/games/xoc-dia",
+  },
 ];
 
 /**
@@ -82,7 +90,7 @@ export const GameGrid: React.FC = () => {
         {GAMES.map((game) => (
           <li key={game.id} className="flex">
             <Link
-              href={`/bet/detail?id=${game.gameType.toLowerCase()}&ref=/`}
+              href={game.customHref ?? `/bet/detail?id=${game.gameType.toLowerCase()}&ref=/`}
               className="group w-full bg-[#141417] border border-[#25252b] overflow-hidden flex flex-col transition-transform active:scale-[0.98]"
             >
               {/* `aspect-[800/506]` khớp ĐÚNG tỷ lệ ảnh gốc (1.581), không phải 16/10

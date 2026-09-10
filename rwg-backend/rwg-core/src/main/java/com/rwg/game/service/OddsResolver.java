@@ -58,6 +58,7 @@ public class OddsResolver {
             // Lucky 28 và ba biến thể dùng cùng một engine.
             case "KL28", "LUCKY28", "BRITISH_LUCKY28", "TAIWAN_TIMES" ->
                     Kl28Engine.defaultOddsFor(betType, selection);
+            case "XOC_DIA" -> XocDiaEngine.oddsFor(betType);
             default -> BigDecimal.ZERO;
         };
     }

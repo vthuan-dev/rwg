@@ -603,6 +603,85 @@ export async function walletMe(): Promise<Wallet> {
   return authedRequest<Wallet>("/wallet/me", { method: "GET" });
 }
 
+export interface CurrencyExchangeRate {
+  baseCurrency: string;
+  targetCurrency: string;
+  rate: number;
+  formattedRate: string;
+}
+
+/**
+ * Lấy tỷ giá quy đổi tiền tệ hiện hành (USD -> VND).
+ *
+ * Đọc từ backend endpoint `/settings/exchange-rate`.
+ * Mặc định fallback 1 USD = 25,000 VND nếu mạng có sự cố.
+ */
+export async function getExchangeRate(): Promise<CurrencyExchangeRate> {
+  try {
+    return await request<CurrencyExchangeRate>("/settings/exchange-rate", { method: "GET" });
+  } catch {
+    return {
+      baseCurrency: "USD",
+      targetCurrency: "VND",
+      rate: 25000,
+      formattedRate: "1 USD = 25,000 VND",
+    };
+  }
+}
+
+export interface XocDiaConfig {
+  botCount: number;
+  botChatEnabled: boolean;
+}
+
+/**
+ * Lấy cấu hình bàn chơi Xóc Đĩa VIP (số bot và bật/tắt bot chat).
+ */
+export async function getXocDiaConfig(): Promise<XocDiaConfig> {
+  try {
+    return await request<XocDiaConfig>("/settings/xocdia-config", { method: "GET" });
+  } catch {
+    return {
+      botCount: 4,
+      botChatEnabled: true,
+    };
+  }
+}
+
+export interface XocDiaJackpotPublic {
+  pool: number;
+  minPool: number;
+  triggerMode: string;
+  autoRate: number;
+  targetDoor: string;
+  winnerMode: string;
+  targetUser: string;
+  lastWon: string;
+}
+
+/**
+ * Đọc quỹ Jackpot công khai cho bàn player poll.
+ *
+ * Backend trả full config nhưng player chỉ dùng pool/trigger/targetDoor.
+ * Fallback giữ plaque không vỡ số khi mất mạng.
+ */
+export async function getXocDiaJackpot(): Promise<XocDiaJackpotPublic> {
+  try {
+    return await request<XocDiaJackpotPublic>("/settings/xocdia-jackpot", { method: "GET" });
+  } catch {
+    return {
+      pool: 295320203,
+      minPool: 100000000,
+      triggerMode: "AUTO",
+      autoRate: 0.001,
+      targetDoor: "RANDOM",
+      winnerMode: "ALL_BETTOR_SHARE",
+      targetUser: "",
+      lastWon: "",
+    };
+  }
+}
+
 /**
  * Mã giới thiệu của chính người chơi, khớp `ReferralCodeResponse` của backend.
  *

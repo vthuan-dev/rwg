@@ -62,7 +62,8 @@
     "lucky28": "May mắn 28",
     "british28": "May mắn 28 Anh",
     "korean28": "May mắn 28 Hàn",
-    "taiwantimes": "Taiwan Times"
+    "taiwantimes": "Taiwan Times",
+    "xocdia": "Xóc Đĩa"
   },
   "footer": {
     "partners": "Hợp tác",
@@ -522,7 +523,13 @@
       "SIX_LINE": "Cược 2 hàng 6 số (Six Line)",
       "COLUMN": "Cược cột 12 số (Column)",
       "DOZEN": "Cược tá 12 số (Dozen)",
-      "KL28_NUMBER": "Cược số (Lucky28 Number)"
+      "KL28_NUMBER": "Cược số (Lucky28 Number)",
+      "XOC_DIA_EVEN": "Chẵn (Even)",
+      "XOC_DIA_ODD": "Lẻ (Odd)",
+      "XOC_DIA_FOUR_RED": "4 Đỏ (Tứ tử đỏ)",
+      "XOC_DIA_FOUR_WHITE": "4 Trắng (Tứ tử trắng)",
+      "XOC_DIA_THREE_RED": "3 Đỏ 1 Trắng",
+      "XOC_DIA_THREE_WHITE": "3 Trắng 1 Đỏ"
     },
     "ledger": {
       "title": "Sổ sách Người chơi",
@@ -603,9 +610,7 @@
     "account_locked": "Tài khoản đang bị khoá. Vui lòng liên hệ hỗ trợ.",
     "network_error": "Không kết nối được máy chủ. Kiểm tra lại đường truyền.",
     "unknown_error": "Đã xảy ra lỗi. Vui lòng thử lại.",
-
     "session_superseded_title": "Bạn đã đăng xuất",
-
     "session_superseded_body": "Tài khoản của bạn vừa đăng nhập trên một thiết bị khác. Nếu không phải bạn, hãy đổi mật khẩu ngay.",
     "all_rights_reserved": "All Rights Reserved."
   },
@@ -988,5 +993,23 @@
         "hint": "Ảnh gửi tự động cho khách khi họ mở khung Trò chuyện trực tiếp. Chỉ ảnh đang bật đầu tiên được dùng."
       }
     }
+  },
+  "xocdia": {
+    "title": "Xóc Đĩa VIP",
+    "even": "Chẵn",
+    "odd": "Lẻ",
+    "four_red": "4 Đỏ",
+    "four_white": "4 Trắng",
+    "three_red": "3 Đỏ 1 Trắng",
+    "three_white": "3 Trắng 1 Đỏ",
+    "loading": "Đang kết nối bàn Xóc Đĩa VIP...",
+    "shaking": "Đang xóc đĩa...",
+    "betting_open": "Mời đặt cược",
+    "betting_closed": "Hết giờ cược",
+    "result": "Mở bát",
+    "road_map": "Soi cầu",
+    "total_bet": "Tổng cược",
+    "history": "Lịch sử",
+    "rotate_hint": "Vui lòng xoay ngang màn hình để có trải nghiệm tốt nhất"
   }
 }

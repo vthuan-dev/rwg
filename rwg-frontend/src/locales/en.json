@@ -62,7 +62,8 @@
     "lucky28": "Lucky 28",
     "british28": "British Lucky 28",
     "korean28": "Korean Lucky 28",
-    "taiwantimes": "Taiwan Times"
+    "taiwantimes": "Taiwan Times",
+    "xocdia": "Xoc Dia"
   },
   "footer": {
     "partners": "Partners",
@@ -522,7 +523,13 @@
       "SIX_LINE": "Six Line",
       "COLUMN": "Column",
       "DOZEN": "Dozen",
-      "KL28_NUMBER": "Lucky28 Number"
+      "KL28_NUMBER": "Lucky28 Number",
+      "XOC_DIA_EVEN": "Even",
+      "XOC_DIA_ODD": "Odd",
+      "XOC_DIA_FOUR_RED": "4 Red",
+      "XOC_DIA_FOUR_WHITE": "4 White",
+      "XOC_DIA_THREE_RED": "3 Red 1 White",
+      "XOC_DIA_THREE_WHITE": "3 White 1 Red"
     },
     "ledger": {
       "title": "Player Ledger",
@@ -603,9 +610,7 @@
     "account_locked": "This account is locked. Please contact support.",
     "network_error": "Cannot reach the server. Check your connection.",
     "unknown_error": "Something went wrong. Please try again.",
-
     "session_superseded_title": "You have been signed out",
-
     "session_superseded_body": "Your account just signed in on another device. If this was not you, change your password now.",
     "all_rights_reserved": "All Rights Reserved."
   },
@@ -988,5 +993,23 @@
         "hint": "Sent automatically when a customer opens Live Chat. Only the first enabled image is used."
       }
     }
+  },
+  "xocdia": {
+    "title": "Xoc Dia VIP",
+    "even": "Even",
+    "odd": "Odd",
+    "four_red": "4 Red",
+    "four_white": "4 White",
+    "three_red": "3 Red 1 White",
+    "three_white": "3 White 1 Red",
+    "loading": "Connecting to Xoc Dia VIP...",
+    "shaking": "Shaking...",
+    "betting_open": "Place Your Bets",
+    "betting_closed": "No More Bets",
+    "result": "Reveal",
+    "road_map": "Roadmap",
+    "total_bet": "Total Bet",
+    "history": "History",
+    "rotate_hint": "Please rotate device to landscape for best experience"
   }
 }

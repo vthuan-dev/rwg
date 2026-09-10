@@ -44,6 +44,11 @@ public class TableOddsService {
             BetType.PLAYER, BetType.BANKER, BetType.TIE,
             BetType.PLAYER_PAIR, BetType.BANKER_PAIR);
 
+    private static final List<BetType> XOC_DIA_TYPES = List.of(
+            BetType.XOC_DIA_EVEN, BetType.XOC_DIA_ODD,
+            BetType.XOC_DIA_FOUR_RED, BetType.XOC_DIA_FOUR_WHITE,
+            BetType.XOC_DIA_THREE_RED, BetType.XOC_DIA_THREE_WHITE);
+
     /**
      * Cặp hai chiều ĐIỀU CHỈNH ĐƯỢC của mỗi loại game.
      *
@@ -67,6 +72,11 @@ public class TableOddsService {
     private static final List<BetType> BACCARAT_ADJUSTABLE = List.of(
             BetType.PLAYER, BetType.BANKER);
 
+    private static final List<BetType> XOC_DIA_ADJUSTABLE = List.of(
+            BetType.XOC_DIA_EVEN, BetType.XOC_DIA_ODD,
+            BetType.XOC_DIA_FOUR_RED, BetType.XOC_DIA_FOUR_WHITE,
+            BetType.XOC_DIA_THREE_RED, BetType.XOC_DIA_THREE_WHITE);
+
     /** Tổng nhỏ nhất và lớn nhất của Lucky 28: ba số 0-9 cộng lại. */
     private static final int MIN_SUM = 0;
     private static final int MAX_SUM = 27;
@@ -88,6 +98,7 @@ public class TableOddsService {
             case "ROULETTE" -> ROULETTE_TYPES;
             case "BACCARAT" -> BACCARAT_TYPES;
             case "KL28", "LUCKY28", "BRITISH_LUCKY28", "TAIWAN_TIMES" -> KL28_TYPES;
+            case "XOC_DIA" -> XOC_DIA_TYPES;
             default -> List.of();
         };
     }
@@ -114,6 +125,7 @@ public class TableOddsService {
             case "ROULETTE" -> ROULETTE_ADJUSTABLE;
             case "BACCARAT" -> BACCARAT_ADJUSTABLE;
             case "KL28", "LUCKY28", "BRITISH_LUCKY28", "TAIWAN_TIMES" -> KL28_ADJUSTABLE;
+            case "XOC_DIA" -> XOC_DIA_ADJUSTABLE;
             default -> List.of();
         };
     }

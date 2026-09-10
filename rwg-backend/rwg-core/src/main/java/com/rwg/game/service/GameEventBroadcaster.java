@@ -103,6 +103,19 @@ public class GameEventBroadcaster {
                 ));
     }
 
+    public void broadcastXocDiaResult(GameRound round, XocDiaEngine.RoundResult result) {
+        messaging.convertAndSend(TABLE_TOPIC_PREFIX + round.getTableId(),
+                RoundResultPayload.xocDia(
+                        round.getTableId().toString(),
+                        round.getId().toString(),
+                        round.getRoundSeq(),
+                        result.formattedCoins(),
+                        result.getRedCount(),
+                        result.getSeed(),
+                        result.getSeedHash()
+                ));
+    }
+
     public void broadcastVoided(GameRound round) {
         messaging.convertAndSend(TABLE_TOPIC_PREFIX + round.getTableId(),
                 RoundVoidedPayload.of(round.getTableId().toString(), round.getId().toString(),
@@ -173,6 +186,21 @@ public class GameEventBroadcaster {
                         roundId,
                         sb.toString(),
                         result.getSum(),
+                        payout.toPlainString(),
+                        balanceAfter.toPlainString()
+                ));
+        messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
+                WalletBalancePayload.of(balanceAfter.toPlainString()));
+    }
+
+    public void unicastXocDiaWin(UUID userId, String tableId, String roundId, XocDiaEngine.RoundResult result,
+                                 BigDecimal payout, BigDecimal balanceAfter) {
+        messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_GAME_RESULTS,
+                PlayerWinPayload.xocDia(
+                        tableId,
+                        roundId,
+                        result.formattedCoins(),
+                        result.getRedCount(),
                         payout.toPlainString(),
                         balanceAfter.toPlainString()
                 ));

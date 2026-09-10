@@ -111,6 +111,7 @@ const ROOM_IMAGE_BY_GAME_TYPE: Record<string, string> = {
   LUCKY28: "/element/room4.webp",
   BRITISH_LUCKY28: "/element/room1.webp",
   TAIWAN_TIMES: "/element/room2.webp",
+  XOC_DIA: "/element/game-xocdia.jpg",
 };
 
 /**

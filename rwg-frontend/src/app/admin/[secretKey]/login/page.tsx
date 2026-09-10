@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Eye, EyeOff } from "lucide-react";
-import { setAdminToken, setAdminRefreshToken, adminFetch } from "@/lib/adminApi";
+import { setAdminToken, setAdminRefreshToken, removeAdminToken, adminFetch } from "@/lib/adminApi";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
 
@@ -37,6 +37,11 @@ export default function AdminLoginPage() {
     setError("");
 
     setLoading(true);
+
+    // Xoá mọi token cũ/hết hạn đang lưu trong trình duyệt.
+    // Nếu gửi kèm token hỏng vào request login, Spring Security (JwtAuthenticationFilter)
+    // sẽ chặn nó TRƯỚC KHI xử lý hàm login, gây ra lỗi 401 lập tức.
+    removeAdminToken();
 
     try {
       // Endpoint RIÊNG của khu quản trị. App admin cố tình không đăng ký

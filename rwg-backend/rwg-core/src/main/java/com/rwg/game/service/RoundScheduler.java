@@ -220,6 +220,14 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
 
                 requireTransition(round, RoundPhase.SETTLE);
                 awaitKl28Settlement(round, result);
+            } else if ("XOC_DIA".equals(table.getGameType())) {
+                XocDiaEngine.RoundResult result = XocDiaEngine.playRound(secureRandom);
+                publishXocDiaResult(round, result);
+                broadcaster.broadcastXocDiaResult(round, result);
+                sleep(gameProperties.round().result());
+
+                requireTransition(round, RoundPhase.SETTLE);
+                awaitXocDiaSettlement(round, result);
             } else {
                 throw new IllegalStateException("Unknown game type: " + table.getGameType());
             }
@@ -311,6 +319,37 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
         }
         round.setKl28Numbers(numbersStr);
         round.setKl28Sum(result.getSum());
+        round.setResultAt(now);
+        round.setPhase(RoundPhase.RESULT);
+    }
+
+    private void awaitXocDiaSettlement(GameRound round, XocDiaEngine.RoundResult result) throws InterruptedException {
+        try {
+            settlementService.settleXocDiaRoundAsync(round.getId(), result)
+                    .get(gameProperties.round().settle().plus(SETTLE_WAIT_BUFFER).toMillis(),
+                            TimeUnit.MILLISECONDS);
+        } catch (TimeoutException settleTooSlow) {
+            log.error("xocdia settlement timeout roundId={} — reconciliation job sẽ cảnh báo", round.getId());
+        } catch (java.util.concurrent.ExecutionException settleFailed) {
+            log.error("xocdia settlement failed roundId={}", round.getId(), settleFailed);
+        }
+    }
+
+    private void publishXocDiaResult(GameRound round, XocDiaEngine.RoundResult result) {
+        Instant now = Instant.now();
+        String coinsStr = result.formattedCoins();
+        Integer updated = txWrite.execute(status -> roundRepository.markXocDiaResult(
+                round.getId(), round.getCreatedAt(),
+                coinsStr, result.getRedCount(),
+                result.getSeed(), result.getSeedHash(),
+                now, RoundStatus.OPEN, now));
+        if (updated == null || updated == 0) {
+            throw new RoundAborted("xocdia result lost OPEN claim");
+        }
+        round.setXocDiaCoins(coinsStr);
+        round.setXocDiaRedCount(result.getRedCount());
+        round.setXocDiaSeed(result.getSeed());
+        round.setXocDiaSeedHash(result.getSeedHash());
         round.setResultAt(now);
         round.setPhase(RoundPhase.RESULT);
     }

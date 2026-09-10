@@ -34,5 +34,13 @@ public enum BetType {
     KL28_DOUBLE, // 0.98:1
 
     // Special Code (exact sum bet: 0-27)
-    KL28_NUMBER
+    KL28_NUMBER,
+
+    // Xóc Đĩa (M2 stake-inclusive odds)
+    XOC_DIA_EVEN,        // 0.98:1 (1 ăn 1.98: 4 đỏ, 4 trắng, 2 đỏ 2 trắng)
+    XOC_DIA_ODD,         // 0.98:1 (1 ăn 1.98: 3 đỏ 1 trắng, 3 trắng 1 đỏ)
+    XOC_DIA_FOUR_RED,    // 15:1   (1 ăn 16: 4 đỏ)
+    XOC_DIA_FOUR_WHITE,  // 15:1   (1 ăn 16: 4 trắng)
+    XOC_DIA_THREE_RED,   // 3:1    (1 ăn 4: 3 đỏ 1 trắng)
+    XOC_DIA_THREE_WHITE  // 3:1    (1 ăn 4: 3 trắng 1 đỏ)
 }

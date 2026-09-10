@@ -20,6 +20,8 @@ public record PlayerWinPayload(
         String baccaratResult,
         String kl28Numbers,
         Integer kl28Sum,
+        String xocDiaCoins,
+        Integer xocDiaRedCount,
         String payout,
         String balanceAfter,
         Instant serverTime) {
@@ -28,7 +30,7 @@ public record PlayerWinPayload(
                                       String payout, String balanceAfter) {
         return new PlayerWinPayload("PLAYER_WIN", tableId, roundId, winningNumber,
                 null, null, null, null, null, null, null, null, null,
-                payout, balanceAfter, Instant.now());
+                null, null, payout, balanceAfter, Instant.now());
     }
 
     public static PlayerWinPayload baccarat(String tableId, String roundId,
@@ -38,7 +40,7 @@ public record PlayerWinPayload(
                                             String payout, String balanceAfter) {
         return new PlayerWinPayload("PLAYER_WIN", tableId, roundId, null,
                 playerCards, bankerCards, playerScore, bankerScore, playerPair, bankerPair, result,
-                null, null, payout, balanceAfter, Instant.now());
+                null, null, null, null, payout, balanceAfter, Instant.now());
     }
 
     public static PlayerWinPayload kl28(String tableId, String roundId,
@@ -46,6 +48,14 @@ public record PlayerWinPayload(
                                         String payout, String balanceAfter) {
         return new PlayerWinPayload("PLAYER_WIN", tableId, roundId, null,
                 null, null, null, null, null, null, null,
-                kl28Numbers, kl28Sum, payout, balanceAfter, Instant.now());
+                kl28Numbers, kl28Sum, null, null, payout, balanceAfter, Instant.now());
+    }
+
+    public static PlayerWinPayload xocDia(String tableId, String roundId,
+                                         String xocDiaCoins, int xocDiaRedCount,
+                                         String payout, String balanceAfter) {
+        return new PlayerWinPayload("PLAYER_WIN", tableId, roundId, null,
+                null, null, null, null, null, null, null,
+                null, null, xocDiaCoins, xocDiaRedCount, payout, balanceAfter, Instant.now());
     }
 }
