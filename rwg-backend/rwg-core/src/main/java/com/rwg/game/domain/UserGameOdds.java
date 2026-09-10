@@ -40,7 +40,7 @@ public class UserGameOdds {
     private UUID tableId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "bet_type", nullable = false, length = 16)
+    @Column(name = "bet_type", nullable = false, length = 32)
     private BetType betType;
 
     /** Odds lợi, cùng quy ước engine: 0.98 nghĩa là cược 100 thắng nhận 198. */

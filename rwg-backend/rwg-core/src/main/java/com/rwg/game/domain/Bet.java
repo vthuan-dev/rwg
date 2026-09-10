@@ -42,7 +42,7 @@ public class Bet {
     private UUID userId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "bet_type", nullable = false, length = 16)
+    @Column(name = "bet_type", nullable = false, length = 32)
     private BetType betType;
 
     @Column(name = "selection", nullable = false, length = 64)
