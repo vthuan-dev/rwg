@@ -188,6 +188,31 @@ public final class XocDiaEngine {
         return stake.winningPayoutAtOdds(effectiveOdds);
     }
 
+    /**
+     * Chuẩn hóa selection (trim, uppercase) trước khi lưu.
+     * Xóc Đĩa không dùng selection chi tiết — chuẩn hóa về rỗng để đồng nhất.
+     */
+    public static String normalize(String selection) {
+        return selection == null ? "" : selection.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Validate selection theo loại cược Xóc Đĩa.
+     * Chỉ chấp nhận đúng 6 BetType XOC_DIA_*, selection phải rỗng (giống cược ngoài Roulette).
+     */
+    public static boolean validSelection(BetType type, String selection) {
+        if (type == null) {
+            return false;
+        }
+        String sel = selection == null ? "" : selection.trim();
+        return switch (type) {
+            case XOC_DIA_EVEN, XOC_DIA_ODD,
+                    XOC_DIA_FOUR_RED, XOC_DIA_FOUR_WHITE,
+                    XOC_DIA_THREE_RED, XOC_DIA_THREE_WHITE -> sel.isEmpty();
+            default -> false;
+        };
+    }
+
     private static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder(bytes.length * 2);
         for (byte b : bytes) {

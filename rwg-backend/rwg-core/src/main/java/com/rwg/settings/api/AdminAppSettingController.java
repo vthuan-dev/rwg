@@ -185,6 +185,21 @@ public class AdminAppSettingController {
             if (request.containsKey("lastWon")) {
                 service.update(AppSetting.XOC_DIA_JACKPOT_LAST_WON, String.valueOf(request.get("lastWon")), adminId, adminUsername, ip);
             }
+            if (request.containsKey("threshold")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_THRESHOLD, String.valueOf(request.get("threshold")), adminId, adminUsername, ip);
+            }
+            if (request.containsKey("winMode")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_WIN_MODE, String.valueOf(request.get("winMode")), adminId, adminUsername, ip);
+            }
+            if (request.containsKey("winValue")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_WIN_VALUE, String.valueOf(request.get("winValue")), adminId, adminUsername, ip);
+            }
+            if (request.containsKey("requireBet")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_REQUIRE_BET, String.valueOf(request.get("requireBet")), adminId, adminUsername, ip);
+            }
+            if (request.containsKey("feeRate")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_FEE_RATE, String.valueOf(request.get("feeRate")), adminId, adminUsername, ip);
+            }
         }
 
         return readJackpotConfigMap();
@@ -218,6 +233,12 @@ public class AdminAppSettingController {
             if (request.containsKey("targetUser")) {
                 service.update(AppSetting.XOC_DIA_JACKPOT_TARGET_USER, String.valueOf(request.get("targetUser")), adminId, adminUsername, ip);
             }
+            if (request.containsKey("winMode")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_WIN_MODE, String.valueOf(request.get("winMode")), adminId, adminUsername, ip);
+            }
+            if (request.containsKey("winValue")) {
+                service.update(AppSetting.XOC_DIA_JACKPOT_WIN_VALUE, String.valueOf(request.get("winValue")), adminId, adminUsername, ip);
+            }
         }
 
         return readJackpotConfigMap();
@@ -232,17 +253,27 @@ public class AdminAppSettingController {
         String winnerMode = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_WINNER_MODE, "ALL_BETTOR_SHARE");
         String targetUser = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_TARGET_USER, "");
         String lastWon = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_LAST_WON, "");
+        String threshold = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_THRESHOLD, "200000000");
+        String winMode = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_WIN_MODE, "FULL_POOL");
+        String winValue = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_WIN_VALUE, "100");
+        String requireBet = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_REQUIRE_BET, "false");
+        String feeRate = getSettingValueOrDefault(AppSetting.XOC_DIA_JACKPOT_FEE_RATE, "0.01");
 
-        return Map.of(
-                "pool", Long.parseLong(pool.replaceAll("[^0-9]", "").isEmpty() ? "295320203" : pool.replaceAll("[^0-9]", "")),
-                "minPool", Long.parseLong(minPool.replaceAll("[^0-9]", "").isEmpty() ? "100000000" : minPool.replaceAll("[^0-9]", "")),
-                "triggerMode", triggerMode,
-                "autoRate", Double.parseDouble(autoRate.replaceAll("[^0-9.]", "").isEmpty() ? "0.001" : autoRate.replaceAll("[^0-9.]", "")),
-                "targetDoor", targetDoor,
-                "winnerMode", winnerMode,
-                "targetUser", targetUser,
-                "lastWon", lastWon
-        );
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("pool", Long.parseLong(pool.replaceAll("[^0-9]", "").isEmpty() ? "295320203" : pool.replaceAll("[^0-9]", "")));
+        out.put("minPool", Long.parseLong(minPool.replaceAll("[^0-9]", "").isEmpty() ? "100000000" : minPool.replaceAll("[^0-9]", "")));
+        out.put("triggerMode", triggerMode);
+        out.put("autoRate", Double.parseDouble(autoRate.replaceAll("[^0-9.]", "").isEmpty() ? "0.001" : autoRate.replaceAll("[^0-9.]", "")));
+        out.put("targetDoor", targetDoor);
+        out.put("winnerMode", winnerMode);
+        out.put("targetUser", targetUser);
+        out.put("lastWon", lastWon);
+        out.put("threshold", Long.parseLong(threshold.replaceAll("[^0-9]", "").isEmpty() ? "200000000" : threshold.replaceAll("[^0-9]", "")));
+        out.put("winMode", winMode);
+        out.put("winValue", winValue);
+        out.put("requireBet", requireBet);
+        out.put("feeRate", feeRate);
+        return out;
     }
 
     private String getSettingValueOrDefault(String key, String defaultValue) {

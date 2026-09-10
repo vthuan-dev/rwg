@@ -507,6 +507,16 @@ export interface GameRound {
   kl28Numbers: string | null;
   kl28Sum: number | null;
   /**
+   * Xóc Đĩa: chuỗi 4 mặt "RED,WHITE,..." do server quay và lưu.
+   * Null khi vòng chưa tới pha RESULT. Frontend mở bát PHẢI dùng field này,
+   * không tự random để khớp 100% với settle server.
+   */
+  xocDiaCoins: string | null;
+  /** Số mặt đỏ 0-4, null khi chưa có kết quả. */
+  xocDiaRedCount: number | null;
+  xocDiaSeed: string | null;
+  xocDiaSeedHash: string | null;
+  /**
    * Thời điểm ván BẮT ĐẦU.
    *
    * Đây là thứ phải dùng làm "giờ ván" trên màn hình, KHÔNG phải `serverTime`:
@@ -538,6 +548,27 @@ export interface GameRound {
   roundSeconds: number;
   /** Giờ server lúc trả phản hồi, dùng để bù lệch đồng hồ máy người dùng. */
   serverTime: string;
+}
+
+/**
+ * Parse chuỗi "RED,WHITE,RED,RED" của server thành mảng 0/1 (0=trắng, 1=đỏ).
+ * Trả null khi chuỗi thiếu / sai định dạng — caller giữ bát úp và retry,
+ * KHÔNG tự random để đảm bảo visual khớp 100% với settle server.
+ */
+export function parseXocDiaCoins(raw: string | null | undefined): number[] | null {
+  if (!raw) return null;
+  const parts = raw
+    .split(",")
+    .map((p) => p.trim().toUpperCase())
+    .filter((p) => p.length > 0);
+  if (parts.length !== 4) return null;
+  const coins: number[] = [];
+  for (const p of parts) {
+    if (p === "RED" || p === "1") coins.push(1);
+    else if (p === "WHITE" || p === "0") coins.push(0);
+    else return null;
+  }
+  return coins;
 }
 
 /** Danh sách bàn đang mở. Cần đăng nhập. */
@@ -657,6 +688,11 @@ export interface XocDiaJackpotPublic {
   winnerMode: string;
   targetUser: string;
   lastWon: string;
+  threshold: number;
+  winMode: string;
+  winValue: string;
+  requireBet?: string;
+  feeRate?: string;
 }
 
 /**
@@ -678,6 +714,9 @@ export async function getXocDiaJackpot(): Promise<XocDiaJackpotPublic> {
       winnerMode: "ALL_BETTOR_SHARE",
       targetUser: "",
       lastWon: "",
+      threshold: 200000000,
+      winMode: "FULL_POOL",
+      winValue: "100",
     };
   }
 }

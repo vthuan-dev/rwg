@@ -69,6 +69,9 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
     private final GameProperties gameProperties;
     private final TransactionTemplate txWrite;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final com.rwg.settings.repository.AppSettingRepository settingRepository;
+    private final com.rwg.game.repository.BetRepository betRepository;
+    private final com.rwg.identity.repository.UserRepository userRepository;
 
     private final Map<UUID, ExecutorService> tableExecutors = new ConcurrentHashMap<>();
     private final Map<UUID, Thread> loopThreads = new ConcurrentHashMap<>();
@@ -82,12 +85,18 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
                           SettlementService settlementService,
                           GameEventBroadcaster broadcaster,
                           GameProperties gameProperties,
-                          PlatformTransactionManager transactionManager) {
+                          PlatformTransactionManager transactionManager,
+                          com.rwg.settings.repository.AppSettingRepository settingRepository,
+                          com.rwg.game.repository.BetRepository betRepository,
+                          com.rwg.identity.repository.UserRepository userRepository) {
         this.tableRepository = tableRepository;
         this.roundRepository = roundRepository;
         this.settlementService = settlementService;
         this.broadcaster = broadcaster;
         this.gameProperties = gameProperties;
+        this.settingRepository = settingRepository;
+        this.betRepository = betRepository;
+        this.userRepository = userRepository;
         this.txWrite = new TransactionTemplate(transactionManager);
         this.txWrite.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -222,12 +231,19 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
                 awaitKl28Settlement(round, result);
             } else if ("XOC_DIA".equals(table.getGameType())) {
                 XocDiaEngine.RoundResult result = XocDiaEngine.playRound(secureRandom);
+                XocDiaJackpotService.JackpotDecision jp = decideJackpot();
+                if (jp.hit()) {
+                    result = forcedXocDiaResult(jp.redCount());
+                }
                 publishXocDiaResult(round, result);
                 broadcaster.broadcastXocDiaResult(round, result);
                 sleep(gameProperties.round().result());
 
                 requireTransition(round, RoundPhase.SETTLE);
                 awaitXocDiaSettlement(round, result);
+                if (jp.hit()) {
+                    handleJackpotWin(round, jp);
+                }
             } else {
                 throw new IllegalStateException("Unknown game type: " + table.getGameType());
             }
@@ -440,6 +456,192 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
     private static final class RoundAborted extends RuntimeException {
         RoundAborted(String reason) {
             super(reason);
+        }
+    }
+
+    // ===== jackpot Tu Quy (admin chi dinh) =====
+
+    private XocDiaJackpotService.JackpotDecision decideJackpot() {
+        try {
+            long pool = parseLongSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_POOL, 295320203L);
+            long threshold = parseLongSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_THRESHOLD, 200000000L);
+            String triggerMode = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_TRIGGER_MODE, "AUTO");
+            double autoRate = parseDoubleSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_AUTO_RATE, 0.001);
+            String targetDoor = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_TARGET_DOOR, "RANDOM");
+            String winMode = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_WIN_MODE, "FULL_POOL");
+            String winValue = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_WIN_VALUE, "100");
+            java.math.BigDecimal winVal;
+            try {
+                winVal = new java.math.BigDecimal(winValue.trim());
+            } catch (Exception e) {
+                winVal = new java.math.BigDecimal("100");
+            }
+            var cfg = new XocDiaJackpotService.JackpotConfig(pool, threshold, triggerMode, autoRate,
+                    targetDoor, winMode, winVal);
+            return XocDiaJackpotService.decide(cfg, secureRandom);
+        } catch (Exception e) {
+            log.warn("decideJackpot failed, coi nhu khong no", e);
+            return XocDiaJackpotService.NO_HIT;
+        }
+    }
+
+    private XocDiaEngine.RoundResult forcedXocDiaResult(int redCount) {
+        java.util.List<Integer> coins = new java.util.ArrayList<>(java.util.List.of(0, 0, 0, 0));
+        for (int i = 0; i < redCount && i < 4; i++) {
+            coins.set(i, 1);
+        }
+        java.util.Collections.shuffle(coins, secureRandom);
+        byte[] seedBytes = new byte[16];
+        secureRandom.nextBytes(seedBytes);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : seedBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return XocDiaEngine.fromCoins(java.util.List.copyOf(coins), "jackpot-" + sb);
+    }
+
+    private void handleJackpotWin(GameRound round, XocDiaJackpotService.JackpotDecision jp) {
+        try {
+            String winnerMode = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_WINNER_MODE, "ALL_BETTOR_SHARE");
+            String targetUser = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_TARGET_USER, "");
+            boolean requireBet = Boolean.parseBoolean(readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_REQUIRE_BET, "false"));
+            java.math.BigDecimal total = jp.winAmount() == null ? java.math.BigDecimal.ZERO : jp.winAmount();
+            if (total.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                resetForceMode();
+                return;
+            }
+            java.util.List<com.rwg.game.domain.Bet> bets = betRepository.findByRoundId(round.getId());
+            java.util.Map<java.util.UUID, java.math.BigDecimal> stakeByUser = new java.util.LinkedHashMap<>();
+            for (com.rwg.game.domain.Bet b : bets) {
+                stakeByUser.merge(b.getUserId(), b.getStake(), java.math.BigDecimal::add);
+            }
+            java.util.Map<java.util.UUID, java.math.BigDecimal> payouts = new java.util.LinkedHashMap<>();
+            if ("SPECIFIC_USER".equalsIgnoreCase(winnerMode) && !targetUser.isBlank()) {
+                var user = userRepository.findByUsername(targetUser.trim()).orElse(null);
+                if (user != null && (!requireBet || stakeByUser.containsKey(user.getId()))) {
+                    payouts.put(user.getId(), total);
+                } else if (!stakeByUser.isEmpty()) {
+                    payouts.put(randomBettor(stakeByUser), total);
+                }
+            } else if ("ALL_BETTOR_SHARE".equalsIgnoreCase(winnerMode) && !stakeByUser.isEmpty()) {
+                java.math.BigDecimal sumStake = stakeByUser.values().stream()
+                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                java.math.BigDecimal assigned = java.math.BigDecimal.ZERO;
+                java.util.List<java.util.UUID> users = new java.util.ArrayList<>(stakeByUser.keySet());
+                for (int i = 0; i < users.size(); i++) {
+                    java.util.UUID u = users.get(i);
+                    java.math.BigDecimal share;
+                    if (i == users.size() - 1) {
+                        share = total.subtract(assigned);
+                    } else {
+                        share = sumStake.compareTo(java.math.BigDecimal.ZERO) > 0
+                                ? total.multiply(stakeByUser.get(u))
+                                        .divide(sumStake, 0, java.math.RoundingMode.DOWN)
+                                : java.math.BigDecimal.ZERO;
+                        assigned = assigned.add(share);
+                    }
+                    if (share.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        payouts.put(u, share);
+                    }
+                }
+            } else if (!stakeByUser.isEmpty()) {
+                payouts.put(randomBettor(stakeByUser), total);
+            }
+            if (payouts.isEmpty()) {
+                resetForceMode();
+                return;
+            }
+            String winnerName = targetUser;
+            java.math.BigDecimal paidTotal = java.math.BigDecimal.ZERO;
+            for (var e : payouts.entrySet()) {
+                com.rwg.common.money.Money bal = settlementService.creditJackpot(round.getId(), e.getKey(), e.getValue());
+                paidTotal = paidTotal.add(e.getValue());
+                if (winnerName == null || winnerName.isBlank()) {
+                    winnerName = userRepository.findById(e.getKey())
+                            .map(u -> u.getUsername()).orElse(e.getKey().toString().substring(0, 8));
+                }
+                log.info("jackpot hit roundId={} door={} winner={} amount={} balanceAfter={}",
+                        round.getId(), jp.door(), e.getKey(), e.getValue(), bal.amount());
+            }
+            if (payouts.size() == 1) {
+                var onlyId = payouts.keySet().iterator().next();
+                var onlyUser = userRepository.findById(onlyId).orElse(null);
+                if (onlyUser != null) {
+                    winnerName = onlyUser.getUsername();
+                }
+            }
+            updatePoolAfterWin(paidTotal, winnerName, round.getRoundSeq());
+            resetForceMode();
+            broadcaster.broadcastJackpot(round, jp.door(), jp.diceQuad(),
+                    winnerName == null ? "" : winnerName, paidTotal.toPlainString());
+        } catch (Exception e) {
+            log.error("handleJackpotWin failed roundId={}", round.getId(), e);
+        }
+    }
+
+    private java.util.UUID randomBettor(java.util.Map<java.util.UUID, java.math.BigDecimal> stakeByUser) {
+        java.util.List<java.util.UUID> users = new java.util.ArrayList<>(stakeByUser.keySet());
+        return users.get(secureRandom.nextInt(users.size()));
+    }
+
+    private void updatePoolAfterWin(java.math.BigDecimal paid, String winnerName, long roundSeq) {
+        try {
+            long pool = parseLongSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_POOL, 295320203L);
+            long minPool = parseLongSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_MIN_POOL, 100000000L);
+            long next = Math.max(minPool, pool - paid.longValue());
+            txWrite.execute(s -> {
+                settingRepository.findById(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_POOL)
+                        .ifPresent(v -> v.update(String.valueOf(next), "system"));
+                settingRepository.findById(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_LAST_WON)
+                        .ifPresent(v -> v.update((winnerName == null ? "" : winnerName)
+                                + " +" + paid.toPlainString() + " (van " + roundSeq + ")", "system"));
+                return null;
+            });
+        } catch (Exception e) {
+            log.warn("updatePoolAfterWin failed", e);
+        }
+    }
+
+    private void resetForceMode() {
+        try {
+            String mode = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_TRIGGER_MODE, "AUTO");
+            if ("FORCE_NEXT_ROUND".equalsIgnoreCase(mode)) {
+                txWrite.execute(s -> {
+                    settingRepository.findById(com.rwg.settings.domain.AppSetting.XOC_DIA_JACKPOT_TRIGGER_MODE)
+                            .ifPresent(v -> v.update("AUTO", "system"));
+                    return null;
+                });
+            }
+        } catch (Exception e) {
+            log.warn("resetForceMode failed", e);
+        }
+    }
+
+    private String readSetting(String key, String def) {
+        try {
+            return settingRepository.findById(key).map(v -> v.getSettingValue()).orElse(def);
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private long parseLongSetting(String key, long def) {
+        String raw = readSetting(key, String.valueOf(def));
+        try {
+            String digits = raw.replaceAll("[^0-9]", "");
+            return digits.isEmpty() ? def : Long.parseLong(digits);
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private double parseDoubleSetting(String key, double def) {
+        String raw = readSetting(key, String.valueOf(def));
+        try {
+            String clean = raw.replaceAll("[^0-9.]", "");
+            return clean.isEmpty() ? def : Double.parseDouble(clean);
+        } catch (Exception e) {
+            return def;
         }
     }
 }

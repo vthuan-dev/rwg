@@ -42,7 +42,12 @@ public class AppSettingService {
             AppSetting.XOC_DIA_JACKPOT_TARGET_DOOR,
             AppSetting.XOC_DIA_JACKPOT_WINNER_MODE,
             AppSetting.XOC_DIA_JACKPOT_TARGET_USER,
-            AppSetting.XOC_DIA_JACKPOT_LAST_WON
+            AppSetting.XOC_DIA_JACKPOT_LAST_WON,
+            AppSetting.XOC_DIA_JACKPOT_THRESHOLD,
+            AppSetting.XOC_DIA_JACKPOT_WIN_MODE,
+            AppSetting.XOC_DIA_JACKPOT_WIN_VALUE,
+            AppSetting.XOC_DIA_JACKPOT_REQUIRE_BET,
+            AppSetting.XOC_DIA_JACKPOT_FEE_RATE
     );
 
     private final AppSettingRepository repository;

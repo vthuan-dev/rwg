@@ -47,6 +47,11 @@ public class AppSetting {
     public static final String XOC_DIA_JACKPOT_WINNER_MODE = "xocdia.jackpot.winner_mode";
     public static final String XOC_DIA_JACKPOT_TARGET_USER = "xocdia.jackpot.target_user";
     public static final String XOC_DIA_JACKPOT_LAST_WON = "xocdia.jackpot.last_won";
+    public static final String XOC_DIA_JACKPOT_THRESHOLD = "xocdia.jackpot.threshold";
+    public static final String XOC_DIA_JACKPOT_WIN_MODE = "xocdia.jackpot.win_mode";
+    public static final String XOC_DIA_JACKPOT_WIN_VALUE = "xocdia.jackpot.win_value";
+    public static final String XOC_DIA_JACKPOT_REQUIRE_BET = "xocdia.jackpot.require_bet";
+    public static final String XOC_DIA_JACKPOT_FEE_RATE = "xocdia.jackpot.fee_rate";
 
     @Id
     @Column(name = "setting_key", length = 64, nullable = false, updatable = false)

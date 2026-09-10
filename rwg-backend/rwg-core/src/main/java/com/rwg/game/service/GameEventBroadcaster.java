@@ -3,6 +3,7 @@ package com.rwg.game.service;
 import com.rwg.config.GameProperties;
 import com.rwg.game.domain.GameRound;
 import com.rwg.game.dto.BetPlacedPayload;
+import com.rwg.game.dto.JackpotWonPayload;
 import com.rwg.game.dto.PlayerWinPayload;
 import com.rwg.game.dto.RoundPhasePayload;
 import com.rwg.game.dto.RoundResultPayload;
@@ -120,6 +121,14 @@ public class GameEventBroadcaster {
         messaging.convertAndSend(TABLE_TOPIC_PREFIX + round.getTableId(),
                 RoundVoidedPayload.of(round.getTableId().toString(), round.getId().toString(),
                         round.getRoundSeq()));
+    }
+
+    /** Nổ hũ Tứ Quý: cả bàn thấy winner + tiền + xúc xắc. */
+    public void broadcastJackpot(GameRound round, String door, java.util.List<Integer> diceQuad,
+                                 String winnerName, String amount) {
+        messaging.convertAndSend(TABLE_TOPIC_PREFIX + round.getTableId(),
+                JackpotWonPayload.of(round.getTableId().toString(), round.getId().toString(),
+                        round.getRoundSeq(), door, diceQuad, winnerName, amount));
     }
 
     // ===== BET_PLACED aggregate =====

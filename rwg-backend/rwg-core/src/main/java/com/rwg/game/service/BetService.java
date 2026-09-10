@@ -96,6 +96,11 @@ public class BetService {
             if (!Kl28Engine.validSelection(betType, selection)) {
                 throw new ApiException(ErrorCode.INVALID_BET_SELECTION);
             }
+        } else if ("XOC_DIA".equals(table.getGameType())) {
+            selection = XocDiaEngine.normalize(request.selection());
+            if (!XocDiaEngine.validSelection(betType, selection)) {
+                throw new ApiException(ErrorCode.INVALID_BET_SELECTION);
+            }
         } else {
             throw new ApiException(ErrorCode.INVALID_REQUEST);
         }

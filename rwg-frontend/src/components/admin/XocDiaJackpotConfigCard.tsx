@@ -26,6 +26,11 @@ interface JackpotConfig {
   winnerMode: "ALL_BETTOR_SHARE" | "SPECIFIC_USER" | "RANDOM_BETTOR";
   targetUser: string;
   lastWon?: string;
+  threshold: number;
+  winMode: "FULL_POOL" | "PERCENT_POOL" | "FIXED_AMOUNT";
+  winValue: string;
+  requireBet?: string;
+  feeRate?: string;
 }
 
 const DOORS = [
@@ -48,6 +53,10 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
     winnerMode: "ALL_BETTOR_SHARE",
     targetUser: "",
     lastWon: "",
+    threshold: 200000000,
+    winMode: "FULL_POOL",
+    winValue: "100",
+    requireBet: "true",
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -115,6 +124,9 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
             targetDoor: config.targetDoor,
             winnerMode: config.winnerMode,
             targetUser: config.targetUser,
+            winMode: config.winMode,
+            winValue: config.winValue,
+            threshold: config.threshold,
           }),
         }
       );
@@ -228,7 +240,7 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
 
           <div className="mt-4 pt-3 border-t border-amber-200/60">
             <label className="text-[11px] font-bold text-slate-700 block mb-1">
-              Mức Hũ Khởi Điểm Sau Khi Nổ (Min Pool):
+              Muc Hu Khoi Diem Sau Khi No (Min Pool):
             </label>
             <input
               type="number"
@@ -241,6 +253,62 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
               }
               className="w-full text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
+            <label className="text-[11px] font-bold text-slate-700 block mb-1 mt-3">
+              Nguong pool moi duoc no (Threshold):
+            </label>
+            <input
+              type="number"
+              value={config.threshold}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  threshold: Math.max(0, parseInt(e.target.value) || 0),
+                }))
+              }
+              className="w-full text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <label className="text-[11px] font-bold text-slate-700 block mb-1 mt-3">
+              Muc thuong:
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={config.winMode}
+                onChange={(e) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    winMode: e.target.value as JackpotConfig["winMode"],
+                  }))
+                }
+                className="flex-1 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              >
+                <option value="FULL_POOL">Full hu</option>
+                <option value="PERCENT_POOL">% hu</option>
+                <option value="FIXED_AMOUNT">So tien co dinh</option>
+              </select>
+              <input
+                type="text"
+                value={config.winValue}
+                onChange={(e) => setConfig((prev) => ({ ...prev, winValue: e.target.value }))}
+                placeholder={config.winMode === "FIXED_AMOUNT" ? "VD: 50000000" : "VD: 100"}
+                className="flex-1 text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 mt-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.requireBet !== "false"}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, requireBet: e.target.checked ? "true" : "false" }))
+                }
+                className="accent-amber-500"
+              />
+              Chi no neu user co dat cuoc van do
+            </label>
+            {config.lastWon && (
+              <p className="text-[11px] text-emerald-700 font-semibold mt-2 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
+                Van vua no: {config.lastWon}
+              </p>
+            )}
           </div>
         </div>
 

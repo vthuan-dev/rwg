@@ -221,6 +221,22 @@ public class SettlementService {
         return true;
     }
 
+    /**
+     * Cong tien no hu Tu Quy cho 1 user (admin chi dinh / chia / random).
+     * Idempotent theo key JACKPOT:{roundId}:{userId}; ref_type JACKPOT de tach so.
+     */
+    public com.rwg.common.money.Money creditJackpot(UUID roundId, UUID userId, BigDecimal amount) {
+        com.rwg.common.money.Money amt = com.rwg.common.money.Money.of(amount);
+        if (!amt.isPositive()) {
+            return walletService.getBalance(userId);
+        }
+        String jpKey = "JACKPOT:" + roundId + ":" + userId;
+        com.rwg.common.money.Money balance = walletService.credit(userId, amt,
+                WalletRefType.JACKPOT, roundId.toString(), jpKey);
+        broadcaster.unicastBalance(userId, balance.amount());
+        return balance;
+    }
+
     private void notifyListeners(UUID userId, UUID tableId, BigDecimal amountBet, BigDecimal amountWon) {
         for (WagerSettledListener listener : wagerSettledListeners) {
             try {
