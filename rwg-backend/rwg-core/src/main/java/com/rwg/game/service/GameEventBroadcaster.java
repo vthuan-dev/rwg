@@ -159,7 +159,8 @@ public class GameEventBroadcaster {
                 PlayerWinPayload.of(tableId, roundId, winningNumber,
                         payout.toPlainString(), balanceAfter.toPlainString()));
         messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
-                WalletBalancePayload.of(balanceAfter.toPlainString()));
+                WalletBalancePayload.of(balanceAfter.toPlainString(),
+                        WalletBalancePayload.REASON_WIN));
     }
 
     public void unicastBaccaratWin(UUID userId, String tableId, String roundId, BaccaratEngine.RoundResult result,
@@ -179,7 +180,8 @@ public class GameEventBroadcaster {
                         balanceAfter.toPlainString()
                 ));
         messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
-                WalletBalancePayload.of(balanceAfter.toPlainString()));
+                WalletBalancePayload.of(balanceAfter.toPlainString(),
+                        WalletBalancePayload.REASON_WIN));
     }
 
     public void unicastKl28Win(UUID userId, String tableId, String roundId, Kl28Engine.RoundResult result,
@@ -199,7 +201,8 @@ public class GameEventBroadcaster {
                         balanceAfter.toPlainString()
                 ));
         messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
-                WalletBalancePayload.of(balanceAfter.toPlainString()));
+                WalletBalancePayload.of(balanceAfter.toPlainString(),
+                        WalletBalancePayload.REASON_WIN));
     }
 
     public void unicastXocDiaWin(UUID userId, String tableId, String roundId, XocDiaEngine.RoundResult result,
@@ -214,12 +217,19 @@ public class GameEventBroadcaster {
                         balanceAfter.toPlainString()
                 ));
         messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
-                WalletBalancePayload.of(balanceAfter.toPlainString()));
+                WalletBalancePayload.of(balanceAfter.toPlainString(),
+                        WalletBalancePayload.REASON_WIN));
     }
 
-    public void unicastBalance(UUID userId, BigDecimal balance) {
+    /**
+     * Đẩy số dư mới cho một user (hoàn tiền ván huỷ, nổ hũ...).
+     *
+     * Bắt buộc kèm `reason`: màn game dùng nó để biết đây là tiền do hệ thống game trả
+     * chứ không phải người chơi nạp vào. Xem `WalletBalancePayload`.
+     */
+    public void unicastBalance(UUID userId, BigDecimal balance, String reason) {
         messaging.convertAndSendToUser(userId.toString(), USER_QUEUE_WALLET,
-                WalletBalancePayload.of(balance.toPlainString()));
+                WalletBalancePayload.of(balance.toPlainString(), reason));
     }
 
     @PreDestroy

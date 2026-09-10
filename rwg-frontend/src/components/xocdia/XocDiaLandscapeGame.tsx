@@ -1463,9 +1463,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
   // 3. 3.5s periodic smart polling (guarantees instant detection of admin credit)
   useEffect(() => {
     const handleWalletBalanceUpdated = (e: Event) => {
-      // detail là CẢ gói WalletBalancePayload ({ balance, serverTime }), không chỉ chuỗi
-      // số dư — cần `serverTime` để bỏ qua gói tới trễ.
-      const payload = (e as CustomEvent<{ balance?: string; serverTime?: string }>).detail;
+      // detail là CẢ gói WalletBalancePayload ({ balance, serverTime, reason }), không chỉ
+      // chuỗi số dư — cần `serverTime` để bỏ qua gói tới trễ, và `reason` để biết vì sao
+      // số dư đổi.
+      const payload = (e as CustomEvent<{
+        balance?: string;
+        serverTime?: string;
+        reason?: string;
+      }>).detail;
       const newUsd = parseFloat(String(payload?.balance ?? ""));
       if (!Number.isFinite(newUsd) || newUsd < 0) return;
 
@@ -1481,7 +1486,21 @@ export const XocDiaLandscapeGame: React.FC = () => {
       applyUsdBalance(newUsd, payload?.serverTime);
       if (oldUsd === null) return;
 
-      if (diffVnd > 0) {
+      // Tiền vào do VÁN CƯỢC trả (`reason`) KHÔNG phải nạp tiền. Ba lý do hệ thống game
+      // trả tiền: WIN = trả thưởng, REFUND = hoàn tiền ván huỷ / rút bị từ chối,
+      // JACKPOT = nổ hũ. Màn game đã báo thắng bằng bảng kết toán + bong bóng "+tiền",
+      // nên báo thêm "NẠP TIỀN THÀNH CÔNG" là nói sai bản chất dòng tiền — và vì điều
+      // kiện là `diffVnd > 0`, nó nổ đúng lúc người chơi VỪA THẮNG.
+      //
+      // Nạp tiền thật của người chơi (`DepositService`) KHÔNG đi qua đường WebSocket này;
+      // nó chỉ hiện ra ở vòng poll bên dưới. Gói KHÔNG kèm `reason` (admin cộng tay qua
+      // `GameEventRelay`) vẫn được báo, vì đó đúng là tiền vào từ ngoài ván cược.
+      const isGameMoney =
+        payload?.reason === "WIN" ||
+        payload?.reason === "REFUND" ||
+        payload?.reason === "JACKPOT";
+
+      if (diffVnd > 0 && !isGameMoney) {
         playSound("bell");
         showToast(
           `💰 NẠP TIỀN THÀNH CÔNG: +${diffVnd.toLocaleString()} đ (≈ $${diffUsd.toFixed(2)} USD)`

@@ -6,6 +6,7 @@ import com.rwg.game.domain.BetStatus;
 import com.rwg.game.domain.GameRound;
 import com.rwg.game.domain.RoundStatus;
 import com.rwg.game.domain.GameTable;
+import com.rwg.game.dto.WalletBalancePayload;
 import com.rwg.game.repository.BetRepository;
 import com.rwg.game.repository.GameRoundRepository;
 import com.rwg.game.repository.GameTableRepository;
@@ -216,7 +217,8 @@ public class SettlementService {
             return false;
         }
         outcome.balanceAfterRefund().forEach((userId, balance) ->
-                broadcaster.unicastBalance(userId, balance.amount()));
+                broadcaster.unicastBalance(userId, balance.amount(),
+                        WalletBalancePayload.REASON_REFUND));
         log.info("round voided roundId={} refundedUsers={}", roundId, outcome.balanceAfterRefund().size());
         return true;
     }
@@ -233,7 +235,8 @@ public class SettlementService {
         String jpKey = "JACKPOT:" + roundId + ":" + userId;
         com.rwg.common.money.Money balance = walletService.credit(userId, amt,
                 WalletRefType.JACKPOT, roundId.toString(), jpKey);
-        broadcaster.unicastBalance(userId, balance.amount());
+        broadcaster.unicastBalance(userId, balance.amount(),
+                WalletBalancePayload.REASON_JACKPOT);
         return balance;
     }
 
