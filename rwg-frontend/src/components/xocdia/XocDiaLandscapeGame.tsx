@@ -28,6 +28,7 @@ import { mergeServerOdds } from "@/lib/betOptions";
 import XocDiaCanvas from "./XocDiaCanvas";
 import { RubyDice } from "./RubyDice";
 import { JackpotCoinShower } from "./JackpotCoinShower";
+import { useOrientation } from "./GameOrientationWrapper";
 import { useForceLandscape } from "./useForceLandscape";
 
 type Phase = "BETTING_OPEN" | "BETTING_CLOSED" | "SPINNING" | "RESULT" | "SETTLE";
@@ -358,17 +359,28 @@ export const XocDiaLandscapeGame: React.FC = () => {
   // khoá xoay của hệ điều hành). Xem `useForceLandscape` để biết vì sao phải hai lớp.
   const { needsRotate, requestLandscape, dismiss } = useForceLandscape();
 
+  // Đọc trạng thái xoay từ GameOrientationWrapper để truyền cho canvas và tính tọa độ click
+  const { isRotated, rotationDeg, effectiveWidth, effectiveHeight } = useOrientation();
+
   useEffect(() => {
     const handleResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const s = Math.min(w / 1024, h / 507);
+      // Khi màn hình bị xoay CSS (portrait -> landscape), chiều rộng thực tế của game
+      // là chiều cao viewport và ngược lại.
+      const gw = isRotated ? Math.max(w, h) : w;
+      const gh = isRotated ? Math.min(w, h) : h;
+      const s = Math.min(gw / 1024, gh / 507);
       setScale(s);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, [isRotated]);
 
   // Game lifecycle states
   const [phase, setPhase] = useState<Phase>("BETTING_OPEN");
@@ -2300,8 +2312,27 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
     if (e && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const clickX = Math.round((e.clientX - rect.left) / scale);
-      const clickY = Math.round((e.clientY - rect.top) / scale);
+      let rawX = e.clientX - rect.left;
+      let rawY = e.clientY - rect.top;
+
+      // Khi màn hình bị xoay CSS, getBoundingClientRect() trả về bounding box đã xoay,
+      // nhưng clientX/clientY vẫn theo hệ trục gốc. Phải chuyển đổi để khớp.
+      if (isRotated) {
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const px = e.clientX - cx;
+        const py = e.clientY - cy;
+        if (rotationDeg === 90) {
+          rawX = py + rect.width / 2;
+          rawY = -px + rect.height / 2;
+        } else if (rotationDeg === 270) {
+          rawX = -py + rect.width / 2;
+          rawY = px + rect.height / 2;
+        }
+      }
+
+      const clickX = Math.round(rawX / scale);
+      const clickY = Math.round(rawY / scale);
       // Clamp strictly within the safe felt area of the door so chips never spill off-card or cover bottom number bars
       targetX = Math.max(bounds.minX, Math.min(bounds.maxX, clickX));
       targetY = Math.max(bounds.minY, Math.min(bounds.maxY, clickY));
@@ -2789,6 +2820,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
               coins={coins}
               width={215}
               height={195}
+              isRotated={isRotated}
+              rotationDeg={rotationDeg}
             />
           </div>
         </div>

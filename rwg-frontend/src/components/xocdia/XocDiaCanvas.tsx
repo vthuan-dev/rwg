@@ -8,6 +8,8 @@ export interface XocDiaCanvasProps {
   coins: number[]; // [1, 1, 0, 1] (1: Red, 0: White)
   width?: number;
   height?: number;
+  isRotated?: boolean;
+  rotationDeg?: number;
 }
 
 export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
@@ -15,6 +17,8 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
   coins = [1, 1, 0, 0],
   width = 400,
   height = 310,
+  isRotated = false,
+  rotationDeg = 0,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
@@ -28,10 +32,14 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
     dragStartY: 0,
     dragStartX: 0,
     manualOffset: { x: 0, y: 0 },
+    isRotated,
+    rotationDeg,
   });
 
   stateRef.current.phase = phase;
   stateRef.current.coins = coins;
+  stateRef.current.isRotated = isRotated;
+  stateRef.current.rotationDeg = rotationDeg;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -211,8 +219,27 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
 
         const onGlobalMove = (event: PointerEvent) => {
           if (!isPointerDown) return;
-          const dy = event.clientY - startY;
-          const dx = event.clientX - startX;
+          let dy = event.clientY - startY;
+          let dx = event.clientX - startX;
+
+          // Khi màn hình bị xoay bằng CSS (portrait -> landscape), tọa độ chuột/touch
+          // vẫn theo hệ trục gốc của viewport. Phải hoán đổi và đảo dấu dx/dy để
+          // hướng kéo khớp với hướng mắt người chơi thấy trên màn hình đã xoay.
+          if (stateRef.current.isRotated) {
+            const deg = stateRef.current.rotationDeg;
+            if (deg === 90) {
+              // rotate(90deg): visual-right = physical-down, visual-down = physical-left
+              const tmpDx = dx;
+              dx = -dy;
+              dy = tmpDx;
+            } else if (deg === 270) {
+              // rotate(270deg): visual-right = physical-up, visual-down = physical-right
+              const tmpDx = dx;
+              dx = dy;
+              dy = -tmpDx;
+            }
+          }
+
           stateRef.current.manualOffset = {
             x: Math.min(Math.max(dx, -60 * scaleRatio), 60 * scaleRatio),
             y: Math.min(Math.max(dy, -110 * scaleRatio), 15 * scaleRatio),
