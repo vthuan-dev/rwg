@@ -2512,7 +2512,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         })}`;
 
   return (
-    <div className="relative w-full h-full min-h-dvh bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
+    <div className="relative w-full h-full bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
       {/* ========================================================= */}
       {/* LỚP NHẮC XOAY NGANG — chỉ hiện khi máy đang dọc VÀ không khoá được hướng  */}
       {/* (iPhone/Safari không hỗ trợ Screen Orientation API; máy bật khoá xoay của */}

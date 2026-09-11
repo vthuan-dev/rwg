@@ -96,7 +96,7 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
 
   if (!mounted) {
     return (
-      <div className="fixed inset-0 w-screen h-[100dvh] bg-[#050302] flex items-center justify-center text-amber-200">
+      <div className="relative w-full h-full bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
         {children}
       </div>
     );
@@ -120,8 +120,10 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
         <div
           style={{
             position: "absolute",
-            width: isRotated ? `${effectiveWidth}px` : "100%",
-            height: isRotated ? `${effectiveHeight}px` : "100%",
+            // Khi xoay 90deg: chiều rộng visual = chiều cao viewport, chiều cao visual = chiều rộng viewport.
+            // Phải gán NGƯỢC lại vì CSS rotate chỉ xoay hình ảnh, không đổi kích thước layout box.
+            width: isRotated ? `${effectiveHeight}px` : "100%",
+            height: isRotated ? `${effectiveWidth}px` : "100%",
             left: "50%",
             top: "50%",
             transform: isRotated
