@@ -20,8 +20,6 @@ import {
   ShieldAlert,
   Bot,
   X,
-  Smartphone,
-  RotateCw,
 } from "lucide-react";
 import { me, walletMe, betsHistory, getExchangeRate, getXocDiaConfig, getXocDiaJackpot, PlayerBet, placeBet as apiPlaceBet, gameTables, currentRound, myBets, roundsHistory, parseXocDiaCoins, tableOdds, TableOdds, GameRound, ApiError } from "@/lib/playerApi";
 import { mergeServerOdds } from "@/lib/betOptions";
@@ -29,7 +27,6 @@ import XocDiaCanvas from "./XocDiaCanvas";
 import { RubyDice } from "./RubyDice";
 import { JackpotCoinShower } from "./JackpotCoinShower";
 import { useOrientation } from "./GameOrientationWrapper";
-import { useForceLandscape } from "./useForceLandscape";
 
 type Phase = "BETTING_OPEN" | "BETTING_CLOSED" | "SPINNING" | "RESULT" | "SETTLE";
 
@@ -353,11 +350,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
   // Virtual 1024x507 stage scaling
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Ép xoay ngang trên điện thoại: tự bật fullscreen + khoá hướng, và trả về cờ
-  // `needsRotate` để hiện lớp nhắc cho những máy không khoá được (iPhone, máy bật
-  // khoá xoay của hệ điều hành). Xem `useForceLandscape` để biết vì sao phải hai lớp.
-  const { needsRotate, requestLandscape, dismiss } = useForceLandscape();
 
   // Đọc trạng thái xoay từ GameOrientationWrapper để truyền cho canvas và tính tọa độ click
   const { isRotated, rotationDeg, effectiveWidth, effectiveHeight } = useOrientation();
@@ -2513,52 +2505,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
   return (
     <div className="relative w-full h-full bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
-      {/* ========================================================= */}
-      {/* LỚP NHẮC XOAY NGANG — chỉ hiện khi máy đang dọc VÀ không khoá được hướng  */}
-      {/* (iPhone/Safari không hỗ trợ Screen Orientation API; máy bật khoá xoay của */}
-      {/* hệ điều hành thì xoay máy cũng không đổi hướng). Luôn có nút thoát để     */}
-      {/* không ai bị kẹt lại ở lớp này.                                            */}
-      {/* ========================================================= */}
-      {needsRotate && (
-        <div
-          onClick={requestLandscape}
-          className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-5 bg-[#050302]/95 backdrop-blur-sm px-8 text-center select-none"
-        >
-          <div className="relative flex items-center justify-center">
-            <Smartphone className="w-16 h-16 rotate-90 text-amber-400 drop-shadow-[0_0_18px_rgba(245,158,11,0.55)]" />
-            <RotateCw className="absolute -right-7 -bottom-1 w-7 h-7 text-amber-200 animate-spin [animation-duration:2.5s]" />
-          </div>
-          <div>
-            <p className="text-lg font-black tracking-wide text-amber-200 drop-shadow">
-              XOAY NGANG ĐIỆN THOẠI
-            </p>
-            <p className="mt-1.5 max-w-xs text-[13px] leading-relaxed text-amber-100/70">
-              Bàn Xóc Đĩa Cửu Long được thiết kế cho màn hình ngang. Xoay máy để vào bàn
-              chơi đầy đủ.
-            </p>
-          </div>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              requestLandscape();
-            }}
-            className="mt-1 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-500 text-sm font-bold tracking-wide text-black shadow-[0_6px_20px_rgba(245,158,11,0.45)] transition-transform active:scale-95"
-          >
-            Bật màn hình ngang
-          </button>
-          <button
-            onClick={(event) => {
-              // Chặn nổi bọt: nếu không, cú chạm này chạy luôn onClick của lớp phủ ở trên
-              // và người muốn chơi dọc lại bị đẩy vào fullscreen.
-              event.stopPropagation();
-              dismiss();
-            }}
-            className="text-[11px] text-slate-400/80 underline underline-offset-2"
-          >
-            Vẫn chơi màn hình dọc
-          </button>
-        </div>
-      )}
 
       {/* ========================================================= */}
       {/* 1024x507 VIRTUAL STAGE (100% REBUILT WITH AI GENERATED ASSETS) */}
