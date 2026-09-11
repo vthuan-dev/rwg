@@ -138,51 +138,6 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
           }
         }
 
-        /* Nút toggle rotation - chỉ hiện trên mobile portrait */
-        .rotation-toggle-btn {
-          display: none;
-        }
-
-        @media screen and (orientation: portrait) and (pointer: coarse) {
-          .rotation-toggle-btn {
-            display: flex;
-            position: fixed;
-            top: 12px;
-            right: 12px;
-            z-index: 10000;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 9999px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid rgba(245, 158, 11, 0.5);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85);
-            color: #fcd34d;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            cursor: pointer;
-            transition: all 0.15s;
-            /* Nút này cũng phải bị xoay theo wrapper */
-            transform: rotate(90deg);
-            transform-origin: center;
-            /* Đẩy nút ra vị trí đúng sau khi rotate */
-            top: auto;
-            bottom: 12px;
-            right: auto;
-            left: 12px;
-          }
-
-          .game-orientation-wrapper.game-inverted-rotate ~ .rotation-toggle-btn,
-          .game-inverted-rotate .rotation-toggle-btn {
-            transform: rotate(-90deg);
-            top: 12px;
-            bottom: auto;
-            left: auto;
-            right: 12px;
-          }
-        }
       `}</style>
 
       <div
@@ -195,23 +150,6 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
       >
         {children}
       </div>
-
-      {/* Floating Rotation Toggle */}
-      {isPortrait && (
-        <button
-          onClick={toggleRotation}
-          className="rotation-toggle-btn"
-          title="Đổi hướng xoay"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-            <path d="M21 3v5h-5" />
-          </svg>
-          <span style={{ fontFamily: "monospace" }}>
-            {mode === "auto" ? "Xoay 90°" : mode === "inverted" ? "Xoay 270°" : "Dọc"}
-          </span>
-        </button>
-      )}
     </OrientationContext.Provider>
   );
 };
