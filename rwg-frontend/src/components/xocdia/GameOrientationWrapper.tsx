@@ -116,9 +116,9 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vh;
+            /* Dùng dvh/dvw để loại trừ thanh URL Safari và home indicator */
             width: 100dvh;
-            height: 100vw;
+            height: 100dvw;
             transform: rotate(90deg);
             transform-origin: top left;
             margin-left: 100vw;
@@ -128,12 +128,10 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vh;
             width: 100dvh;
-            height: 100vw;
+            height: 100dvw;
             transform: rotate(-90deg);
             transform-origin: bottom left;
-            margin-top: 100vh;
             margin-top: 100dvh;
           }
         }
@@ -146,7 +144,6 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
         } ${
           mode === "inverted" && isPortrait ? "game-inverted-rotate" : ""
         }`}
-        style={{ touchAction: "none" }}
       >
         {children}
       </div>

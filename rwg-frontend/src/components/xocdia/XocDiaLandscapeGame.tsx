@@ -2117,6 +2117,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
           parsed,
           round.xocDiaRedCount ?? parsed.reduce((a, b) => a + b, 0)
         );
+      } else if (round.xocDiaRedCount != null) {
+        // Fallback: server chưa ghi xocDiaCoins vào REST nhưng đã có redCount.
+        // Suy ra coins từ redCount để mở bát — tốt hơn là giữ bát úp mãi.
+        const fallbackCoins: number[] = [];
+        for (let i = 0; i < 4; i++) fallbackCoins.push(i < round.xocDiaRedCount ? 1 : 0);
+        revealedRoundIdRef.current = round.roundId;
+        revealServerResult(round, fallbackCoins, round.xocDiaRedCount);
       }
     }
   };
@@ -2189,12 +2196,32 @@ export const XocDiaLandscapeGame: React.FC = () => {
         roundId?: string;
         balanceAfter?: string;
         serverTime?: string;
+        xocDiaCoins?: string;
+        xocDiaRedCount?: number;
       }>).detail;
       if (!detail || detail.tableId !== xocTableIdRef.current) return;
 
       // Số dư sau khi trả thưởng: áp ngay để người chơi thấy tiền về.
       const after = parseFloat(String(detail.balanceAfter ?? ""));
       if (Number.isFinite(after)) applyUsdBalance(after, detail.serverTime);
+
+      // Mở bát ngay khi nhận kết quả qua WebSocket (unicastXocDiaWin).
+      // Server gửi xocDiaCoins + xocDiaRedCount trong PlayerWinPayload cho mọi
+      // người đã cược (thắng và thua). Đây là nguồn dữ liệu đáng tin cậy nhất
+      // vì poll REST có thể trả xocDiaCoins = null nếu timing lệch.
+      if (detail.roundId && detail.xocDiaCoins && revealedRoundIdRef.current !== detail.roundId) {
+        const parsed = parseXocDiaCoins(detail.xocDiaCoins);
+        if (parsed) {
+          revealedRoundIdRef.current = detail.roundId;
+          const redCount = detail.xocDiaRedCount ?? parsed.reduce((a, b) => a + b, 0);
+          // Dựng GameRound tối thiểu cho revealServerResult
+          revealServerResult(
+            { roundId: detail.roundId, roundSeq: 0 } as any,
+            parsed,
+            redCount
+          );
+        }
+      }
 
       // Mọi con số hiện lên bảng lấy từ REST, kể cả khi gói này tới muộn hoặc không tới.
       if (detail.roundId) applySettlementRef.current(detail.roundId);
