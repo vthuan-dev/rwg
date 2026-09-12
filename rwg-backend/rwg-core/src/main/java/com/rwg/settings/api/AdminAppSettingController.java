@@ -2,6 +2,17 @@ package com.rwg.settings.api;
 
 import com.rwg.common.web.ClientAddresses;
 import com.rwg.config.SecurityConfig;
+import com.rwg.game.domain.Bet;
+import com.rwg.game.domain.GameTable;
+import com.rwg.game.domain.GameTableStatus;
+import com.rwg.game.domain.RoundStatus;
+import com.rwg.game.repository.BetRepository;
+import com.rwg.game.repository.GameRoundRepository;
+import com.rwg.game.repository.GameTableRepository;
+import com.rwg.identity.domain.User;
+import com.rwg.identity.domain.UserStatus;
+import com.rwg.identity.repository.UserRepository;
+import com.rwg.presence.service.PresenceQueryService;
 import com.rwg.settings.domain.AppSetting;
 import com.rwg.settings.dto.AppSettingResponse;
 import com.rwg.settings.dto.UpdateAppSettingRequest;
@@ -10,6 +21,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,8 +32,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Sửa nội dung chữ hiện ra cho khách, từ khu quản trị.
@@ -35,9 +55,24 @@ import java.util.UUID;
 public class AdminAppSettingController {
 
     private final AppSettingService service;
+    private final BetRepository betRepository;
+    private final GameRoundRepository roundRepository;
+    private final GameTableRepository tableRepository;
+    private final UserRepository userRepository;
+    private final PresenceQueryService presenceQueryService;
 
-    public AdminAppSettingController(AppSettingService service) {
+    public AdminAppSettingController(AppSettingService service,
+                                     BetRepository betRepository,
+                                     GameRoundRepository roundRepository,
+                                     GameTableRepository tableRepository,
+                                     UserRepository userRepository,
+                                     PresenceQueryService presenceQueryService) {
         this.service = service;
+        this.betRepository = betRepository;
+        this.roundRepository = roundRepository;
+        this.tableRepository = tableRepository;
+        this.userRepository = userRepository;
+        this.presenceQueryService = presenceQueryService;
     }
 
     @GetMapping("/chat-promo-text")
@@ -242,6 +277,97 @@ public class AdminAppSettingController {
         }
 
         return readJackpotConfigMap();
+    }
+
+    /**
+     * Danh sách người chơi đang có mặt trong phòng Xóc Đĩa, phục vụ dropdown chọn người nhận hũ.
+     *
+     * Phân loại:
+     * - BETTING_NOW  : đang cược ở vòng OPEN hiện tại.
+     * - RECENT_BETTOR: đã cược trong 3 vòng SETTLED gần nhất.
+     * - SPECTATING   : online nhưng không cược gần đây.
+     *
+     * Loại trừ tài khoản BLOCKED / CLOSED.
+     */
+    @GetMapping("/xocdia-jackpot/room-players")
+    @Operation(summary = "Danh sách người chơi trong phòng Xóc Đĩa (cho dropdown chọn người nhận hũ)")
+    public List<Map<String, Object>> xocdiaRoomPlayers() {
+        // 1. Tìm bàn XocDia đầu tiên đang ACTIVE
+        Optional<GameTable> tableOpt = tableRepository.findAll().stream()
+                .filter(t -> t.getStatus() == GameTableStatus.ACTIVE
+                        && "XOCDIA".equalsIgnoreCase(t.getGameType()))
+                .findFirst();
+        if (tableOpt.isEmpty()) {
+            return List.of();
+        }
+        UUID tableId = tableOpt.get().getId();
+
+        // 2. Lấy userId đang cược ở vòng OPEN hiện tại
+        Set<UUID> bettingNow = roundRepository
+                .findFirstByTableIdAndStatusOrderByRoundSeqDesc(tableId, RoundStatus.OPEN)
+                .map(round -> betRepository.findByRoundId(round.getId())
+                        .stream().map(Bet::getUserId).collect(Collectors.toSet()))
+                .orElse(Set.of());
+
+        // 3. Lấy userId đã cược trong 3 vòng SETTLED gần nhất
+        List<UUID> recentRoundIds = roundRepository
+                .findByTableIdAndStatusIn(tableId,
+                        List.of(RoundStatus.SETTLED),
+                        PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "roundSeq")))
+                .stream().map(r -> r.getId()).toList();
+
+        Set<UUID> recentBettors = recentRoundIds.stream()
+                .flatMap(rid -> betRepository.findByRoundId(rid).stream().map(Bet::getUserId))
+                .collect(Collectors.toSet());
+        recentBettors.removeAll(bettingNow); // không trùng lên BETTING_NOW
+
+        // 4. Kiểm tra presence cho tất cả candidates
+        Set<UUID> allCandidates = new java.util.LinkedHashSet<>();
+        allCandidates.addAll(bettingNow);
+        allCandidates.addAll(recentBettors);
+
+        Map<UUID, Instant> seenMap = presenceQueryService.lastSeen(allCandidates);
+
+        // Thêm người SPECTATING: online nhưng chưa cược (chỉ khi có presence)
+        // — bỏ qua vì không có danh sách subscribe room; chỉ trả BETTING_NOW + RECENT_BETTOR
+
+        // 5. Dựng kết quả
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (UUID uid : allCandidates) {
+            Optional<User> userOpt = userRepository.findById(uid);
+            if (userOpt.isEmpty()) continue;
+            User u = userOpt.get();
+            if (u.getStatus() == UserStatus.BLOCKED || u.getStatus() == UserStatus.CLOSED) continue;
+
+            Instant lastSeen = seenMap.get(uid);
+            boolean online = presenceQueryService.isOnline(lastSeen);
+            String activityStatus = bettingNow.contains(uid) ? "BETTING_NOW" : "RECENT_BETTOR";
+
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("userId", uid.toString());
+            entry.put("username", u.getUsername());
+            entry.put("online", online);
+            entry.put("activityStatus", activityStatus);
+            result.add(entry);
+        }
+
+        // Sắp xếp: BETTING_NOW trước, sau đó RECENT_BETTOR, rồi offline cuối
+        result.sort((a, b) -> {
+            int aScore = scoreEntry(a);
+            int bScore = scoreEntry(b);
+            return Integer.compare(bScore, aScore); // cao trước
+        });
+
+        return result;
+    }
+
+    private int scoreEntry(Map<String, Object> e) {
+        boolean online = Boolean.TRUE.equals(e.get("online"));
+        boolean betting = "BETTING_NOW".equals(e.get("activityStatus"));
+        if (betting && online) return 3;
+        if (betting) return 2;
+        if (online) return 1;
+        return 0;
     }
 
     private Map<String, Object> readJackpotConfigMap() {

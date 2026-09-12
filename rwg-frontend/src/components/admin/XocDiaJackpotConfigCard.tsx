@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Sparkles,
   Zap,
@@ -31,6 +31,13 @@ interface JackpotConfig {
   winValue: string;
   requireBet?: string;
   feeRate?: string;
+}
+
+interface RoomPlayer {
+  userId: string;
+  username: string;
+  online: boolean;
+  activityStatus: "BETTING_NOW" | "RECENT_BETTOR" | "SPECTATING";
 }
 
 const DOORS = [
@@ -64,6 +71,8 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
   const [triggering, setTriggering] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState<boolean>(false);
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -82,9 +91,33 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
     }
   };
 
+  const fetchRoomPlayers = useCallback(async () => {
+    setLoadingPlayers(true);
+    try {
+      const data = await adminFetch<RoomPlayer[]>(
+        "/admin/settings/xocdia-jackpot/room-players"
+      );
+      if (data) {
+        setRoomPlayers(data);
+      }
+    } catch (err) {
+      console.warn("Lỗi tải danh sách người chơi trong phòng:", err);
+    } finally {
+      setLoadingPlayers(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConfig();
   }, []);
+
+  // Tự động tải danh sách người chơi khi winnerMode === SPECIFIC_USER
+  useEffect(() => {
+    if (config.winnerMode !== "SPECIFIC_USER") return;
+    fetchRoomPlayers();
+    const interval = setInterval(fetchRoomPlayers, 15000);
+    return () => clearInterval(interval);
+  }, [config.winnerMode, fetchRoomPlayers]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -451,12 +484,66 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
             {/* Input username khi chọn SPECIFIC_USER */}
             {config.winnerMode === "SPECIFIC_USER" && (
               <div className="animate-in fade-in">
-                <label className="text-[11px] font-bold text-amber-800 block mb-1">
-                  Nhập Username người chơi:
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-amber-800">
+                    Chọn người chơi trong phòng:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={fetchRoomPlayers}
+                    disabled={loadingPlayers}
+                    className="p-0.5 text-amber-600 hover:text-amber-800 transition-colors cursor-pointer"
+                    title="Làm mới danh sách"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingPlayers ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+
+                {roomPlayers.length === 0 ? (
+                  <div className="text-[11px] text-slate-500 italic bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2">
+                    {loadingPlayers
+                      ? "Đang tải..."
+                      : "Chưa có người chơi trong phòng. Nhập username thủ công bên dưới."}
+                  </div>
+                ) : (
+                  <select
+                    value={config.targetUser}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        targetUser: e.target.value,
+                      }))
+                    }
+                    className="w-full text-xs font-semibold text-slate-800 bg-white border border-amber-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer mb-2"
+                  >
+                    <option value="">-- Chọn người chơi --</option>
+                    {roomPlayers.map((p) => {
+                      const icon =
+                        p.activityStatus === "BETTING_NOW"
+                          ? p.online ? "🟢" : "🟡"
+                          : p.online
+                          ? "🔵"
+                          : "⚫";
+                      const label =
+                        p.activityStatus === "BETTING_NOW"
+                          ? "Đang cược"
+                          : "Cược gần đây";
+                      return (
+                        <option key={p.userId} value={p.username}>
+                          {icon} {p.username} ({label})
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+
+                {/* Fallback nhập tay nếu không thấy trong danh sách */}
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">
+                  Hoặc nhập username thủ công:
                 </label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: player123 hoặc Kyoko"
+                  placeholder="Ví dụ: player123"
                   value={config.targetUser}
                   onChange={(e) =>
                     setConfig((prev) => ({
@@ -464,8 +551,13 @@ export const XocDiaJackpotConfigCard: React.FC = () => {
                       targetUser: e.target.value.trim(),
                     }))
                   }
-                  className="w-full text-xs font-bold text-slate-800 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
+                {config.targetUser && (
+                  <p className="text-[10px] text-amber-700 mt-1 font-semibold">
+                    ✅ Đã chọn: <span className="font-mono">{config.targetUser}</span>
+                  </p>
+                )}
               </div>
             )}
           </div>
