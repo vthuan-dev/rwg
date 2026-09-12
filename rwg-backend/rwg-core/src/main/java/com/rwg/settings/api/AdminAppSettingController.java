@@ -310,16 +310,28 @@ public class AdminAppSettingController {
                         .stream().map(Bet::getUserId).collect(Collectors.toSet()))
                 .orElse(Set.of());
 
-        // 3. Lấy userId đã cược trong 3 vòng SETTLED gần nhất
+        // 3. Lấy userId đã cược trong 50 vòng SETTLED gần nhất
         List<UUID> recentRoundIds = roundRepository
                 .findByTableIdAndStatusIn(tableId,
                         List.of(RoundStatus.SETTLED),
-                        PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "roundSeq")))
+                        PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "roundSeq")))
                 .stream().map(r -> r.getId()).toList();
 
         Set<UUID> recentBettors = recentRoundIds.stream()
                 .flatMap(rid -> betRepository.findByRoundId(rid).stream().map(Bet::getUserId))
                 .collect(Collectors.toSet());
+
+        // 3b. Fallback theo thời gian: ai cược trong 10 phút gần đây trên bàn này
+        Instant tenMinutesAgo = Instant.now().minusSeconds(600);
+        List<Bet> recentTimeBets = betRepository.findAll().stream()
+                .filter(b -> b.getTableId().equals(tableId)
+                        && b.getCreatedAt() != null
+                        && b.getCreatedAt().isAfter(tenMinutesAgo))
+                .toList();
+        for (Bet b : recentTimeBets) {
+            recentBettors.add(b.getUserId());
+        }
+
         recentBettors.removeAll(bettingNow); // không trùng lên BETTING_NOW
 
         // 4. Kiểm tra presence cho tất cả candidates
