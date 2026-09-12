@@ -295,7 +295,8 @@ public class AdminAppSettingController {
         // 1. Tìm bàn XocDia đầu tiên đang ACTIVE
         Optional<GameTable> tableOpt = tableRepository.findAll().stream()
                 .filter(t -> t.getStatus() == GameTableStatus.ACTIVE
-                        && "XOCDIA".equalsIgnoreCase(t.getGameType()))
+                        && t.getGameType() != null
+                        && t.getGameType().toUpperCase().contains("XOC"))
                 .findFirst();
         if (tableOpt.isEmpty()) {
             return List.of();
