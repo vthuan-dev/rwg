@@ -20,6 +20,8 @@ import {
   ShieldAlert,
   Bot,
   X,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { me, walletMe, betsHistory, getExchangeRate, getXocDiaConfig, getXocDiaJackpot, PlayerBet, placeBet as apiPlaceBet, gameTables, currentRound, myBets, roundsHistory, parseXocDiaCoins, tableOdds, TableOdds, GameRound, ApiError } from "@/lib/playerApi";
 import { mergeServerOdds } from "@/lib/betOptions";
@@ -89,28 +91,28 @@ interface PayoutBurst {
 }
 
 const CHIP_LIST = [
-  { val: 5000, label: "5K", img: "/games/xocdia/assets_hd/chip_5k_3d.png?v=bright" },
-  { val: 10000, label: "10K", img: "/games/xocdia/assets_hd/chip_10k_3d.png?v=bright" },
-  { val: 20000, label: "20K", img: "/games/xocdia/assets_hd/chip_20k_3d.png?v=bright" },
-  { val: 50000, label: "50K", img: "/games/xocdia/assets_hd/chip_50k_3d.png?v=bright" },
-  { val: 100000, label: "100K", img: "/games/xocdia/assets_hd/chip_100k_3d.png?v=bright" },
-  { val: 200000, label: "200K", img: "/games/xocdia/assets_hd/chip_200k_3d.png?v=bright" },
-  { val: 500000, label: "500K", img: "/games/xocdia/assets_hd/chip_500k_3d.png?v=bright" },
-  { val: 1000000, label: "1M", img: "/games/xocdia/assets_hd/chip_1m_3d.png?v=bright" },
-  { val: 5000000, label: "5M", img: "/games/xocdia/assets_hd/chip_5m_3d.png?v=bright" },
-  { val: 10000000, label: "10M", img: "/games/xocdia/assets_hd/chip_10m_3d.png?v=bright" },
-  { val: 50000000, label: "50M", img: "/games/xocdia/assets_hd/chip_50m_3d.png?v=bright" },
+  { val: 5000, label: "5K", img: "/games/xocdia/assets_hd/chip_5k_3d.webp?v=bright" },
+  { val: 10000, label: "10K", img: "/games/xocdia/assets_hd/chip_10k_3d.webp?v=bright" },
+  { val: 20000, label: "20K", img: "/games/xocdia/assets_hd/chip_20k_3d.webp?v=bright" },
+  { val: 50000, label: "50K", img: "/games/xocdia/assets_hd/chip_50k_3d.webp?v=bright" },
+  { val: 100000, label: "100K", img: "/games/xocdia/assets_hd/chip_100k_3d.webp?v=bright" },
+  { val: 200000, label: "200K", img: "/games/xocdia/assets_hd/chip_200k_3d.webp?v=bright" },
+  { val: 500000, label: "500K", img: "/games/xocdia/assets_hd/chip_500k_3d.webp?v=bright" },
+  { val: 1000000, label: "1M", img: "/games/xocdia/assets_hd/chip_1m_3d.webp?v=bright" },
+  { val: 5000000, label: "5M", img: "/games/xocdia/assets_hd/chip_5m_3d.webp?v=bright" },
+  { val: 10000000, label: "10M", img: "/games/xocdia/assets_hd/chip_10m_3d.webp?v=bright" },
+  { val: 50000000, label: "50M", img: "/games/xocdia/assets_hd/chip_50m_3d.webp?v=bright" },
 ];
 
 const PLAYERS = [
-  { id: "p1", name: "Kyoko", balance: "120.4M", left: 160, top: 40, avatar: "/games/xocdia/assets_hd/avatar_1.png" },
-  { id: "p2", name: "Huyen_VIP", balance: "2.1M", left: 80, top: 125, avatar: "/games/xocdia/assets_hd/avatar_2.png" },
-  { id: "p3", name: "DaiPhat", balance: "50.7M", left: 18, top: 215, avatar: "/games/xocdia/assets_hd/avatar_3.png" },
-  { id: "p4", name: "Techweat", balance: "50.7M", left: 14, top: 315, avatar: "/games/xocdia/assets_hd/avatar_4.png" },
-  { id: "p5", name: "Cool_Man", balance: "120.4M", left: 770, top: 40, avatar: "/games/xocdia/assets_hd/avatar_5.png" },
-  { id: "p6", name: "Lady_V", balance: "2.1M", left: 850, top: 125, avatar: "/games/xocdia/assets_hd/avatar_6.png" },
-  { id: "p7", name: "YoungVIP", balance: "50.7M", left: 916, top: 215, avatar: "/games/xocdia/assets_hd/avatar_7.png" },
-  { id: "p8", name: "Nsumy", balance: "77.8M", left: 918, top: 315, avatar: "/games/xocdia/assets_hd/avatar_8.png" },
+  { id: "p1", name: "Kyoko", balance: "120.4M", left: 160, top: 40, avatar: "/games/xocdia/assets_hd/avatar_1.webp" },
+  { id: "p2", name: "Huyen_VIP", balance: "2.1M", left: 80, top: 125, avatar: "/games/xocdia/assets_hd/avatar_2.webp" },
+  { id: "p3", name: "DaiPhat", balance: "50.7M", left: 18, top: 215, avatar: "/games/xocdia/assets_hd/avatar_3.webp" },
+  { id: "p4", name: "Techweat", balance: "50.7M", left: 14, top: 315, avatar: "/games/xocdia/assets_hd/avatar_4.webp" },
+  { id: "p5", name: "Cool_Man", balance: "120.4M", left: 770, top: 40, avatar: "/games/xocdia/assets_hd/avatar_5.webp" },
+  { id: "p6", name: "Lady_V", balance: "2.1M", left: 850, top: 125, avatar: "/games/xocdia/assets_hd/avatar_6.webp" },
+  { id: "p7", name: "YoungVIP", balance: "50.7M", left: 916, top: 215, avatar: "/games/xocdia/assets_hd/avatar_7.webp" },
+  { id: "p8", name: "Nsumy", balance: "77.8M", left: 918, top: 315, avatar: "/games/xocdia/assets_hd/avatar_8.webp" },
 ];
 
 // Calibrated safe chip landing bounds inside card felts (prevents spill over borders or covering bottom number bars)
@@ -352,7 +354,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Đọc trạng thái xoay từ GameOrientationWrapper để truyền cho canvas và tính tọa độ click
-  const { isRotated, rotationDeg, effectiveWidth, effectiveHeight } = useOrientation();
+  const { isRotated, rotationDeg, effectiveWidth, effectiveHeight, toggleFullscreen, isFullscreen } = useOrientation();
 
   useEffect(() => {
     const handleResize = () => {
@@ -727,7 +729,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       id: "m-init-3",
       sender: "Kyoko",
       role: "PLAYER",
-      avatar: "/games/xocdia/assets_hd/avatar_1.png",
+      avatar: "/games/xocdia/assets_hd/avatar_1.webp",
       text: "Cầu Chẵn đang bệt đẹp quá anh em ơi! Tay này theo tiếp thôi! 🎲",
       time: "20:52",
     },
@@ -1068,6 +1070,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const serverRoundIdRef = useRef<string | null>(null);
   const betSeqRef = useRef<number>(0);
   const placingRef = useRef<boolean>(false);
+  const lastBetTapTimeRef = useRef<number>(0);
 
   // ===== Trạng thái vòng đời ván lấy từ SERVER =====
   /** `phase` bản ref, để vòng poll đọc được giá trị mới nhất mà không cần vào deps. */
@@ -2231,9 +2234,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
   }, []);
 
   // Place bet at EXACT mouse click location without missing/drift ("k dc trật")
+  // Place bet at EXACT mouse click location without missing/drift ("k dc trật")
   const placeBet = async (
     zone: keyof BetState,
-    e?: React.MouseEvent,
+    e?: React.MouseEvent | React.TouchEvent | React.PointerEvent,
     fallbackX: number = 512,
     fallbackY: number = 250
   ) => {
@@ -2248,9 +2252,134 @@ export const XocDiaLandscapeGame: React.FC = () => {
       playSound("tick");
       return;
     }
-    // Tien that: goi placeBet server TRUOC khi hien chip. Server tu tru vi (M1)
-    // va tra balanceAfter — dung lam nguon su that duy nhat, khong tru local.
-    if (placingRef.current) return;
+
+    // Debounce chặn double-fire tap trên mobile giữa pointerup và click trong 100ms
+    const now = Date.now();
+    if (now - lastBetTapTimeRef.current < 90) return;
+    lastBetTapTimeRef.current = now;
+
+    // Kiểm tra nhanh số dư sơ bộ trên client
+    if (balanceRef.current !== null && balanceRef.current < selectedChip) {
+      showToast(`Số dư không đủ! (Còn ${balanceRef.current?.toLocaleString() ?? "—"} đ)`);
+      playSound("tick");
+      return;
+    }
+
+    // TÍNH TOÁN TỌA ĐỘ CHÍNH XÁC NGAY LẬP TỨC
+    const bounds = BET_ZONE_BOUNDS[zone];
+    let targetX = bounds.defaultX;
+    let targetY = bounds.defaultY;
+
+    if (e && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      let clientX = 0;
+      let clientY = 0;
+      if ('touches' in e && (e as any).touches?.length > 0) {
+        clientX = (e as any).touches[0].clientX;
+        clientY = (e as any).touches[0].clientY;
+      } else if ('changedTouches' in e && (e as any).changedTouches?.length > 0) {
+        clientX = (e as any).changedTouches[0].clientX;
+        clientY = (e as any).changedTouches[0].clientY;
+      } else {
+        clientX = (e as React.MouseEvent).clientX ?? 0;
+        clientY = (e as React.MouseEvent).clientY ?? 0;
+      }
+      const rawX = clientX - rect.left;
+      const rawY = clientY - rect.top;
+      const clickX = Math.round(rawX / scale);
+      const clickY = Math.round(rawY / scale);
+      targetX = Math.max(bounds.minX, Math.min(bounds.maxX, clickX));
+      targetY = Math.max(bounds.minY, Math.min(bounds.maxY, clickY));
+    } else {
+      targetX = bounds.defaultX + Math.round((Math.random() - 0.5) * 16);
+      targetY = bounds.defaultY + Math.round((Math.random() - 0.5) * 12);
+    }
+
+    // User avatar (Tôi - VIP): left 125, top 380 -> center (151, 406)
+    const fromX = 151;
+    const fromY = 406;
+    const chipConfig = CHIP_LIST.find((c) => c.val === selectedChip) || CHIP_LIST[1];
+    const id = nextChipId.current++;
+
+    // ===== 1. OPTIMISTIC INSTANT FLIGHT (BAY COIN TỨC THÌ 0ms) =====
+    const newChip: FlyingChip = {
+      id,
+      zone,
+      fromX,
+      fromY,
+      toX: targetX,
+      toY: targetY,
+      val: selectedChip,
+      img: chipConfig.img,
+    };
+    setFlyingChips((prev) => [...prev, newChip]);
+    playSound("chip");
+
+    // Cập nhật ngay số tiền cược trên cửa để phản hồi thị giác tức thì
+    setBets((prev) => {
+      const next = { ...prev, [zone]: prev[zone] + selectedChip };
+      betsRef.current = next;
+      return next;
+    });
+
+    // Giảm tạm thời số dư hiển thị (optimistic balance)
+    setBalance((prev) => (prev !== null ? Math.max(0, prev - selectedChip) : null));
+
+    const rotation = Math.round((Math.random() - 0.5) * 24);
+    // Tốc độ bay nhanh và đầm: 260ms (thay vì 420ms lờ đờ)
+    const FLIGHT_DURATION_MS = 260;
+    const flightTimer = setTimeout(() => {
+      setFlyingChips((prev) => prev.filter((c) => c.id !== id));
+      const landedChip: TableChip = {
+        id,
+        playerId: "user",
+        zone,
+        val: selectedChip,
+        img: chipConfig.img,
+        x: targetX,
+        y: targetY,
+        rotation,
+      };
+      setTableChips((prev) => {
+        const next = [...prev, landedChip];
+        tableChipsRef.current = next;
+        return next;
+      });
+      playSound("chip");
+    }, FLIGHT_DURATION_MS);
+
+    // Phản hồi của Dealer Vy Vy
+    const chipLabel = chipConfig.label;
+    const oddsTextForBet = (z: keyof BetState): string => oddsTextRef.current[z] ?? "";
+    const doorTitles: Record<keyof BetState, string> = {
+      XOC_DIA_EVEN: "cửa CHẴN",
+      XOC_DIA_ODD: "cửa LẺ",
+      XOC_DIA_FOUR_RED: `TỨ ĐỎ (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_RED")})`,
+      XOC_DIA_FOUR_WHITE: `TỨ TRẮNG (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_WHITE")})`,
+      XOC_DIA_THREE_RED: "3 ĐỎ 1 TRẮNG",
+      XOC_DIA_THREE_WHITE: "3 TRẮNG 1 ĐỎ",
+    };
+
+    if (selectedChip >= 500000) {
+      speakDealer(
+        `Đại gia Tôi vào mạnh ${chipLabel} ${doorTitles[zone]}! Đẳng cấp là đây, chúc anh đại thắng nha! 💎🔥`,
+        4000
+      );
+    } else if (zone === "XOC_DIA_FOUR_RED" || zone === "XOC_DIA_FOUR_WHITE") {
+      speakDealer(
+        `VIP Tôi bắt ${doorTitles[zone]} kìa! Nổ một phát 1 ăn ${oddsTextForBet(zone)} là rực rỡ cả sảnh luôn anh ơi! 🚀✨`,
+        4200
+      );
+    }
+
+    // ===== 2. GỌI API ĐẶT CƯỢC NGẦM TRONG NỀN (BACKGROUND ASYNC) =====
+    const rate = exchangeRateRef.current || 25000;
+    const stakeUsdStr = (() => {
+      const raw = selectedChip / rate;
+      return raw.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+    })();
+    const seq = betSeqRef.current;
+
     const ensureTableAndRound = async (): Promise<string | null> => {
       let tableId = xocTableIdRef.current;
       if (!tableId) {
@@ -2271,199 +2400,62 @@ export const XocDiaLandscapeGame: React.FC = () => {
         try {
           const round = await currentRound(tableId);
           if (round?.roundId) serverRoundIdRef.current = round.roundId;
-        } catch {
-          // Ke giua 2 vong: de serverRoundId null, van cho dat de server tu resolve round OPEN.
-        }
+        } catch {}
       }
       return tableId;
     };
-    const rate = exchangeRateRef.current || 25000;
-    const stakeUsdStr = (() => {
-      const raw = selectedChip / rate;
-      // Giu toi da 4 decimals, cat zero thua (backend nhan string thap phan).
-      return raw.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
-    })();
-    const seq = betSeqRef.current;
-    // Vòng server thực nhận cược này; gán trong `try`, đọc lại sau khi đặt xong.
-    let placedRoundId: string | null = null;
-    placingRef.current = true;
-    try {
-      const tableId = await ensureTableAndRound();
-      if (!tableId) {
-        showToast("Chưa kết nối được bàn Xóc Đĩa! Vui lòng thử lại.");
-        placingRef.current = false;
-        return;
-      }
-      const res = await apiPlaceBet(tableId, { betType: zone, selection: "", stake: stakeUsdStr, seq });
-      if (res?.roundId) serverRoundIdRef.current = res.roundId;
-      placedRoundId = res?.roundId ?? null;
-      betSeqRef.current = seq + 1;
-      if (res?.balanceAfter) applyUsdBalance(parseFloat(res.balanceAfter));
-    } catch (err) {
-      // seq chua tieu thu khi server tu choi (chua debit) -> giu nguyen de thu lai.
-      placingRef.current = false;
-      if (err instanceof ApiError) {
-        if (err.code === "ROUND_BETTING_CLOSED" || err.code === "ROUND_NOT_FOUND") {
-          showToast("Đã hết giờ đặt cược! Chờ ván mới vào tiền nhé! ⛔");
-        } else if (err.code === "INSUFFICIENT_BALANCE") {
-          showToast(`Số dư không đủ! (Còn ${balanceRef.current?.toLocaleString() ?? "—"} đ ≈ $${usdBalanceRef.current?.toFixed(2) ?? "—"} USD)`);
-          try {
-            const w = await walletMe();
-            if (w?.balance) applyUsdBalance(parseFloat(w.balance));
-          } catch {
-            // silent
+
+    (async () => {
+      try {
+        const tableId = await ensureTableAndRound();
+        if (!tableId) throw new Error("NO_TABLE");
+        const res = await apiPlaceBet(tableId, { betType: zone, selection: "", stake: stakeUsdStr, seq });
+        if (res?.roundId) serverRoundIdRef.current = res.roundId;
+        betSeqRef.current = seq + 1;
+        if (res?.balanceAfter) applyUsdBalance(parseFloat(res.balanceAfter));
+      } catch (err) {
+        // Server từ chối cược -> ROLLBACK phỉnh và số dư
+        clearTimeout(flightTimer);
+        setFlyingChips((prev) => prev.filter((c) => c.id !== id));
+        setTableChips((prev) => {
+          const next = prev.filter((c) => c.id !== id);
+          tableChipsRef.current = next;
+          return next;
+        });
+        setBets((prev) => {
+          const next = { ...prev, [zone]: Math.max(0, prev[zone] - selectedChip) };
+          betsRef.current = next;
+          return next;
+        });
+
+        // Đồng bộ lại số dư ví chính xác từ server
+        try {
+          const w = await walletMe();
+          if (w?.balance) applyUsdBalance(parseFloat(w.balance));
+        } catch {}
+
+        if (err instanceof ApiError) {
+          if (err.code === "ROUND_BETTING_CLOSED" || err.code === "ROUND_NOT_FOUND") {
+            showToast("Đã hết giờ đặt cược! Chờ ván mới vào tiền nhé! ⛔");
+          } else if (err.code === "INSUFFICIENT_BALANCE") {
+            showToast(`Số dư không đủ! (Còn ${balanceRef.current?.toLocaleString() ?? "—"} đ ≈ $${usdBalanceRef.current?.toFixed(2) ?? "—"} USD)`);
+          } else {
+            showToast("Đặt cược thất bại! Vui lòng thử lại.");
           }
         } else {
-          showToast("Đặt cược thất bại! Vui lòng thử lại.");
+          showToast("Mất kết nối! Kiểm tra mạng rồi đặt lại nhé.");
         }
-      } else {
-        showToast("Mất kết nối! Kiểm tra mạng rồi đặt lại nhé.");
+        playSound("tick");
       }
-      playSound("tick");
-      return;
-    }
-    placingRef.current = false;
-    playSound("chip");
+    })();
 
-    const bounds = BET_ZONE_BOUNDS[zone];
-    let targetX = bounds.defaultX;
-    let targetY = bounds.defaultY;
-
-    if (e && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      let rawX = e.clientX - rect.left;
-      let rawY = e.clientY - rect.top;
-
-      // Khi màn hình bị xoay CSS, getBoundingClientRect() trả về bounding box đã xoay,
-      // nhưng clientX/clientY vẫn theo hệ trục gốc. Phải chuyển đổi để khớp.
-      if (isRotated) {
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const px = e.clientX - cx;
-        const py = e.clientY - cy;
-        if (rotationDeg === 90) {
-          rawX = py + rect.width / 2;
-          rawY = -px + rect.height / 2;
-        } else if (rotationDeg === 270) {
-          rawX = -py + rect.width / 2;
-          rawY = px + rect.height / 2;
-        }
-      }
-
-      const clickX = Math.round(rawX / scale);
-      const clickY = Math.round(rawY / scale);
-      // Clamp strictly within the safe felt area of the door so chips never spill off-card or cover bottom number bars
-      targetX = Math.max(bounds.minX, Math.min(bounds.maxX, clickX));
-      targetY = Math.max(bounds.minY, Math.min(bounds.maxY, clickY));
-    } else {
-      // Natural stack scatter if clicked programmatically or fallback
-      targetX = bounds.defaultX + Math.round((Math.random() - 0.5) * 16);
-      targetY = bounds.defaultY + Math.round((Math.random() - 0.5) * 12);
-    }
-
-    // User avatar (Tôi - VIP): left 125, top 380 -> center (151, 406)
-    const fromX = 151;
-    const fromY = 406;
-
-    const chipConfig = CHIP_LIST.find((c) => c.val === selectedChip) || CHIP_LIST[1];
-    const id = nextChipId.current++;
-
-    const newChip: FlyingChip = {
-      id,
-      zone,
-      fromX,
-      fromY,
-      toX: targetX,
-      toY: targetY,
-      val: selectedChip,
-      img: chipConfig.img,
-    };
-
-    setFlyingChips((prev) => [...prev, newChip]);
-
-    const rotation = Math.round((Math.random() - 0.5) * 24);
-
-    // Flight takes 420ms: upon landing, add to tableChips so it remains on the door until round ends!
-    setTimeout(() => {
-      setFlyingChips((prev) => prev.filter((c) => c.id !== id));
-      const landedChip: TableChip = {
-        id,
-        playerId: "user",
-        zone,
-        val: selectedChip,
-        img: chipConfig.img,
-        x: targetX,
-        y: targetY,
-        rotation,
-      };
-      setTableChips((prev) => {
-        const next = [...prev, landedChip];
-        tableChipsRef.current = next;
-        return next;
-      });
-      playSound("chip");
-    }, 420);
-
-    // Da tru vi that qua balanceAfter o tren — khong tru local them.
-
-    // Intelligent NPC Dealer reaction to VIP Tôi's real bet
-    const chipLabel = chipConfig.label;
-    // Tỷ lệ đọc từ server: người này có thể được đặt tỷ lệ riêng, nói "1 ăn 16" cứng
-    // là dealer đọc sai số tiền người chơi thật sự nhận được. Đọc qua `oddsTextRef`
-    // (không gọi `oddsText`) — xem chú thích ở khai báo ref.
-    const oddsTextForBet = (zone: keyof BetState): string => oddsTextRef.current[zone] ?? "";
-    const doorTitles: Record<keyof BetState, string> = {
-      XOC_DIA_EVEN: "cửa CHẴN",
-      XOC_DIA_ODD: "cửa LẺ",
-      XOC_DIA_FOUR_RED: `TỨ ĐỎ (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_RED")})`,
-      XOC_DIA_FOUR_WHITE: `TỨ TRẮNG (1 ăn ${oddsTextForBet("XOC_DIA_FOUR_WHITE")})`,
-      XOC_DIA_THREE_RED: "3 ĐỎ 1 TRẮNG",
-      XOC_DIA_THREE_WHITE: "3 TRẮNG 1 ĐỎ",
-    };
-
-    const nextBetAmount = bets[zone] + selectedChip;
-    if (selectedChip >= 500000) {
-      speakDealer(
-        `Đại gia Tôi vào mạnh ${chipLabel} ${doorTitles[zone]}! Đẳng cấp là đây, chúc anh đại thắng nha! 💎🔥`,
-        4000
-      );
-    } else if (zone === "XOC_DIA_FOUR_RED" || zone === "XOC_DIA_FOUR_WHITE") {
-      speakDealer(
-        `VIP Tôi bắt ${doorTitles[zone]} kìa! Nổ một phát 1 ăn ${oddsTextForBet(zone)} là rực rỡ cả sảnh luôn anh ơi! 🚀✨`,
-        4200
-      );
-    } else if (nextBetAmount >= 100000 && bets[zone] > 0) {
-      speakDealer(
-        `VIP Tôi quyết tâm bồi thêm ${chipLabel} vào ${doorTitles[zone]}! Em cổ vũ anh hết mình nè~ ❤️`,
-        3800
-      );
-    } else {
-      const betQuotes = [
-        `VIP Tôi vào ${chipLabel} ${doorTitles[zone]}! Chúc anh may mắn rinh thưởng khủng nha~ ✨`,
-        `Tay anh Tôi vào ${doorTitles[zone]} đẹp quá! Vía son nổ to nhé anh ơi! 🍀`,
-        `Cửa ${doorTitles[zone]} có thêm ${chipLabel} của VIP Tôi rồi nè! Em mong anh ăn trọn ván này~ ❤️`,
-      ];
-      speakDealer(betQuotes[Math.floor(Math.random() * betQuotes.length)], 3500);
-    }
-
-    setBets((prev) => {
-      const next = {
-        ...prev,
-        [zone]: prev[zone] + selectedChip,
-      };
-      betsRef.current = next;
-      return next;
-    });
-
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const logDate = new Date();
+    const timeStr = `${String(logDate.getHours()).padStart(2, "0")}:${String(logDate.getMinutes()).padStart(2, "0")}:${String(logDate.getSeconds()).padStart(2, "0")}`;
     setSessionBetLogs((prev) => [
       {
         id: Date.now() + Math.random(),
         roundSeq,
-        // Vòng SERVER mà server đã ghi cược này vào (server trả về), không phải vòng
-        // đang hiện trên đồng hồ local — hai thứ này từng lệch nhau.
-        roundId: placedRoundId ?? serverRoundIdRef.current,
+        roundId: serverRoundIdRef.current,
         betType: zone,
         zoneName: doorTitles[zone],
         stake: selectedChip,
@@ -2552,7 +2544,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* ========================================================= */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/games/xocdia/assets_hd/casino_table_master.jpg"
+          src="/games/xocdia/assets_hd/casino_table_master.webp"
           alt="Casino Table"
           className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"
         />
@@ -2570,7 +2562,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/dealer_throne_alpha.png"
+            src="/games/xocdia/assets_hd/dealer_throne_alpha.webp"
             alt="Dealer"
             className="w-full h-full object-contain"
           />
@@ -2652,7 +2644,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         <div className="absolute left-[255px] top-[10px] w-[158px] h-[48px] z-20 select-none pointer-events-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/jackpot_plaque.png"
+            src="/games/xocdia/assets_hd/jackpot_plaque.webp"
             alt="Jackpot"
             className="w-full h-full object-contain"
           />
@@ -2669,7 +2661,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         <div className="absolute left-[615px] top-[12px] w-[148px] h-[46px] z-20 select-none pointer-events-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/dice_box.png"
+            src="/games/xocdia/assets_hd/dice_box.webp"
             alt="Dice Box"
             className="w-full h-full object-contain"
           />
@@ -2680,7 +2672,20 @@ export const XocDiaLandscapeGame: React.FC = () => {
           </div>
         </div>
 
-        {/* 2.6 Sound Toggle */}
+        {/* 2.6 Fullscreen Toggle */}
+        <button
+          onClick={toggleFullscreen}
+          className="absolute right-[94px] top-[14px] w-[34px] h-[34px] rounded-full z-30 flex items-center justify-center bg-black/70 border border-amber-500/60 shadow-lg text-amber-300 hover:brightness-125 active:scale-90 transition-all cursor-pointer"
+          title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+        >
+          {isFullscreen ? (
+            <Minimize className="w-4 h-4 text-amber-300 drop-shadow" />
+          ) : (
+            <Maximize className="w-4 h-4 text-amber-300 drop-shadow" />
+          )}
+        </button>
+
+        {/* 2.7 Sound Toggle */}
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
           className="absolute right-[54px] top-[14px] w-[34px] h-[34px] rounded-full z-30 flex items-center justify-center bg-black/70 border border-amber-500/60 shadow-lg text-amber-300 hover:brightness-125 active:scale-90 transition-all cursor-pointer"
@@ -2718,6 +2723,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* 3.1 CARD CHẴN (GOLDEN 3D CARD) */}
         <div
           onClick={(e) => placeBet("XOC_DIA_EVEN", e, 310, 149)}
+          onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_EVEN", e, 310, 149); } }}
           title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa Chẵn${oddsHint("XOC_DIA_EVEN")}`}
           className={`absolute left-[195px] top-[95px] w-[225px] h-[142px] transition-all duration-200 select-none z-20 ${
             phase === "RESULT" && isEven
@@ -2729,7 +2735,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/card_chan_clean.png"
+            src="/games/xocdia/assets_hd/card_chan_clean.webp"
             alt="Chẵn"
             className="w-full h-full object-contain pointer-events-none"
           />
@@ -2752,6 +2758,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* 3.2 CARD LẺ (CRIMSON/MAGENTA 3D CARD) */}
         <div
           onClick={(e) => placeBet("XOC_DIA_ODD", e, 710, 149)}
+          onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_ODD", e, 710, 149); } }}
           title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa Lẻ${oddsHint("XOC_DIA_ODD")}`}
           className={`absolute left-[605px] top-[95px] w-[225px] h-[142px] transition-all duration-200 select-none z-20 ${
             phase === "RESULT" && !isEven
@@ -2763,7 +2770,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/card_le_clean.png"
+            src="/games/xocdia/assets_hd/card_le_clean.webp"
             alt="Lẻ"
             className="w-full h-full object-contain pointer-events-none"
           />
@@ -2806,7 +2813,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* Background Sprite */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/four_vi_clean.png"
+            src="/games/xocdia/assets_hd/four_vi_clean.webp"
             alt="4 Vị"
             className="w-full h-full object-contain pointer-events-none"
           />
@@ -2814,6 +2821,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.1 Hitbox & Slot 1: 4 ĐỎ (1:16) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_FOUR_RED", e, 285, 312)}
+            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_FOUR_RED", e, 285, 312); } }}
             title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 4 Đỏ${oddsHint("XOC_DIA_FOUR_RED")}`}
             style={{
               borderRadius: "34px 14px 13px 16px / 24px 14px 13px 16px",
@@ -2842,6 +2850,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.2 Hitbox & Slot 2: 4 TRẮNG (1:16) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_FOUR_WHITE", e, 412, 312)}
+            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_FOUR_WHITE", e, 412, 312); } }}
             title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 4 Trắng${oddsHint("XOC_DIA_FOUR_WHITE")}`}
             style={{ borderRadius: "14px" }}
             className={`absolute left-[160px] top-[17px] w-[121px] h-[97px] transition-all duration-300 ${
@@ -2867,6 +2876,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.3 Hitbox & Slot 3: 3 TRẮNG 1 ĐỎ (1:4) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_THREE_WHITE", e, 612, 312)}
+            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_THREE_WHITE", e, 612, 312); } }}
             title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 3 Trắng 1 Đỏ${oddsHint("XOC_DIA_THREE_WHITE")}`}
             style={{ borderRadius: "14px" }}
             className={`absolute left-[286px] top-[17px] w-[121px] h-[97px] transition-all duration-300 ${
@@ -2892,6 +2902,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* 5.4 Hitbox & Slot 4: 3 ĐỎ 1 TRẮNG (1:4) */}
           <div
             onClick={(e) => placeBet("XOC_DIA_THREE_RED", e, 740, 312)}
+            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.preventDefault(); placeBet("XOC_DIA_THREE_RED", e, 740, 312); } }}
             title={isBettingLocked ? "Đang xóc — ngừng nhận cược" : `Đặt cửa 3 Đỏ 1 Trắng${oddsHint("XOC_DIA_THREE_RED")}`}
             style={{
               borderRadius: "14px 34px 16px 13px / 14px 24px 16px 13px",
@@ -2994,7 +3005,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/games/xocdia/assets_hd/avatar_1.png"
+                  src="/games/xocdia/assets_hd/avatar_1.webp"
                   alt="Me"
                   className="w-full h-full object-cover"
                 />
@@ -3036,7 +3047,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         <div className="absolute left-1/2 -translate-x-1/2 bottom-[86px] z-30 w-[148px] h-[36px] flex items-center justify-center pointer-events-none drop-shadow-[0_6px_16px_rgba(0,0,0,0.95)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/countdown_pill.png"
+            src="/games/xocdia/assets_hd/countdown_pill.webp"
             alt="Countdown"
             className="w-full h-full object-contain"
           />
@@ -3176,7 +3187,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           {/* Background Board Sprite */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/games/xocdia/assets_hd/roadmap_board.png"
+            src="/games/xocdia/assets_hd/roadmap_board.webp"
             alt="Roadmap"
             className="w-full h-full object-contain pointer-events-none"
           />
@@ -3374,7 +3385,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 top: fc.fromY,
                 ['--dx' as any]: `${fc.toX - fc.fromX}px`,
                 ['--dy' as any]: `${fc.toY - fc.fromY}px`,
-                animation: 'flyChipArc 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                animation: 'flyChipArc 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards',
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -3447,7 +3458,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
               {/* 3D Plaque Asset */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/games/xocdia/assets_hd/win_popup.png"
+                src="/games/xocdia/assets_hd/win_popup.webp"
                 alt="Thắng Lớn"
                 className="w-full h-full object-contain"
               />
@@ -3932,7 +3943,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 p-[1.5px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src="/games/xocdia/assets_hd/avatar_1.png"
+                      src="/games/xocdia/assets_hd/avatar_1.webp"
                       alt="Avatar"
                       className="w-full h-full rounded-full object-cover"
                     />

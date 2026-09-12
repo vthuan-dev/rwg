@@ -22,34 +22,74 @@ export default function XocDiaPage() {
     }
     setIsAuthenticated(true);
 
-    // 5-second luxury realistic loading progress
+    const CRITICAL_ASSETS = [
+      "/games/xocdia/assets_hd/casino_table_master.webp",
+      "/games/xocdia/assets_hd/dealer_throne_alpha.webp",
+      "/games/xocdia/assets_hd/card_chan_clean.webp",
+      "/games/xocdia/assets_hd/card_le_clean.webp",
+      "/games/xocdia/assets_hd/four_vi_clean.webp",
+      "/games/xocdia/assets_hd/chip_tray_full.webp",
+      "/games/xocdia/assets_hd/roadmap_board.webp",
+      "/games/xocdia/assets_hd/chip_10k_3d.webp",
+      "/games/xocdia/assets_hd/chip_20k_3d.webp",
+      "/games/xocdia/assets_hd/chip_50k_3d.webp",
+      "/games/xocdia/assets_hd/chip_100k_3d.webp",
+      "/games/xocdia/assets_hd/chip_500k_3d.webp",
+      "/games/xocdia/assets_hd/chip_1m_3d.webp",
+      "/games/xocdia/assets_hd/chip_5m_3d.webp",
+      "/games/xocdia/assets_hd/avatar_1.webp",
+      "/games/xocdia/assets_hd/avatar_2.webp",
+      "/games/xocdia/assets_hd/avatar_3.webp",
+      "/games/xocdia/assets_hd/avatar_4.webp",
+    ];
+
+    let loadedCount = 0;
+    const total = CRITICAL_ASSETS.length;
+    let isDone = false;
     const startTime = Date.now();
-    const duration = 5000;
+    const MIN_LOAD_TIME = 600; // ms để có hiệu ứng chuyển cảnh mượt
+    const MAX_LOAD_TIME = 1400; // ms tối đa
 
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(100, Math.floor((elapsed / duration) * 100));
+    const finish = () => {
+      if (isDone) return;
+      isDone = true;
+      setProgress(100);
+      setStatusText("Hoàn tất! Chúc đại gia đại thắng... 🎲");
+      setTimeout(() => setLoading(false), 180);
+    };
+
+    const updateStatus = (pct: number) => {
       setProgress(pct);
-
-      if (pct < 25) {
+      if (pct < 30) {
         setStatusText("Đang kết nối máy chủ Genting VIP...");
-      } else if (pct < 55) {
-        setStatusText("Đồng bộ số dư ví & Tỷ giá quy đổi tiền tệ (USD → VNĐ)...");
-      } else if (pct < 85) {
-        setStatusText("Tải mô phỏng bàn cược & Bát Đĩa Thần Long 4K...");
+      } else if (pct < 70) {
+        setStatusText("Tải đồ họa bàn cược Bát Đĩa Thần Long...");
       } else if (pct < 100) {
-        setStatusText("Xác thực vị trí đại gia VIP bảo mật SHA-256...");
-      } else {
-        setStatusText("Hoàn tất! Chúc đại gia đại thắng...");
+        setStatusText("Đồng bộ số dư ví & Tỷ giá quy đổi...");
       }
+    };
 
-      if (elapsed >= duration) {
-        clearInterval(interval);
-        setTimeout(() => setLoading(false), 200);
-      }
-    }, 40);
+    CRITICAL_ASSETS.forEach((src) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loadedCount++;
+        const pct = Math.min(99, Math.floor((loadedCount / total) * 100));
+        updateStatus(pct);
+        if (loadedCount >= total) {
+          const elapsed = Date.now() - startTime;
+          const wait = Math.max(0, MIN_LOAD_TIME - elapsed);
+          setTimeout(finish, wait);
+        }
+      };
+      img.src = src;
+    });
 
-    return () => clearInterval(interval);
+    // Fallback timeout an toàn: tối đa 1.4s luôn vào game
+    const fallbackTimer = setTimeout(finish, MAX_LOAD_TIME);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
   }, [router]);
 
   return (
