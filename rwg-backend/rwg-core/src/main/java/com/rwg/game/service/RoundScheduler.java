@@ -652,7 +652,10 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
         try {
             txWrite.execute(s -> {
                 settingRepository.findById(com.rwg.settings.domain.AppSetting.XOC_DIA_FORCE_RESULT)
-                        .ifPresent(v -> v.update("AUTO", "system"));
+                        .ifPresent(v -> {
+                            v.update("AUTO", "system");
+                            settingRepository.save(v);
+                        });
                 return null;
             });
         } catch (Exception e) {

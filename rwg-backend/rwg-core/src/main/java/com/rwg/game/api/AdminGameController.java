@@ -210,12 +210,18 @@ public class AdminGameController {
                 : "ONCE";
 
         settingRepository.findById(AppSetting.XOC_DIA_FORCE_RESULT).ifPresentOrElse(
-                v -> v.update(forceResult, adminUsername),
+                v -> {
+                    v.update(forceResult, adminUsername);
+                    settingRepository.save(v);
+                },
                 () -> settingRepository.save(AppSetting.of(AppSetting.XOC_DIA_FORCE_RESULT, forceResult, adminUsername))
         );
 
         settingRepository.findById(AppSetting.XOC_DIA_FORCE_MODE).ifPresentOrElse(
-                v -> v.update(forceMode, adminUsername),
+                v -> {
+                    v.update(forceMode, adminUsername);
+                    settingRepository.save(v);
+                },
                 () -> settingRepository.save(AppSetting.of(AppSetting.XOC_DIA_FORCE_MODE, forceMode, adminUsername))
         );
 
