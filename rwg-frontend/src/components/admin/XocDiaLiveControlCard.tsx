@@ -304,23 +304,24 @@ export const XocDiaLiveControlCard: React.FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {chanTotal > leTotal ? (
-            <button
-              onClick={() => handleApplyForce("ODD", "ONCE")}
-              disabled={savingForce}
-              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-lg shadow-sm transition-all"
-            >
-              ⚡ Ép Lẻ Ngay (1 Vòng)
-            </button>
-          ) : leTotal > chanTotal ? (
-            <button
-              onClick={() => handleApplyForce("TWO_RED", "ONCE")}
-              disabled={savingForce}
-              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-lg shadow-sm transition-all"
-            >
-              ⚡ Ép Chẵn Ngay (1 Vòng)
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => handleApplyForce("TWO_RED", "ONCE")}
+            disabled={savingForce}
+            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            title="Ép ván tới nổ CHẴN (2 Đỏ 2 Trắng)"
+          >
+            ⚡ Ép Ra Chẵn (1 Vòng)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApplyForce("ODD", "ONCE")}
+            disabled={savingForce}
+            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            title="Ép ván tới nổ LẺ (Ngẫu nhiên 3 đỏ hoặc 3 trắng)"
+          >
+            ⚡ Ép Ra Lẻ (1 Vòng)
+          </button>
         </div>
       </div>
 
