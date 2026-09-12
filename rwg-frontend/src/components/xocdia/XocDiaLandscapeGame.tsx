@@ -616,7 +616,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       }
 
       if (wData.status === "fulfilled" && wData.value?.balance) {
-        applyUsdBalance(parseFloat(wData.value.balance));
+        applyUsdBalance(parseFloat(wData.value.balance), null, true);
       }
 
       const bRes = await betsHistory(undefined, 0, 25).catch(() => null);
@@ -685,7 +685,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 // Minh trung: refresh vi that tu server de khop so du
                 walletMe()
                   .then((w) => {
-                    if (w?.balance) applyUsdBalance(parseFloat(w.balance));
+                    if (w?.balance) applyUsdBalance(parseFloat(w.balance), null, true);
                   })
                   .catch(() => {});
                 setSessionTotalWon((prev) => prev + winAmount);
@@ -1093,6 +1093,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const highestCompletedSeqRef = useRef<number>(-1);
   const placingRef = useRef<boolean>(false);
   const lastBetTapTimeRef = useRef<number>(0);
+  const latestServerBalanceAfterRef = useRef<number | null>(null);
+  const lastBetPlacedAtRef = useRef<number>(0);
 
   // ===== Trạng thái vòng đời ván lấy từ SERVER =====
   /** `phase` bản ref, để vòng poll đọc được giá trị mới nhất mà không cần vào deps. */
@@ -1123,9 +1125,17 @@ export const XocDiaLandscapeGame: React.FC = () => {
    *
    * `serverTime` dùng để bỏ qua gói cũ: đường HTTP (`/wallet/me`) và đường WebSocket không
    * bảo đảm thứ tự, gói cũ về sau mà vẫn áp thì số dư trên màn hình nhảy lùi.
+   *
+   * `force = true` dùng khi mở bàn, trúng thưởng, nổ hũ, hoặc chốt sổ cược.
    */
-  const applyUsdBalance = (usdVal: number, serverTime?: string | null) => {
+  const applyUsdBalance = (usdVal: number, serverTime?: string | null, force: boolean = false) => {
     if (!Number.isFinite(usdVal) || usdVal < 0) return;
+    // Chặn tuyệt đối việc poll hoặc WebSocket cũ đè lên số dư lạc quan của FE khi đang cược nhanh
+    if (!force) {
+      if (inFlightBetsRef.current > 0 || Date.now() - lastBetPlacedAtRef.current < 1200) {
+        return;
+      }
+    }
     if (serverTime) {
       const at = Date.parse(serverTime);
       if (!Number.isNaN(at)) {
@@ -1133,10 +1143,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
         lastBalanceAtRef.current = at;
       }
     }
-    // Đọc tỷ giá từ ref TẠI THỜI ĐIỂM quy đổi, không dùng biến chụp trong closure cũ.
+    // Đọc tỷ giá từ ref TẠI THỜI ĐIỂM quy đổi, đồng bộ tức thì vào cả ref lẫn state
     const rate = exchangeRateRef.current;
+    const vndVal = rate > 0 ? Math.round(usdVal * rate) : null;
+    usdBalanceRef.current = usdVal;
+    balanceRef.current = vndVal;
     setUsdBalance(usdVal);
-    setBalance(rate > 0 ? Math.round(usdVal * rate) : null);
+    setBalance(vndVal);
   };
   // Còn sống hay đã unmount — cùng khuôn ở `bet/detail/page.tsx`, để không `setState`
   // sau khi màn đã gỡ.
@@ -1502,6 +1515,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
   // 3. 3.5s periodic smart polling (guarantees instant detection of admin credit)
   useEffect(() => {
     const handleWalletBalanceUpdated = (e: Event) => {
+      // Đang có cược bay/gửi server hoặc vừa cược xong -> không để WebSocket đè số dư
+      if (inFlightBetsRef.current > 0 || Date.now() - lastBetPlacedAtRef.current < 1200) {
+        return;
+      }
       // detail là CẢ gói WalletBalancePayload ({ balance, serverTime, reason }), không chỉ
       // chuỗi số dư — cần `serverTime` để bỏ qua gói tới trễ, và `reason` để biết vì sao
       // số dư đổi.
@@ -1548,23 +1565,26 @@ export const XocDiaLandscapeGame: React.FC = () => {
           `Tài khoản đại gia vừa được nạp thêm +${diffVnd.toLocaleString()} đ! Cùng rinh lộc lớn thôi anh ơi! 💎✨`,
           5200
         );
-      } else if (diffVnd < 0) {
-        showToast(
-          `⚡ Số dư cập nhật: ${(newVnd ?? 0).toLocaleString()} đ (≈ $${newUsd.toFixed(2)} USD)`
-        );
       }
     };
 
     window.addEventListener("wallet_balance_updated", handleWalletBalanceUpdated);
 
     const handleFocus = () => {
+      if (inFlightBetsRef.current > 0 || Date.now() - lastBetPlacedAtRef.current < 1200) return;
       fetchBackendData();
     };
     window.addEventListener("focus", handleFocus);
 
     const pollTimer = setInterval(async () => {
+      if (inFlightBetsRef.current > 0 || Date.now() - lastBetPlacedAtRef.current < 1200) {
+        return;
+      }
       try {
         const wData = await walletMe();
+        if (inFlightBetsRef.current > 0 || Date.now() - lastBetPlacedAtRef.current < 1200) {
+          return;
+        }
         const newUsd = parseFloat(wData?.balance ?? "");
         if (!Number.isFinite(newUsd) || newUsd < 0) return;
 
@@ -2135,6 +2155,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       betSeqRef.current = 0;
       inFlightBetsRef.current = 0;
       highestCompletedSeqRef.current = -1;
+      latestServerBalanceAfterRef.current = null;
       revealedRoundIdRef.current = null;
       revealedOpenUntilRef.current = 0;
       if (scheduledCloseTimerRef.current) {
@@ -2294,7 +2315,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
       // Số dư sau khi trả thưởng: áp ngay để người chơi thấy tiền về.
       const after = parseFloat(String(detail.balanceAfter ?? ""));
-      if (Number.isFinite(after)) applyUsdBalance(after, detail.serverTime);
+      if (Number.isFinite(after)) applyUsdBalance(after, detail.serverTime, true);
 
       // Mở bát ngay khi nhận kết quả qua WebSocket (unicastXocDiaWin).
       // Server gửi xocDiaCoins + xocDiaRedCount trong PlayerWinPayload cho mọi
@@ -2423,8 +2444,17 @@ export const XocDiaLandscapeGame: React.FC = () => {
       return next;
     });
 
-    // Giảm tạm thời số dư hiển thị (optimistic balance)
-    setBalance((prev) => (prev !== null ? Math.max(0, prev - selectedChip) : null));
+    // Giảm đồng bộ số dư hiển thị (optimistic balance) ngay lập tức trên cả ref và state
+    const nextBalance = balanceRef.current !== null ? Math.max(0, balanceRef.current - selectedChip) : null;
+    balanceRef.current = nextBalance;
+    setBalance(nextBalance);
+
+    if (usdBalanceRef.current !== null && exchangeRateRef.current > 0) {
+      const chipUsd = selectedChip / exchangeRateRef.current;
+      usdBalanceRef.current = Math.max(0, usdBalanceRef.current - chipUsd);
+      setUsdBalance(usdBalanceRef.current);
+    }
+    lastBetPlacedAtRef.current = Date.now();
 
     const rotation = Math.round((Math.random() - 0.5) * 24);
     // Tốc độ bay nhanh và đầm: 260ms (thay vì 420ms lờ đờ)
@@ -2519,9 +2549,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
         if (seq > highestCompletedSeqRef.current) {
           highestCompletedSeqRef.current = seq;
-          // Chỉ cập nhật số dư từ server khi không còn cược nào khác đang chờ kết quả
-          if (inFlightBetsRef.current <= 1 && res?.balanceAfter) {
-            applyUsdBalance(parseFloat(res.balanceAfter));
+          if (res?.balanceAfter) {
+            latestServerBalanceAfterRef.current = parseFloat(res.balanceAfter);
           }
         }
       } catch (err) {
@@ -2538,8 +2567,15 @@ export const XocDiaLandscapeGame: React.FC = () => {
           betsRef.current = next;
           return next;
         });
-        // Hoàn lại tiền cược vào số dư hiển thị
-        setBalance((prev) => (prev !== null ? prev + selectedChip : null));
+        // Hoàn lại tiền cược vào số dư hiển thị ngay lập tức
+        const rollbackVnd = balanceRef.current !== null ? balanceRef.current + selectedChip : null;
+        balanceRef.current = rollbackVnd;
+        setBalance(rollbackVnd);
+        if (usdBalanceRef.current !== null && exchangeRateRef.current > 0) {
+          usdBalanceRef.current += selectedChip / exchangeRateRef.current;
+          setUsdBalance(usdBalanceRef.current);
+        }
+        latestServerBalanceAfterRef.current = null;
 
         if (err instanceof ApiError) {
           if (err.code === "ROUND_BETTING_CLOSED" || err.code === "ROUND_NOT_FOUND") {
@@ -2555,12 +2591,37 @@ export const XocDiaLandscapeGame: React.FC = () => {
         playSound("tick");
       } finally {
         inFlightBetsRef.current = Math.max(0, inFlightBetsRef.current - 1);
-        // Khi tất cả cược đang bay ngầm đã hoàn tất, đồng bộ ví chính xác từ server
+        // Khi TẤT CẢ cược đang bay ngầm đã hoàn tất:
         if (inFlightBetsRef.current === 0) {
-          try {
-            const w = await walletMe();
-            if (w?.balance) applyUsdBalance(parseFloat(w.balance));
-          } catch {}
+          const finalBalanceAfter = latestServerBalanceAfterRef.current;
+          latestServerBalanceAfterRef.current = null;
+          if (finalBalanceAfter !== null && Number.isFinite(finalBalanceAfter)) {
+            // Áp số dư thật từ server của cược seq cao nhất mà không bị giật lag
+            const rate = exchangeRateRef.current;
+            const vndVal = rate > 0 ? Math.round(finalBalanceAfter * rate) : null;
+            usdBalanceRef.current = finalBalanceAfter;
+            balanceRef.current = vndVal;
+            setUsdBalance(finalBalanceAfter);
+            setBalance(vndVal);
+            lastBalanceAtRef.current = serverNowMs();
+          } else {
+            // Fallback nếu có cược lỗi hoặc không có balanceAfter
+            try {
+              const w = await walletMe();
+              if (inFlightBetsRef.current === 0 && w?.balance) {
+                const fetchedUsd = parseFloat(w.balance);
+                if (Number.isFinite(fetchedUsd)) {
+                  const rate = exchangeRateRef.current;
+                  const vndVal = rate > 0 ? Math.round(fetchedUsd * rate) : null;
+                  usdBalanceRef.current = fetchedUsd;
+                  balanceRef.current = vndVal;
+                  setUsdBalance(fetchedUsd);
+                  setBalance(vndVal);
+                  lastBalanceAtRef.current = serverNowMs();
+                }
+              }
+            } catch {}
+          }
         }
       }
     })();
