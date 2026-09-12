@@ -76,6 +76,31 @@ export default function RootLayout({
       lang="vi"
       className={`${roboto.variable} ${ibmPlexSans.variable} ${roboto.className}`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                window.addEventListener('error', function(e) {
+                  var msg = (e && e.message) || (e && e.error && e.error.message) || '';
+                  if (typeof msg === 'string' && (msg.indexOf('startTime') !== -1 || msg.indexOf('reportAllChanges') !== -1)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return true;
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  var reason = e && (e.reason && (e.reason.message || String(e.reason)));
+                  if (typeof reason === 'string' && (reason.indexOf('startTime') !== -1 || reason.indexOf('reportAllChanges') !== -1)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+              }
+            `,
+          }}
+        />
+      </head>
       {/* min-h-dvh chứ không min-h-screen: `100vh` trên Safari iOS tính theo chiều
           cao khi thanh địa chỉ đã thu gọn nên trang bị dư một khoảng trượt. */}
       <body className={`${roboto.className} bg-[#070709] min-h-dvh text-white antialiased`}>

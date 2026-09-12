@@ -1720,6 +1720,78 @@ export const XocDiaLandscapeGame: React.FC = () => {
     return { x: 151, y: 406 };
   };
 
+  /**
+   * Hiệu ứng luồng coin vàng bay dồn dập từ cửa thắng / giữa bàn về avatar Tôi (VIP)
+   * Kèm hiệu ứng phát sáng avatar và nổ số tiền thưởng.
+   */
+  const triggerUserWinCoinStream = (amount: number = 0, winZone?: keyof BetState) => {
+    setWinningPlayerIds((prev) => (prev.includes("user") ? prev : [...prev, "user"]));
+    const userTarget = getPlayerCoords("user");
+
+    const origin =
+      winZone === "XOC_DIA_EVEN"
+        ? { x: 305, y: 165 }
+        : winZone === "XOC_DIA_ODD"
+        ? { x: 715, y: 165 }
+        : winZone === "XOC_DIA_FOUR_RED"
+        ? { x: 285, y: 312 }
+        : winZone === "XOC_DIA_FOUR_WHITE"
+        ? { x: 412, y: 312 }
+        : winZone === "XOC_DIA_THREE_WHITE"
+        ? { x: 612, y: 312 }
+        : winZone === "XOC_DIA_THREE_RED"
+        ? { x: 740, y: 312 }
+        : { x: 512, y: 220 };
+
+    const houseOrigin = { x: 512, y: 220 };
+    const streamCount = 16;
+    const newReturns: ReturnChip[] = [];
+    const baseAnimId = Date.now() + Math.floor(Math.random() * 10000);
+
+    for (let s = 0; s < streamCount; s++) {
+      const useHouse = s % 3 === 2;
+      const base = useHouse ? houseOrigin : origin;
+      newReturns.push({
+        id: baseAnimId + s,
+        playerId: "user",
+        fromX: base.x + (Math.random() - 0.5) * 55,
+        fromY: base.y + (Math.random() - 0.5) * 36,
+        toX: userTarget.x,
+        toY: userTarget.y,
+        img: CHIP_LIST[Math.min(s % CHIP_LIST.length, CHIP_LIST.length - 1)].img,
+        delayMs: 60 + s * 50,
+        size: 44,
+        hero: true,
+        durationMs: 950,
+      });
+    }
+
+    setReturnChips((prev) => [...prev, ...newReturns]);
+
+    // Burst tiền nổ ngay khi đợt coin cuối bay chạm avatar
+    if (amount > 0) {
+      const heroDelay = 60 + (streamCount - 1) * 50 + 950;
+      setTimeout(() => {
+        const bid = Date.now() + Math.random();
+        setPayoutBursts((prev) => [
+          ...prev.slice(-4),
+          { id: bid, x: userTarget.x, y: userTarget.y, amount: Math.round(amount) },
+        ]);
+        playSound("win");
+        setTimeout(() => {
+          setPayoutBursts((prev) => prev.filter((b) => b.id !== bid));
+        }, 1400);
+      }, Math.max(800, heroDelay - 300));
+    }
+
+    // Tự động dọn coin sau khi bay xong
+    const totalFlightTime = 60 + (streamCount - 1) * 50 + 950 + 300;
+    setTimeout(() => {
+      const returnIds = new Set(newReturns.map((r) => r.id));
+      setReturnChips((prev) => prev.filter((rc) => !returnIds.has(rc.id)));
+    }, totalFlightTime);
+  };
+
   // Winning payout animation: coins fly from winning door into winning players!
   const triggerPayoutAnimations = (redCount: number, isEven: boolean, totalWin: number = 0) => {
     const isWinningZone = (zone: keyof BetState) => {
@@ -1776,76 +1848,19 @@ export const XocDiaLandscapeGame: React.FC = () => {
     });
 
     // 2. If user bet on a winning door and won, make sure coins stream into Tôi (VIP)
-    const userBetWon = (Object.keys(currentBets) as Array<keyof BetState>).some(
-      (z) => currentBets[z] > 0 && isWinningZone(z)
-    );
+    const userBetWon =
+      (Object.keys(currentBets) as Array<keyof BetState>).some(
+        (z) => currentBets[z] > 0 && isWinningZone(z)
+      ) || currentChips.some((tc) => tc.playerId === "user" && isWinningZone(tc.zone));
 
     if (totalWin > 0 || userBetWon) {
       if (!winners.includes("user")) winners.push("user");
-      const userTarget = getPlayerCoords("user");
-      const winZone = (Object.keys(currentBets) as Array<keyof BetState>).find(
-        (z) => isWinningZone(z) && currentBets[z] > 0
-      );
-      const origin =
-        winZone === "XOC_DIA_EVEN"
-          ? { x: 305, y: 165 }
-          : winZone === "XOC_DIA_ODD"
-          ? { x: 715, y: 165 }
-          : winZone === "XOC_DIA_FOUR_RED"
-          ? { x: 285, y: 312 }
-          : winZone === "XOC_DIA_FOUR_WHITE"
-          ? { x: 412, y: 312 }
-          : winZone === "XOC_DIA_THREE_WHITE"
-          ? { x: 612, y: 312 }
-          : winZone === "XOC_DIA_THREE_RED"
-          ? { x: 740, y: 312 }
-          : { x: 512, y: 220 };
+      const winZone =
+        (Object.keys(currentBets) as Array<keyof BetState>).find(
+          (z) => isWinningZone(z) && currentBets[z] > 0
+        ) || currentChips.find((tc) => tc.playerId === "user" && isWinningZone(tc.zone))?.zone;
 
-      const streamCount = 14;
-      const houseOrigin = { x: 512, y: 220 };
-      for (let s = 0; s < streamCount; s++) {
-        // Xen ke: chip tu cua thang + chip tu giua song -> nhin ro tien tu song bay vao user
-        const useHouse = s % 3 === 2;
-        const base = useHouse ? houseOrigin : origin;
-        returns.push({
-          id: animId++,
-          playerId: "user",
-          fromX: base.x + (Math.random() - 0.5) * 55,
-          fromY: base.y + (Math.random() - 0.5) * 36,
-          toX: userTarget.x,
-          toY: userTarget.y,
-          img: CHIP_LIST[Math.min(s, CHIP_LIST.length - 1)].img,
-          delayMs: 80 + s * 55,
-          size: 44,
-          hero: true,
-          durationMs: 900,
-        });
-      }
-      // Bubble +tien bay cung dot chip cuoi + burst khi cham avatar (dong bo cong tien 1450ms)
-      //
-      // Chỉ nổ bong bóng khi ĐÃ có số tiền thật: gọi từ bước mở bát (chưa chốt sổ) thì
-      // `totalWin` bằng 0 và bong bóng "+0 VNĐ" vừa vô nghĩa vừa làm người chơi tưởng
-      // không được trả thưởng. Số tiền thật nổ ở `applySettlement`.
-      //
-      // Phải là `if` bọc lấy bong bóng, KHÔNG được `return` sớm. `return` ở đây thoát khỏi
-      // cả hàm, bỏ luôn đoạn dọn bàn bên dưới (`setReturnChips` / `setTableChips([])` /
-      // `setWinningPlayerIds`). Mà điều kiện vào khối này là `userBetWon`, nên nó rơi ĐÚNG
-      // ván người chơi thắng: màn chip thắng bay vào người chơi không bao giờ phát và chip
-      // trên bàn không được xoá — hỏng ở chính ván người chơi quan tâm nhất.
-      if (Math.round(totalWin) > 0) {
-        const heroDelay = 80 + (streamCount - 1) * 55 + 900;
-        setTimeout(() => {
-          const bid = Date.now() + Math.random();
-          setPayoutBursts((prev) => [
-            ...prev.slice(-4),
-            { id: bid, x: userTarget.x, y: userTarget.y, amount: Math.round(totalWin) },
-          ]);
-          playSound("win");
-          setTimeout(() => {
-            setPayoutBursts((prev) => prev.filter((b) => b.id !== bid));
-          }, 1400);
-        }, Math.max(900, heroDelay - 350));
-      }
+      triggerUserWinCoinStream(totalWin, winZone);
     }
 
     // 3. Losing chips: Dealer sweeps towards center throne at (512, 175)
@@ -1865,8 +1880,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
     // Clear table resting chips and trigger flight
     setTableChips([]);
     tableChipsRef.current = [];
-    setReturnChips(returns);
-    setWinningPlayerIds(winners);
+    setReturnChips((prev) => [...prev, ...returns]);
+    setWinningPlayerIds((prev) => Array.from(new Set([...prev, ...winners])));
   };
 
   // =====================================================================
@@ -1923,10 +1938,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
     betsRef.current = resetBets;
     setTableChips([]);
     tableChipsRef.current = [];
-    setReturnChips([]);
-    setPayoutBursts([]);
-    setWinningPlayerIds([]);
-    setLastWinAmount(null);
+    // Trì hoãn dọn returnChips & winningPlayerIds 1500ms để hiệu ứng coin bay và chúc mừng kịp hoàn tất
+    setTimeout(() => {
+      setReturnChips([]);
+      setPayoutBursts([]);
+      setWinningPlayerIds([]);
+      setLastWinAmount(null);
+    }, 1500);
 
     playSound("bell");
 
@@ -2066,6 +2084,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
       setLastWinAmount(netVnd);
       playSound("win");
       burstUserWin(netVnd);
+
+      // Phát luồng coin bay dồn dập về avatar Tôi (VIP) khi có kết quả thắng thật từ server
+      const winningBet = settledBets.find(
+        (b) => Number(b.payout || 0) - Number(b.stake || 0) > 0
+      );
+      const winZone = winningBet?.betType as keyof BetState | undefined;
+      triggerUserWinCoinStream(netVnd, winZone);
+
       showToast(`🎉 THẮNG CƯỢC: +${netVnd.toLocaleString()} VNĐ!`);
       // Dealer chúc mừng bằng SỐ THẬT vừa nhận, không phải con số nhân tay từ odds cứng.
       speakDealer(
@@ -3376,23 +3402,27 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
               @keyframes returnCoinArcHero {
                 0% {
-                  transform: translate3d(-50%, -50%, 0) scale(0.7) rotate(0deg);
-                  opacity: 0.9;
+                  transform: translate3d(-50%, -50%, 0) scale(0.6) rotate(0deg);
+                  opacity: 0;
                 }
-                25% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.25), calc(-50% + var(--rdy) * 0.25 - 70px), 0) scale(1.45) rotate(140deg);
+                10% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.1), calc(-50% + var(--rdy) * 0.1 - 25px), 0) scale(1.3) rotate(60deg);
                   opacity: 1;
                 }
-                60% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.65), calc(-50% + var(--rdy) * 0.65 - 34px), 0) scale(1.25) rotate(300deg);
+                30% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.35), calc(-50% + var(--rdy) * 0.35 - 75px), 0) scale(1.5) rotate(180deg);
                   opacity: 1;
                 }
-                85% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.92), calc(-50% + var(--rdy) * 0.92 - 8px), 0) scale(0.9) rotate(420deg);
+                70% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.75), calc(-50% + var(--rdy) * 0.75 - 30px), 0) scale(1.2) rotate(360deg);
+                  opacity: 1;
+                }
+                92% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.95), calc(-50% + var(--rdy) * 0.95 - 5px), 0) scale(0.9) rotate(480deg);
                   opacity: 1;
                 }
                 100% {
-                  transform: translate3d(calc(-50% + var(--rdx)), calc(-50% + var(--rdy)), 0) scale(0.4) rotate(520deg);
+                  transform: translate3d(calc(-50% + var(--rdx)), calc(-50% + var(--rdy)), 0) scale(0.4) rotate(540deg);
                   opacity: 0;
                 }
               }
@@ -3411,19 +3441,19 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
               @keyframes returnCoinArc {
                 0% {
-                  transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg);
+                  transform: translate3d(-50%, -50%, 0) scale(0.8) rotate(0deg);
+                  opacity: 0;
+                }
+                15% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.15), calc(-50% + var(--rdy) * 0.15 - 30px), 0) scale(1.2) rotate(80deg);
                   opacity: 1;
                 }
-                25% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.25), calc(-50% + var(--rdy) * 0.25 - 45px), 0) scale(1.28) rotate(130deg);
-                  opacity: 1;
-                }
-                65% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.7), calc(-50% + var(--rdy) * 0.7 - 22px), 0) scale(1.1) rotate(290deg);
+                60% {
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.65), calc(-50% + var(--rdy) * 0.65 - 20px), 0) scale(1.1) rotate(260deg);
                   opacity: 1;
                 }
                 90% {
-                  transform: translate3d(calc(-50% + var(--rdx) * 0.95), calc(-50% + var(--rdy) * 0.95 - 4px), 0) scale(0.85) rotate(390deg);
+                  transform: translate3d(calc(-50% + var(--rdx) * 0.92), calc(-50% + var(--rdy) * 0.92 - 4px), 0) scale(0.85) rotate(380deg);
                   opacity: 0.95;
                 }
                 100% {
@@ -3512,9 +3542,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
                   height: chipSize,
                   left: rc.fromX,
                   top: rc.fromY,
+                  opacity: 0,
                   ['--rdx' as any]: `${rc.toX - rc.fromX}px`,
                   ['--rdy' as any]: `${rc.toY - rc.fromY}px`,
-                  animation: `${isHero ? "returnCoinArcHero" : "returnCoinArc"} ${duration}s cubic-bezier(0.22, 1, 0.36, 1) ${rc.delayMs}ms forwards`,
+                  animation: `${isHero ? "returnCoinArcHero" : "returnCoinArc"} ${duration}s cubic-bezier(0.22, 1, 0.36, 1) ${rc.delayMs}ms both`,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
