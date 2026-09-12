@@ -401,7 +401,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const [usdBalance, setUsdBalance] = useState<number | null>(null); // số dư USD thật trong ví
   const [exchangeRate, setExchangeRate] = useState<number>(25000); // Dynamic exchange rate USD -> VND
   const [exchangeRateFormatted, setExchangeRateFormatted] = useState<string>("1 USD = 25,000 VND");
-  const [selectedChip, setSelectedChip] = useState<number>(10000); // 10K default
+  const [selectedChip, setSelectedChip] = useState<number | null>(null); // Bắt buộc người chơi chọn phỉnh trước khi cược
+  const [highlightChipBar, setHighlightChipBar] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showRules, setShowRules] = useState(false);
   const [showTopWins, setShowTopWins] = useState(false);
@@ -537,11 +538,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
   // If selected chip becomes unaffordable due to placing bets, auto-downgrade to highest affordable chip
   useEffect(() => {
+    if (!selectedChip) return;
     // Số dư chưa đọc được thì KHÔNG hạ chip: `null` là "chưa biết", không phải "hết tiền".
     if (balance !== null && balance < selectedChip) {
       const affordable = CHIP_LIST.filter((c) => c.val <= balance);
       if (affordable.length > 0) {
         setSelectedChip(affordable[affordable.length - 1].val);
+      } else {
+        setSelectedChip(null);
       }
     }
   }, [balance, selectedChip]);
@@ -2336,6 +2340,16 @@ export const XocDiaLandscapeGame: React.FC = () => {
       return;
     }
 
+    // BẮT BUỘC NGƯỜI CHƠI PHẢI CHỌN MỆNH GIÁ PHỈNH Ở THANH BÊN DƯỚI
+    if (!selectedChip) {
+      showToast("Vui lòng chọn loại phỉnh cược ở thanh phía dưới trước khi đặt! 🪙");
+      playSound("tick");
+      speakDealer("Anh ơi, chọn mệnh giá phỉnh ở thanh bên dưới trước rồi hãy cược nha! 😉🪙", 3000);
+      setHighlightChipBar(true);
+      setTimeout(() => setHighlightChipBar(false), 1400);
+      return;
+    }
+
     // Debounce chặn double-fire tap trên mobile giữa pointerup và click trong 100ms
     const now = Date.now();
     if (now - lastBetTapTimeRef.current < 90) return;
@@ -3204,13 +3218,27 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* LAYER 7: CHIP SELECTOR TRAY (BOTTOM CENTER - SCROLLABLE & DRAGGABLE) */}
         {/* ========================================================= */}
         <div
-          className="absolute left-[265px] bottom-[6px] w-[440px] h-[76px] rounded-full flex items-center px-2 z-30 select-none shadow-2xl"
+          className={`absolute left-[265px] bottom-[6px] w-[440px] h-[76px] rounded-full flex items-center px-2 z-30 select-none shadow-2xl transition-all duration-300 ${
+            highlightChipBar
+              ? "ring-4 ring-yellow-300 scale-105 animate-pulse"
+              : ""
+          }`}
           style={{
-            background: "linear-gradient(180deg, #2b1307 0%, #150803 100%)",
-            border: "2.5px solid #a16207",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.95), inset 0 2px 4px rgba(255,215,0,0.4)",
+            background: highlightChipBar
+              ? "linear-gradient(180deg, #422006 0%, #1c0a00 100%)"
+              : "linear-gradient(180deg, #2b1307 0%, #150803 100%)",
+            border: highlightChipBar ? "2.5px solid #fde047" : "2.5px solid #a16207",
+            boxShadow: highlightChipBar
+              ? "0 0 35px #fde047, inset 0 2px 8px rgba(255,255,255,0.7)"
+              : "0 8px 30px rgba(0,0,0,0.95), inset 0 2px 4px rgba(255,215,0,0.4)",
           }}
         >
+          {/* Nhắc nhở chọn phỉnh nếu chưa chọn */}
+          {!selectedChip && (
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[10px] font-black shadow-lg border border-white pointer-events-none animate-bounce whitespace-nowrap z-40">
+              Chọn phỉnh cược 👇
+            </div>
+          )}
           {/* Scroll Left Button */}
           <button
             onClick={() => scrollChips("left")}
