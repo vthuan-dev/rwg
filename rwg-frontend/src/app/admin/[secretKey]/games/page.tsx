@@ -22,6 +22,7 @@ import { RouletteSimulator } from "@/components/admin/RouletteSimulator";
 import { LotterySimulator } from "@/components/admin/LotterySimulator";
 import { XocDiaBotConfigCard } from "@/components/admin/XocDiaBotConfigCard";
 import { XocDiaJackpotConfigCard } from "@/components/admin/XocDiaJackpotConfigCard";
+import { XocDiaLiveControlCard } from "@/components/admin/XocDiaLiveControlCard";
 
 /**
  * Bàn chơi — khớp GameTableResponse của backend.
@@ -205,6 +206,9 @@ export default function AdminGamesPage() {
             />
           </button>
         </div>
+
+        {/* Soi Cược Trực Tiếp & Can Thiệp Kết Quả Xóc Đĩa VIP */}
+        <XocDiaLiveControlCard />
 
         {/* Cấu Hình Bot Xóc Đĩa VIP (Admin CMS) */}
         <XocDiaBotConfigCard />

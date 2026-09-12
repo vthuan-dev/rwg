@@ -52,6 +52,8 @@ public class AppSetting {
     public static final String XOC_DIA_JACKPOT_WIN_VALUE = "xocdia.jackpot.win_value";
     public static final String XOC_DIA_JACKPOT_REQUIRE_BET = "xocdia.jackpot.require_bet";
     public static final String XOC_DIA_JACKPOT_FEE_RATE = "xocdia.jackpot.fee_rate";
+    public static final String XOC_DIA_FORCE_RESULT = "xocdia.force_result";
+    public static final String XOC_DIA_FORCE_MODE = "xocdia.force_mode";
 
     @Id
     @Column(name = "setting_key", length = 64, nullable = false, updatable = false)

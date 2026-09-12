@@ -230,10 +230,41 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
                 requireTransition(round, RoundPhase.SETTLE);
                 awaitKl28Settlement(round, result);
             } else if ("XOC_DIA".equals(table.getGameType())) {
-                XocDiaEngine.RoundResult result = XocDiaEngine.playRound(secureRandom);
-                XocDiaJackpotService.JackpotDecision jp = decideJackpot();
-                if (jp.hit()) {
-                    result = forcedXocDiaResult(jp.redCount());
+                XocDiaEngine.RoundResult result = null;
+                String forceResult = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_FORCE_RESULT, "AUTO");
+                String forceMode = readSetting(com.rwg.settings.domain.AppSetting.XOC_DIA_FORCE_MODE, "ONCE");
+
+                if (forceResult != null && !"AUTO".equalsIgnoreCase(forceResult.trim())) {
+                    int redCount = switch (forceResult.trim().toUpperCase()) {
+                        case "FOUR_RED" -> 4;
+                        case "FOUR_WHITE" -> 0;
+                        case "THREE_RED" -> 3;
+                        case "THREE_WHITE" -> 1;
+                        case "TWO_RED", "EVEN_2_2" -> 2;
+                        case "EVEN" -> {
+                            int r = secureRandom.nextInt(10);
+                            yield r < 8 ? 2 : (r == 8 ? 4 : 0);
+                        }
+                        case "ODD" -> secureRandom.nextBoolean() ? 3 : 1;
+                        default -> -1;
+                    };
+
+                    if (redCount >= 0) {
+                        result = forcedXocDiaResult(redCount);
+                        log.info("Admin can thiep ket qua XocDia vong {}: forceResult={}, redCount={}", round.getRoundSeq(), forceResult, redCount);
+                        if ("ONCE".equalsIgnoreCase(forceMode)) {
+                            resetForceResult();
+                        }
+                    }
+                }
+
+                XocDiaJackpotService.JackpotDecision jp = XocDiaJackpotService.NO_HIT;
+                if (result == null) {
+                    result = XocDiaEngine.playRound(secureRandom);
+                    jp = decideJackpot();
+                    if (jp.hit()) {
+                        result = forcedXocDiaResult(jp.redCount());
+                    }
                 }
                 publishXocDiaResult(round, result);
                 broadcaster.broadcastXocDiaResult(round, result);
@@ -614,6 +645,18 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
             }
         } catch (Exception e) {
             log.warn("resetForceMode failed", e);
+        }
+    }
+
+    private void resetForceResult() {
+        try {
+            txWrite.execute(s -> {
+                settingRepository.findById(com.rwg.settings.domain.AppSetting.XOC_DIA_FORCE_RESULT)
+                        .ifPresent(v -> v.update("AUTO", "system"));
+                return null;
+            });
+        } catch (Exception e) {
+            log.warn("resetForceResult failed", e);
         }
     }
 
