@@ -16,7 +16,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
-import { formatMoney } from "@/lib/money";
+import { formatVND } from "@/lib/money";
 
 interface LiveBetEntry {
   username: string;
@@ -254,11 +254,11 @@ export const XocDiaLiveControlCard: React.FC = () => {
             </span>
           </div>
           <div className="text-2xl font-black text-slate-900 tabular-nums">
-            {formatMoney(chanTotal)}
+            {formatVND(chanTotal)}
           </div>
           <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-500 border-t border-red-100">
-            <span>Tứ Quý Đỏ: <b className="text-red-700">{formatMoney(tuDoTotal)}</b></span>
-            <span>Tứ Quý Trắng: <b className="text-slate-700">{formatMoney(tuTrangTotal)}</b></span>
+            <span>Tứ Quý Đỏ: <b className="text-red-700">{formatVND(tuDoTotal)}</b></span>
+            <span>Tứ Quý Trắng: <b className="text-slate-700">{formatVND(tuTrangTotal)}</b></span>
           </div>
         </div>
 
@@ -274,11 +274,11 @@ export const XocDiaLiveControlCard: React.FC = () => {
             </span>
           </div>
           <div className="text-2xl font-black text-slate-900 tabular-nums">
-            {formatMoney(leTotal)}
+            {formatVND(leTotal)}
           </div>
           <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-500 border-t border-blue-100">
-            <span>3 Đỏ 1 Trắng: <b className="text-red-700">{formatMoney(baDoTotal)}</b></span>
-            <span>3 Trắng 1 Đỏ: <b className="text-blue-700">{formatMoney(baTrangTotal)}</b></span>
+            <span>3 Đỏ 1 Trắng: <b className="text-red-700">{formatVND(baDoTotal)}</b></span>
+            <span>3 Trắng 1 Đỏ: <b className="text-blue-700">{formatVND(baTrangTotal)}</b></span>
           </div>
         </div>
       </div>
@@ -292,12 +292,12 @@ export const XocDiaLiveControlCard: React.FC = () => {
               "Vòng này người chơi chưa đặt cược tiền lớn."
             ) : chanTotal > leTotal ? (
               <>
-                Người chơi đang dồn tiền vào <b className="text-red-400">CHẴN ({formatMoney(chanTotal)})</b>.
+                Người chơi đang dồn tiền vào <b className="text-red-400">CHẴN ({formatVND(chanTotal)})</b>.
                 Gợi ý: Cho ra <b className="text-emerald-400">LẺ</b> để nhà cái thu lợi nhuận cao nhất!
               </>
             ) : (
               <>
-                Người chơi đang dồn tiền vào <b className="text-blue-400">LẺ ({formatMoney(leTotal)})</b>.
+                Người chơi đang dồn tiền vào <b className="text-blue-400">LẺ ({formatVND(leTotal)})</b>.
                 Gợi ý: Cho ra <b className="text-emerald-400">CHẴN</b> để nhà cái thu lợi nhuận cao nhất!
               </>
             )}
@@ -490,7 +490,7 @@ export const XocDiaLiveControlCard: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-2.5 px-4 font-black text-slate-900 tabular-nums">
-                          {formatMoney(b.stake)}
+                          {formatVND(b.stake)}
                         </td>
                         <td className="py-2.5 px-4 text-right text-slate-400 text-[11px]">
                           {b.createdAt ? new Date(b.createdAt).toLocaleTimeString("vi-VN") : "vừa xong"}

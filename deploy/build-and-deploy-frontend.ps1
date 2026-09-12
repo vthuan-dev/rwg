@@ -42,8 +42,12 @@ Write-Output ""
 Write-Output "########## 2. BUILD ##########"
 Push-Location $FE
 try {
-    npm run build 2>&1 | Select-Object -Last 8 | ForEach-Object { "   $_" }
-    if ($LASTEXITCODE -ne 0) { throw "npm run build that bai" }
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    npm.cmd run build
+    $buildExit = $LASTEXITCODE
+    $ErrorActionPreference = $oldEap
+    if ($buildExit -ne 0) { throw "npm run build that bai voi ma $buildExit" }
 } finally { Pop-Location }
 
 Write-Output ""

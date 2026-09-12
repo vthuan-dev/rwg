@@ -12,7 +12,7 @@ import {
   Power,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatVND } from "@/lib/money";
 import { isSuperAdmin, hasAnyRole } from "@/lib/adminIdentity";
 import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
 import { AdminModal } from "@/components/admin/AdminModal";
@@ -291,7 +291,7 @@ export default function AdminGamesPage() {
                           {t("admin.games.min_bet")}
                         </span>
                         <span className="text-sm font-extrabold text-slate-900 tabular-nums">
-                          {formatMoney(tbl.minBet)}
+                          {tbl.currency === "VND" ? formatVND(tbl.minBet) : formatMoney(tbl.minBet)}
                         </span>
                       </div>
                       <div className="flex flex-col gap-0.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -299,7 +299,7 @@ export default function AdminGamesPage() {
                           {t("admin.games.max_bet")}
                         </span>
                         <span className="text-sm font-extrabold text-slate-900 tabular-nums">
-                          {formatMoney(tbl.maxBet)}
+                          {tbl.currency === "VND" ? formatVND(tbl.maxBet) : formatMoney(tbl.maxBet)}
                         </span>
                       </div>
                     </div>

@@ -41,6 +41,22 @@ export function formatMoney(raw: string | number | null | undefined): string {
   return `${negative ? "-" : ""}${grouped}.${shownFraction}`;
 }
 
+/**
+ * Định dạng tiền VNĐ cho game Xóc Đĩa (chuẩn hiển thị giống ingame: không số lẻ đuôi .00 vô nghĩa, có hậu tố đ).
+ * Ví dụ: 46000 -> "46,000 đ", 2000 -> "2,000 đ", 0 -> "0 đ"
+ */
+export function formatVND(raw: string | number | null | undefined): string {
+  if (raw === null || raw === undefined || raw === "") return "0 đ";
+
+  const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/,/g, ""));
+  if (isNaN(num)) return "0 đ";
+
+  if (Number.isInteger(num)) {
+    return `${num.toLocaleString("en-US")} đ`;
+  }
+  return `${num.toLocaleString("en-US", { maximumFractionDigits: 2 })} đ`;
+}
+
 export function isValidPositiveAmount(raw: string): boolean {
   const trimmed = raw.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmed)) return false;
