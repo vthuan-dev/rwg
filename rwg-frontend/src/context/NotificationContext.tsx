@@ -17,6 +17,7 @@ import {
   getPlayerToken,
   getUnreadNotificationsCount,
   getChatUnreadCount,
+  getExchangeRate,
   DbNotification,
 } from "@/lib/playerApi";
 import { WS_BASE_URL } from "@/lib/constants";
@@ -104,6 +105,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const stompClientRef = useRef<Client | null>(null);
+  const exchangeRateRef = useRef<number>(25000);
 
   const addToast = useCallback(
     (type: ToastItem["type"], title: string, message: string) => {
@@ -242,14 +244,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       client.subscribe("/user/queue/game/results", (msg) => {
         try {
           const payload = JSON.parse(msg.body);
-          const payout = Number(payload.payout || "0");
-          if (payout > 0) {
+          const payoutUsd = Number(payload.payout || "0");
+          const rate = exchangeRateRef.current > 0 ? exchangeRateRef.current : 25000;
+          const isGamePage =
+            typeof window !== "undefined" && window.location.pathname.startsWith("/games/");
+
+          if (payoutUsd > 0) {
+            const payoutVnd = Math.round(payoutUsd * rate);
             addToast(
               "win",
-              t("notification.game_win").split(":")[0],
-              t("notification.game_win", { amount: payload.payout })
+              "🎉 Thắng cược!",
+              `Chúc mừng: bạn thắng +${payoutVnd.toLocaleString()} đ!`
             );
-          } else {
+          } else if (!isGamePage) {
             addToast(
               "loss",
               t("notification.game_loss").split("!")[0] + "!",
@@ -409,6 +416,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     // Tải đếm chưa đọc lúc đầu
     void refreshUnreadCount();
     void refreshChatUnreadCount();
+    void getExchangeRate()
+      .then((r) => {
+        if (r?.rate && r.rate > 0) exchangeRateRef.current = r.rate;
+      })
+      .catch(() => {});
     // Thiết lập kết nối WS
     setupWebSocket();
 

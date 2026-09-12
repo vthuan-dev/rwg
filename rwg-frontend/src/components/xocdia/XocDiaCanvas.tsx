@@ -306,10 +306,13 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
               glowRing.scale.set(1.0 + Math.sin(t * 2.5) * 0.02);
             }
 
-            // Smooth return to center
-            closedSetContainer.x += (centerX - closedSetContainer.x) * 0.2;
-            closedSetContainer.y += (centerY - closedSetContainer.y) * 0.2;
-            closedSetContainer.rotation += (0 - closedSetContainer.rotation) * 0.2;
+            // Smooth and firm return to center - tuyệt đối không lắc
+            closedSetContainer.x += (centerX - closedSetContainer.x) * 0.35;
+            closedSetContainer.y += (centerY - closedSetContainer.y) * 0.35;
+            closedSetContainer.rotation += (0 - closedSetContainer.rotation) * 0.35;
+            if (Math.abs(closedSetContainer.x - centerX) < 0.5) closedSetContainer.x = centerX;
+            if (Math.abs(closedSetContainer.y - centerY) < 0.5) closedSetContainer.y = centerY;
+            if (Math.abs(closedSetContainer.rotation) < 0.01) closedSetContainer.rotation = 0;
 
             tableShadow.x = centerX;
             tableShadow.y = centerY + 16 * scaleRatio;

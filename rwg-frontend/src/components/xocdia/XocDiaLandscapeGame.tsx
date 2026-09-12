@@ -2066,6 +2066,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       setLastWinAmount(netVnd);
       playSound("win");
       burstUserWin(netVnd);
+      showToast(`🎉 THẮNG CƯỢC: +${netVnd.toLocaleString()} VNĐ!`);
       // Dealer chúc mừng bằng SỐ THẬT vừa nhận, không phải con số nhân tay từ odds cứng.
       speakDealer(
         `Oaaa! Chúc mừng VIP Tôi húp trọn +${Math.round(netVnd / 1000).toLocaleString()}K! Tay anh son quá, tối bao em nha~ 😉🥂`,
@@ -2101,6 +2102,11 @@ export const XocDiaLandscapeGame: React.FC = () => {
       serverRoundIdRef.current = round.roundId;
       betSeqRef.current = 0;
       revealedRoundIdRef.current = null;
+      revealedOpenUntilRef.current = 0;
+      if (scheduledCloseTimerRef.current) {
+        clearTimeout(scheduledCloseTimerRef.current);
+        scheduledCloseTimerRef.current = null;
+      }
       onServerRoundChanged();
 
       // Khôi phục số thứ tự đã dùng trong ván này. Sau khi tải lại trang, `betSeqRef` về 0
