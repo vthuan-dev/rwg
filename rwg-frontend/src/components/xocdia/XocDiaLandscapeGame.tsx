@@ -1089,6 +1089,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const xocTableIdRef = useRef<string | null>(null);
   const serverRoundIdRef = useRef<string | null>(null);
   const betSeqRef = useRef<number>(0);
+  const inFlightBetsRef = useRef<number>(0);
+  const highestCompletedSeqRef = useRef<number>(-1);
   const placingRef = useRef<boolean>(false);
   const lastBetTapTimeRef = useRef<number>(0);
 
@@ -2131,6 +2133,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
       const previousRoundId = serverRoundIdRef.current;
       serverRoundIdRef.current = round.roundId;
       betSeqRef.current = 0;
+      inFlightBetsRef.current = 0;
+      highestCompletedSeqRef.current = -1;
       revealedRoundIdRef.current = null;
       revealedOpenUntilRef.current = 0;
       if (scheduledCloseTimerRef.current) {
@@ -2475,7 +2479,11 @@ export const XocDiaLandscapeGame: React.FC = () => {
       const raw = selectedChip / rate;
       return raw.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
     })();
-    const seq = betSeqRef.current;
+
+    // TĂNG SEQ ĐỒNG BỘ NGAY TẠI THỜI ĐIỂM BẤM CƯỢC (ATOMIC SYNCHRONOUS)
+    // Đảm bảo mỗi lần bấm cược đều mang 1 seq duy nhất, không bị trùng idempotencyKey BET:{roundId}:{userId}:{seq}
+    const seq = betSeqRef.current++;
+    inFlightBetsRef.current += 1;
 
     const ensureTableAndRound = async (): Promise<string | null> => {
       let tableId = xocTableIdRef.current;
@@ -2508,8 +2516,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
         if (!tableId) throw new Error("NO_TABLE");
         const res = await apiPlaceBet(tableId, { betType: zone, selection: "", stake: stakeUsdStr, seq });
         if (res?.roundId) serverRoundIdRef.current = res.roundId;
-        betSeqRef.current = seq + 1;
-        if (res?.balanceAfter) applyUsdBalance(parseFloat(res.balanceAfter));
+
+        if (seq > highestCompletedSeqRef.current) {
+          highestCompletedSeqRef.current = seq;
+          // Chỉ cập nhật số dư từ server khi không còn cược nào khác đang chờ kết quả
+          if (inFlightBetsRef.current <= 1 && res?.balanceAfter) {
+            applyUsdBalance(parseFloat(res.balanceAfter));
+          }
+        }
       } catch (err) {
         // Server từ chối cược -> ROLLBACK phỉnh và số dư
         clearTimeout(flightTimer);
@@ -2524,12 +2538,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
           betsRef.current = next;
           return next;
         });
-
-        // Đồng bộ lại số dư ví chính xác từ server
-        try {
-          const w = await walletMe();
-          if (w?.balance) applyUsdBalance(parseFloat(w.balance));
-        } catch {}
+        // Hoàn lại tiền cược vào số dư hiển thị
+        setBalance((prev) => (prev !== null ? prev + selectedChip : null));
 
         if (err instanceof ApiError) {
           if (err.code === "ROUND_BETTING_CLOSED" || err.code === "ROUND_NOT_FOUND") {
@@ -2543,6 +2553,15 @@ export const XocDiaLandscapeGame: React.FC = () => {
           showToast("Mất kết nối! Kiểm tra mạng rồi đặt lại nhé.");
         }
         playSound("tick");
+      } finally {
+        inFlightBetsRef.current = Math.max(0, inFlightBetsRef.current - 1);
+        // Khi tất cả cược đang bay ngầm đã hoàn tất, đồng bộ ví chính xác từ server
+        if (inFlightBetsRef.current === 0) {
+          try {
+            const w = await walletMe();
+            if (w?.balance) applyUsdBalance(parseFloat(w.balance));
+          } catch {}
+        }
       }
     })();
 
