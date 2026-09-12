@@ -349,9 +349,14 @@ const formatOddsMultiplier = (raw: string | undefined): string => {
 };
 
 export const XocDiaLandscapeGame: React.FC = () => {
-  // Virtual 1024x507 stage scaling
+  // Flexible Virtual Stage scaling (100% full screen on all modern landscape phones)
   const [scale, setScale] = useState(1);
+  const [virtualWidth, setVirtualWidth] = useState(1024);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Timer để giữ mở bát hiển thị kết quả cho người chơi tối thiểu 6.5s
+  const revealedOpenUntilRef = useRef<number>(0);
+  const scheduledCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Đọc trạng thái xoay từ GameOrientationWrapper để truyền cho canvas và tính tọa độ click
   const { isRotated, rotationDeg, effectiveWidth, effectiveHeight, toggleFullscreen, isFullscreen } = useOrientation();
@@ -364,8 +369,26 @@ export const XocDiaLandscapeGame: React.FC = () => {
       // là chiều cao viewport và ngược lại.
       const gw = isRotated ? Math.max(w, h) : w;
       const gh = isRotated ? Math.min(w, h) : h;
-      const s = Math.min(gw / 1024, gh / 507);
+
+      const baseAspect = 1024 / 507;
+      const screenAspect = gh > 0 ? gw / gh : baseAspect;
+
+      let s: number;
+      let vW: number;
+
+      if (screenAspect >= baseAspect) {
+        // Màn hình điện thoại siêu rộng (iPhone 14/15 Pro Max 2.17:1, Samsung 20:9, 21:9)
+        // Scale theo chiều cao để bàn game cao khít 100% màn hình:
+        s = gh / 507;
+        // Chiều rộng ảo mở rộng để phủ khít 100% bề ngang:
+        vW = Math.max(1024, Math.round(gw / s));
+      } else {
+        // Màn hình vuông hơn (iPad 4:3, laptop 16:9):
+        s = gw / 1024;
+        vW = 1024;
+      }
       setScale(s);
+      setVirtualWidth(vW);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -1378,17 +1401,19 @@ export const XocDiaLandscapeGame: React.FC = () => {
         osc.start(now);
         osc.stop(now + 0.05);
       } else if (type === "shake") {
-        for (let i = 0; i < 5; i++) {
+        // Continuous energetic casino metallic dice/coins rattle rattle
+        for (let i = 0; i < 20; i++) {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(800 + i * 150, now + i * 0.07);
-          gain.gain.setValueAtTime(0.15, now + i * 0.07);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.05);
+          osc.type = i % 2 === 0 ? "triangle" : "sine";
+          const f = 720 + ((i * 137) % 850);
+          osc.frequency.setValueAtTime(f, now + i * 0.08);
+          gain.gain.setValueAtTime(0.20, now + i * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.06);
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.start(now + i * 0.07);
-          osc.stop(now + i * 0.07 + 0.05);
+          osc.start(now + i * 0.08);
+          osc.stop(now + i * 0.08 + 0.06);
         }
       } else if (type === "bell") {
         const osc = ctx.createOscillator();
@@ -2100,11 +2125,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
     }
     firstSyncRef.current = false;
 
-    phaseRef.current = nextPhase;
-    setPhase(nextPhase);
-    setRoundSeq(round.roundSeq);
-    if (!isFirstSync && prevPhase !== nextPhase) narratePhase(nextPhase);
-
     // Mở bát: kết quả đã được server ghi vào vòng TRƯỚC khi chuyển sang pha RESULT.
     // `parseXocDiaCoins` trả null khi dữ liệu hỏng -> giữ bát úp và thử lại ở nhịp poll
     // sau, KHÔNG tự random ra một kết quả khác.
@@ -2115,6 +2135,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       const parsed = parseXocDiaCoins(round.xocDiaCoins);
       if (parsed) {
         revealedRoundIdRef.current = round.roundId;
+        revealedOpenUntilRef.current = Date.now() + 6500;
         revealServerResult(
           round,
           parsed,
@@ -2126,9 +2147,43 @@ export const XocDiaLandscapeGame: React.FC = () => {
         const fallbackCoins: number[] = [];
         for (let i = 0; i < 4; i++) fallbackCoins.push(i < round.xocDiaRedCount ? 1 : 0);
         revealedRoundIdRef.current = round.roundId;
+        revealedOpenUntilRef.current = Date.now() + 6500;
         revealServerResult(round, fallbackCoins, round.xocDiaRedCount);
       }
     }
+
+    if (nextPhase === "BETTING_OPEN") {
+      const now = Date.now();
+      if (now < revealedOpenUntilRef.current) {
+        // Bát đang mở show kết quả cho người chơi xem (tối thiểu 6.5s)
+        // Giữ phase là RESULT cho tới khi hết 6.5s, sau đó mới tự động đậy bát sang BETTING_OPEN!
+        const remaining = revealedOpenUntilRef.current - now;
+        if (!scheduledCloseTimerRef.current) {
+          scheduledCloseTimerRef.current = setTimeout(() => {
+            scheduledCloseTimerRef.current = null;
+            phaseRef.current = "BETTING_OPEN";
+            setPhase("BETTING_OPEN");
+          }, remaining);
+        }
+      } else {
+        if (scheduledCloseTimerRef.current) {
+          clearTimeout(scheduledCloseTimerRef.current);
+          scheduledCloseTimerRef.current = null;
+        }
+        phaseRef.current = nextPhase;
+        setPhase(nextPhase);
+      }
+    } else {
+      if (scheduledCloseTimerRef.current) {
+        clearTimeout(scheduledCloseTimerRef.current);
+        scheduledCloseTimerRef.current = null;
+      }
+      phaseRef.current = nextPhase;
+      setPhase(nextPhase);
+    }
+
+    setRoundSeq(round.roundSeq);
+    if (!isFirstSync && prevPhase !== nextPhase) narratePhase(nextPhase);
   };
 
   // Ref giữ bản mới nhất của các hàm đồng bộ, để vòng poll 1 giây không phải huỷ và tạo
@@ -2217,6 +2272,9 @@ export const XocDiaLandscapeGame: React.FC = () => {
         if (parsed) {
           revealedRoundIdRef.current = detail.roundId;
           const redCount = detail.xocDiaRedCount ?? parsed.reduce((a, b) => a + b, 0);
+          revealedOpenUntilRef.current = Date.now() + 6500;
+          phaseRef.current = "RESULT";
+          setPhase("RESULT");
           // Dựng GameRound tối thiểu cho revealServerResult
           revealServerResult(
             { roundId: detail.roundId, roundSeq: 0 } as any,
@@ -2286,7 +2344,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
       }
       const rawX = clientX - rect.left;
       const rawY = clientY - rect.top;
-      const clickX = Math.round(rawX / scale);
+      const stageOffsetX = (virtualWidth - 1024) / 2;
+      const clickX = Math.round((rawX / scale) - stageOffsetX);
       const clickY = Math.round(rawY / scale);
       targetX = Math.max(bounds.minX, Math.min(bounds.maxX, clickX));
       targetY = Math.max(bounds.minY, Math.min(bounds.maxY, clickY));
@@ -2525,24 +2584,30 @@ export const XocDiaLandscapeGame: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
 
+      {/* Full-bleed casino table background layer (ensures 100% of mobile screen is covered) */}
+      <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <img
+          src="/games/xocdia/assets_hd/casino_table_master.webp"
+          alt=""
+          className="w-full h-full object-cover brightness-60 contrast-110 blur-xs scale-105"
+        />
+        <div className="absolute inset-0 bg-black/40" />
+      </div>
+
       {/* ========================================================= */}
-      {/* 1024x507 VIRTUAL STAGE (100% REBUILT WITH AI GENERATED ASSETS) */}
+      {/* VIRTUAL STAGE (100% RESPONSIVE EDGE-TO-EDGE ON MOBILE) */}
       {/* ========================================================= */}
       <div
         ref={containerRef}
-        className="relative overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]"
+        className="relative overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] z-1"
         style={{
-          width: 1024,
+          width: virtualWidth,
           height: 507,
           transform: `scale(${scale})`,
           transformOrigin: "center center",
         }}
       >
-        {/* ========================================================= */}
-        {/* LAYER 0: 3D CASINO TABLE MASTER (AI 4K GENERATED BASE) */}
-        {/* Completely clean table surface with golden Trong Dong & Dragons */}
-        {/* ========================================================= */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* Master table surface stretches to full virtualWidth */}
         <img
           src="/games/xocdia/assets_hd/casino_table_master.webp"
           alt="Casino Table"
@@ -2551,6 +2616,16 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
         {/* Ambient table center glow */}
         <div className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 w-[480px] h-[220px] rounded-full bg-amber-500/10 blur-[50px] pointer-events-none z-1" />
+
+        {/* Centered table layout container: holds the 1024x507 game elements at exact center */}
+        <div
+          className="absolute top-0 h-[507px]"
+          style={{
+            width: 1024,
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
 
         {/* ========================================================= */}
         {/* LAYER 1: DEALER ON ROYAL GOLDEN THRONE (TOP CENTER) */}
@@ -2793,6 +2868,40 @@ export const XocDiaLandscapeGame: React.FC = () => {
         {/* ========================================================= */}
         {/* LAYER 4: CENTER BÁT ĐĨA 3D (PIXI.JS WEBGL ENGINE) */}
         {/* ========================================================= */}
+        {/* 4.0 Action Indicators directly above bowl */}
+        {phase === "SPINNING" && (
+          <div className="absolute left-[404px] top-[70px] w-[215px] z-30 flex items-center justify-center pointer-events-none animate-in fade-in duration-200">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/85 border border-amber-400/90 shadow-[0_0_15px_rgba(245,158,11,0.6)] backdrop-blur-md animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+              <span className="text-[10px] font-black tracking-widest text-amber-300 uppercase font-mono">
+                🎲 ĐANG XÓC ĐĨA...
+              </span>
+            </div>
+          </div>
+        )}
+
+        {(phase === "RESULT" || phase === "SETTLE") && (
+          <div className="absolute left-[390px] top-[64px] w-[244px] z-30 flex items-center justify-center pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-red-950/95 via-black/95 to-red-950/95 border-2 border-amber-400/90 shadow-[0_0_20px_rgba(245,158,11,0.7),0_4px_12px_rgba(0,0,0,0.9)] backdrop-blur-md">
+              <div className="flex items-center gap-1">
+                {coins.map((c, i) => (
+                  <span
+                    key={`coin-dot-${i}`}
+                    className={`inline-block w-2.5 h-2.5 rounded-full border ${
+                      c === 1
+                        ? "bg-red-500 border-red-300 shadow-[0_0_6px_rgba(239,68,68,0.9)]"
+                        : "bg-white border-slate-300 shadow-[0_0_6px_rgba(255,255,255,0.9)]"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-[11px] font-black tracking-wider text-[#ffea79] uppercase drop-shadow font-mono">
+                {redCount % 2 === 0 ? "CHẴN" : "LẺ"} ({redCount} ĐỎ)
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="absolute left-[404px] top-[85px] w-[215px] h-[195px] z-25 flex flex-col items-center justify-center pointer-events-auto">
           <div className="relative w-full h-full flex items-center justify-center">
             <XocDiaCanvas
@@ -4207,6 +4316,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Close centered 1024 table layout */}
+        </div>
       </div>
     </div>
   );

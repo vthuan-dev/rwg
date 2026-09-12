@@ -66,7 +66,7 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
         containerRef.current.innerHTML = "";
         containerRef.current.appendChild(app.canvas);
 
-        // Load photorealistic 30-degree isometric assets
+        // Load photorealistic 30-degree isometric assets (ultra-fast WebP with fallback)
         let setClosedTexture: PIXI.Texture;
         let plateTexture: PIXI.Texture;
         let bowlFittedTexture: PIXI.Texture;
@@ -81,11 +81,11 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
             redCoinTexture,
             whiteCoinTexture,
           ] = await Promise.all([
-            PIXI.Assets.load("/games/xocdia/set_closed.png"),
-            PIXI.Assets.load("/games/xocdia/plate.png"),
-            PIXI.Assets.load("/games/xocdia/bowl_fitted.png"),
-            PIXI.Assets.load("/games/xocdia/coin-red.png"),
-            PIXI.Assets.load("/games/xocdia/coin-white.png"),
+            PIXI.Assets.load("/games/xocdia/set_closed.webp").catch(() => PIXI.Assets.load("/games/xocdia/set_closed.png")),
+            PIXI.Assets.load("/games/xocdia/plate.webp").catch(() => PIXI.Assets.load("/games/xocdia/plate.png")),
+            PIXI.Assets.load("/games/xocdia/bowl_fitted.webp").catch(() => PIXI.Assets.load("/games/xocdia/bowl_fitted.png")),
+            PIXI.Assets.load("/games/xocdia/coin-red.webp").catch(() => PIXI.Assets.load("/games/xocdia/coin-red.png")),
+            PIXI.Assets.load("/games/xocdia/coin-white.webp").catch(() => PIXI.Assets.load("/games/xocdia/coin-white.png")),
           ]);
         } catch (e) {
           console.error("Failed to load Xoc Dia textures, fallback to defaults", e);
@@ -107,7 +107,7 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
 
         // 2. Glow Aura Ring (visible while shaking or waiting)
         const glowRing = new PIXI.Graphics();
-        glowRing.ellipse(0, 0, 114 * scaleRatio, 80 * scaleRatio);
+        glowRing.ellipse(0, 0, 118 * scaleRatio, 82 * scaleRatio);
         glowRing.stroke({ width: 3.5 * scaleRatio, color: 0xf59e0b, alpha: 0.45 });
         glowRing.x = centerX;
         glowRing.y = centerY;
@@ -153,27 +153,27 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
         openSetContainer.addChild(coinsContainer);
 
         // Diamond positions on the plate dish (spaced for maximum clarity)
-        const coinSpacing = 16 * scaleRatio;
+        const coinSpacing = 17 * scaleRatio;
         const coinOffsets = [
           { x: 0, y: -coinSpacing * 0.95, rot: -0.04 },
           { x: 0, y: coinSpacing * 0.95, rot: 0.05 },
-          { x: -coinSpacing * 1.25, y: 0, rot: 0.06 },
-          { x: coinSpacing * 1.25, y: 0, rot: -0.08 },
+          { x: -coinSpacing * 1.3, y: 0, rot: 0.06 },
+          { x: coinSpacing * 1.3, y: 0, rot: -0.08 },
         ];
 
         const coinSprites: PIXI.Sprite[] = [];
         coinOffsets.forEach((pos) => {
           // Sharp drop shadow for each coin
           const cShadow = new PIXI.Graphics();
-          cShadow.ellipse(pos.x, pos.y + 3 * scaleRatio, 15 * scaleRatio, 10 * scaleRatio);
-          cShadow.fill({ color: 0x000000, alpha: 0.60 });
+          cShadow.ellipse(pos.x, pos.y + 3.5 * scaleRatio, 16 * scaleRatio, 11 * scaleRatio);
+          cShadow.fill({ color: 0x000000, alpha: 0.65 });
           coinsContainer.addChild(cShadow);
 
           // Crystal clear perspective coin sprite
           const cSprite = new PIXI.Sprite(redCoinTexture);
           cSprite.anchor.set(0.5, 0.5);
-          cSprite.scale.x = (54 * scaleRatio) / 512;
-          cSprite.scale.y = (46 * scaleRatio) / 512;
+          cSprite.scale.x = (56 * scaleRatio) / 512;
+          cSprite.scale.y = (48 * scaleRatio) / 512;
           cSprite.x = pos.x;
           cSprite.y = pos.y;
           cSprite.rotation = pos.rot;
@@ -183,7 +183,7 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
 
         // 4.3 Bowl Shadow (projects onto plate when bowl lifts)
         const bowlShadow = new PIXI.Graphics();
-        bowlShadow.ellipse(centerX, centerY - 18 * scaleRatio, 75 * scaleRatio, 26 * scaleRatio);
+        bowlShadow.ellipse(centerX, centerY - 18 * scaleRatio, 80 * scaleRatio, 28 * scaleRatio);
         bowlShadow.fill({ color: 0x000000, alpha: 0.45 });
         openSetContainer.addChild(bowlShadow);
 
@@ -222,18 +222,13 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
           let dy = event.clientY - startY;
           let dx = event.clientX - startX;
 
-          // Khi màn hình bị xoay bằng CSS (portrait -> landscape), tọa độ chuột/touch
-          // vẫn theo hệ trục gốc của viewport. Phải hoán đổi và đảo dấu dx/dy để
-          // hướng kéo khớp với hướng mắt người chơi thấy trên màn hình đã xoay.
           if (stateRef.current.isRotated) {
             const deg = stateRef.current.rotationDeg;
             if (deg === 90) {
-              // rotate(90deg): visual-right = physical-down, visual-down = physical-left
               const tmpDx = dx;
               dx = -dy;
               dy = tmpDx;
             } else if (deg === 270) {
-              // rotate(270deg): visual-right = physical-up, visual-down = physical-right
               const tmpDx = dx;
               dx = dy;
               dy = -tmpDx;
@@ -241,8 +236,8 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
           }
 
           stateRef.current.manualOffset = {
-            x: Math.min(Math.max(dx, -60 * scaleRatio), 60 * scaleRatio),
-            y: Math.min(Math.max(dy, -110 * scaleRatio), 15 * scaleRatio),
+            x: Math.min(Math.max(dx, -70 * scaleRatio), 70 * scaleRatio),
+            y: Math.min(Math.max(dy, -130 * scaleRatio), 20 * scaleRatio),
           };
         };
 
@@ -275,24 +270,28 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
 
           // Animation logic by phase:
           if (currentPhase === "SPINNING") {
-            // LẮC BÁT: Vigorous rhythmic casino rattle shaking
+            // LẮC BÁT: Vigorous, energetic 3D casino rattle shaking
             closedSetContainer.visible = true;
             openSetContainer.visible = false;
 
             glowRing.visible = true;
-            glowRing.alpha = 0.5 + Math.sin(t * 12) * 0.3;
-            glowRing.scale.set(1 + Math.sin(t * 8) * 0.04);
+            glowRing.alpha = 0.75 + Math.sin(t * 16) * 0.25;
+            glowRing.scale.set(1.06 + Math.sin(t * 12) * 0.08);
 
-            const shakeX = (Math.sin(t * 32) * 8 + Math.cos(t * 48) * 3) * scaleRatio;
-            const shakeY = (Math.sin(t * 26) * 4) * scaleRatio;
-            const shakeRot = Math.sin(t * 28) * 0.065;
+            // Vigorous 3D shaking motions (clearly visible on mobile)
+            const shakeX = (Math.sin(t * 26) * 20 + Math.cos(t * 40) * 10) * scaleRatio;
+            const shakeY = (-15 + Math.sin(t * 30) * 12) * scaleRatio; // lifts into the air while shaking!
+            const shakeRot = Math.sin(t * 22) * 0.22; // tilts up to ~12.6 degrees!
 
             closedSetContainer.x = centerX + shakeX;
             closedSetContainer.y = centerY + shakeY;
             closedSetContainer.rotation = shakeRot;
 
-            tableShadow.x = centerX + shakeX * 0.4;
-            tableShadow.y = centerY + 16 * scaleRatio + shakeY * 0.3;
+            // Table shadow softens and contracts when bowl lifts up during shaking
+            tableShadow.x = centerX + shakeX * 0.3;
+            tableShadow.y = centerY + 16 * scaleRatio;
+            tableShadow.scale.set(0.85 + Math.sin(t * 15) * 0.06);
+            tableShadow.alpha = 0.42;
 
             stateRef.current.bowlLiftProgress = 0;
             stateRef.current.manualOffset = { x: 0, y: 0 };
@@ -303,17 +302,19 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
 
             glowRing.visible = currentPhase === "BETTING_OPEN";
             if (glowRing.visible) {
-              glowRing.alpha = 0.28 + Math.sin(t * 3) * 0.15;
+              glowRing.alpha = 0.3 + Math.sin(t * 3) * 0.15;
               glowRing.scale.set(1.0 + Math.sin(t * 2.5) * 0.02);
             }
 
             // Smooth return to center
-            closedSetContainer.x += (centerX - closedSetContainer.x) * 0.15;
-            closedSetContainer.y += (centerY - closedSetContainer.y) * 0.15;
-            closedSetContainer.rotation += (0 - closedSetContainer.rotation) * 0.15;
+            closedSetContainer.x += (centerX - closedSetContainer.x) * 0.2;
+            closedSetContainer.y += (centerY - closedSetContainer.y) * 0.2;
+            closedSetContainer.rotation += (0 - closedSetContainer.rotation) * 0.2;
 
             tableShadow.x = centerX;
             tableShadow.y = centerY + 16 * scaleRatio;
+            tableShadow.scale.set(1);
+            tableShadow.alpha = 0.68;
 
             stateRef.current.bowlLiftProgress = 0;
             stateRef.current.manualOffset = { x: 0, y: 0 };
@@ -327,7 +328,7 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
             if (!stateRef.current.isDragging) {
               stateRef.current.bowlLiftProgress = Math.min(
                 1,
-                stateRef.current.bowlLiftProgress + delta * 0.028
+                stateRef.current.bowlLiftProgress + delta * 0.032
               );
             }
             const p = stateRef.current.bowlLiftProgress;
@@ -335,28 +336,29 @@ export const XocDiaCanvas: React.FC<XocDiaCanvasProps> = ({
             const easeP = 1 - Math.pow(1 - p, 3);
 
             // Calculate auto lift + manual drag offset ("Nặn bát")
-            // Max lift is 52px * (width / 160) so it stays inside canvas
-            const autoLiftY = -52 * (width / 160) * easeP;
-            const autoTilt = -0.14 * easeP;
+            // Lift high enough to completely expose the plate and 4 coins
+            const autoLiftY = -85 * scaleRatio * easeP;
+            const autoLiftX = 18 * scaleRatio * easeP; // moves slightly to the top-right
+            const autoTilt = -0.26 * easeP; // tilts back -15 degrees to reveal under rim
 
-            const targetX = centerX + stateRef.current.manualOffset.x;
+            const targetX = centerX + autoLiftX + stateRef.current.manualOffset.x;
             const targetY = closedBowlY + autoLiftY + stateRef.current.manualOffset.y;
             const targetRot = autoTilt;
 
-            bowlContainer.x += (targetX - bowlContainer.x) * 0.18;
-            bowlContainer.y += (targetY - bowlContainer.y) * 0.18;
-            bowlContainer.rotation += (targetRot - bowlContainer.rotation) * 0.18;
+            bowlContainer.x += (targetX - bowlContainer.x) * 0.22;
+            bowlContainer.y += (targetY - bowlContainer.y) * 0.22;
+            bowlContainer.rotation += (targetRot - bowlContainer.rotation) * 0.22;
 
             // As bowl lifts higher, its shadow on the plate softens and expands
             const liftDistance = closedBowlY - bowlContainer.y;
             bowlShadow.alpha = Math.max(0.04, 0.45 - (liftDistance / 100) * 0.4);
-            bowlShadow.scale.set(1 + (liftDistance / 90) * 0.25);
+            bowlShadow.scale.set(1 + (liftDistance / 80) * 0.25);
 
-            // Subtle pulsing shine on winning coins
+            // Subtle pulsing shine on coins on the plate
             coinSprites.forEach((cSprite, idx) => {
-              const baseScaleX = (54 * scaleRatio) / 512;
-              const baseScaleY = (46 * scaleRatio) / 512;
-              const pulse = 1 + Math.sin(t * 5 + idx) * 0.04;
+              const baseScaleX = (56 * scaleRatio) / 512;
+              const baseScaleY = (48 * scaleRatio) / 512;
+              const pulse = 1 + Math.sin(t * 6 + idx * 1.5) * 0.05;
               cSprite.scale.x = baseScaleX * pulse;
               cSprite.scale.y = baseScaleY * pulse;
             });

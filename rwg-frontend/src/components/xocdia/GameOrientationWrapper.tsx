@@ -113,7 +113,7 @@ export const GameOrientationWrapper: React.FC<{ children: React.ReactNode }> = (
         isFullscreen,
       }}
     >
-      <div className="game-orientation-container relative w-full h-full overflow-hidden bg-[#050302]">
+      <div className="game-orientation-container fixed inset-0 w-full h-full overflow-hidden bg-[#050302]">
         {/* Nếu đang cầm điện thoại dọc: Hiển thị màn hình nhắc xoay ngang sang trọng chuẩn sảnh VIP */}
         {isPortrait && isMobile ? (
           <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#070403] text-white select-none px-6 text-center">

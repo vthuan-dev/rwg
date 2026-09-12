@@ -41,6 +41,11 @@ export default function XocDiaPage() {
       "/games/xocdia/assets_hd/avatar_2.webp",
       "/games/xocdia/assets_hd/avatar_3.webp",
       "/games/xocdia/assets_hd/avatar_4.webp",
+      "/games/xocdia/set_closed.webp",
+      "/games/xocdia/plate.webp",
+      "/games/xocdia/bowl_fitted.webp",
+      "/games/xocdia/coin-red.webp",
+      "/games/xocdia/coin-white.webp",
     ];
 
     let loadedCount = 0;
