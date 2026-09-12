@@ -29,6 +29,9 @@ public interface BetRepository extends JpaRepository<Bet, BetId> {
 
     List<Bet> findByRoundId(UUID roundId);
 
+    /** Cược trên một bàn sau một thời điểm — phục vụ dropdown chọn người nhận hũ. */
+    List<Bet> findByTableIdAndCreatedAtAfter(UUID tableId, Instant after);
+
     List<Bet> findByRoundIdAndStatus(UUID roundId, BetStatus status);
 
     List<Bet> findByUserIdAndRoundId(UUID userId, UUID roundId);

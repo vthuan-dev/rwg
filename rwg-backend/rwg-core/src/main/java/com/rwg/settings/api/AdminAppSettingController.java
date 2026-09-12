@@ -323,11 +323,7 @@ public class AdminAppSettingController {
 
         // 3b. Fallback theo thời gian: ai cược trong 10 phút gần đây trên bàn này
         Instant tenMinutesAgo = Instant.now().minusSeconds(600);
-        List<Bet> recentTimeBets = betRepository.findAll().stream()
-                .filter(b -> b.getTableId().equals(tableId)
-                        && b.getCreatedAt() != null
-                        && b.getCreatedAt().isAfter(tenMinutesAgo))
-                .toList();
+        List<Bet> recentTimeBets = betRepository.findByTableIdAndCreatedAtAfter(tableId, tenMinutesAgo);
         for (Bet b : recentTimeBets) {
             recentBettors.add(b.getUserId());
         }
@@ -350,7 +346,7 @@ public class AdminAppSettingController {
             Optional<User> userOpt = userRepository.findById(uid);
             if (userOpt.isEmpty()) continue;
             User u = userOpt.get();
-            if (u.getStatus() == UserStatus.BLOCKED || u.getStatus() == UserStatus.CLOSED) continue;
+            if (u.getStatus() == UserStatus.BANNED || u.getStatus() == UserStatus.CLOSED) continue;
 
             Instant lastSeen = seenMap.get(uid);
             boolean online = presenceQueryService.isOnline(lastSeen);
