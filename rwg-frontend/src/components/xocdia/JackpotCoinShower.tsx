@@ -137,7 +137,7 @@ export const JackpotCoinShower: React.FC<JackpotCoinShowerProps> = ({
       ))}
       <div className="absolute top-[16%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
         <div className="px-5 py-1.5 rounded-full bg-black/70 border border-amber-300/80 text-amber-200 text-[12px] font-black tracking-[0.18em] uppercase shadow-[0_0_25px_rgba(245,158,11,0.7)]">
-          {winnerName} no hu +{amount.toLocaleString()} d
+          {winnerName} nổ hũ +{amount.toLocaleString()} đ
         </div>
       </div>
     </div>

@@ -4385,7 +4385,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Crown className="w-5 h-5 text-amber-300 animate-bounce" />
                 <span className="text-[13px] font-black tracking-[0.2em] text-amber-300 uppercase">
-                  Jackpot No Hu
+                  Jackpot Nổ Hũ
                 </span>
                 <Crown className="w-5 h-5 text-amber-300 animate-bounce" />
               </div>
@@ -4395,13 +4395,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 ))}
               </div>
               <div className="text-[11px] font-bold text-rose-200 tracking-wider uppercase">
-                Tu Quy {jackpotWin.door}
+                Tứ Quý {jackpotWin.door}
               </div>
               <div className="text-[13px] font-black text-amber-200 tracking-wide">
                 {jackpotWin.winnerName}
                 {jackpotWin.isMine && (
                   <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] uppercase">
-                    Ban trung hu
+                    Bạn trúng hũ
                   </span>
                 )}
               </div>
@@ -4409,13 +4409,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 +{jackpotWin.amount.toLocaleString()} đ
               </div>
               <div className="text-[10px] text-amber-200/70">
-                {jackpotWin.isMine ? "Tien da ve vi cua ban" : "Tien ve vi nguoi trung — ca ban cung thay"}
+                {jackpotWin.isMine ? "Tiền đã về ví của bạn" : "Tiền về ví người trúng — cả bàn cùng thấy"}
               </div>
               <button
                 onClick={() => setJackpotWin(null)}
                 className="pointer-events-auto mt-1 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-black text-[11px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all cursor-pointer"
               >
-                {jackpotWin.isMine ? "Nhan thuong" : "Dong"}
+                {jackpotWin.isMine ? "Nhận thưởng" : "Đóng"}
               </button>
             </div>
           </div>
