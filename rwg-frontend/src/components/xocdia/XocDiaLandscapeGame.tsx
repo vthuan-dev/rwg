@@ -349,9 +349,13 @@ const formatOddsMultiplier = (raw: string | undefined): string => {
 };
 
 export const XocDiaLandscapeGame: React.FC = () => {
-  // Flexible Virtual Stage scaling (100% full screen on all modern landscape phones)
-  const [scale, setScale] = useState(1);
-  const [virtualWidth, setVirtualWidth] = useState(1024);
+  // Stage scaling: scale 1024x507 stage to fit 100% inside any screen without any clipping
+  const [scale, setScale] = useState<number>(() => {
+    if (typeof window !== "undefined" && window.innerWidth > 0 && window.innerHeight > 0) {
+      return Math.min(window.innerWidth / 1024, window.innerHeight / 507);
+    }
+    return 1;
+  });
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Timer để giữ mở bát hiển thị kết quả cho người chơi tối thiểu 6.5s
@@ -365,37 +369,26 @@ export const XocDiaLandscapeGame: React.FC = () => {
     const handleResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      // Khi màn hình bị xoay CSS (portrait -> landscape), chiều rộng thực tế của game
-      // là chiều cao viewport và ngược lại.
       const gw = isRotated ? Math.max(w, h) : w;
       const gh = isRotated ? Math.min(w, h) : h;
 
-      const baseAspect = 1024 / 507;
-      const screenAspect = gh > 0 ? gw / gh : baseAspect;
-
-      let s: number;
-      let vW: number;
-
-      if (screenAspect >= baseAspect) {
-        // Màn hình điện thoại siêu rộng (iPhone 14/15 Pro Max 2.17:1, Samsung 20:9, 21:9)
-        // Scale theo chiều cao để bàn game cao khít 100% màn hình:
-        s = gh / 507;
-        // Chiều rộng ảo mở rộng để phủ khít 100% bề ngang:
-        vW = Math.max(1024, Math.round(gw / s));
-      } else {
-        // Màn hình vuông hơn (iPad 4:3, laptop 16:9):
-        s = gw / 1024;
-        vW = 1024;
+      if (gw > 0 && gh > 0) {
+        // Tỷ lệ scale chuẩn: bảo đảm 100% bàn cược, nút bấm 2 bên và avatar người chơi
+        // luôn hiển thị đầy đủ, không bao giờ bị cắt xén ở bất kỳ thiết bị nào
+        const s = Math.min(gw / 1024, gh / 507);
+        setScale(s);
       }
-      setScale(s);
-      setVirtualWidth(vW);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
+    const t1 = setTimeout(handleResize, 100);
+    const t2 = setTimeout(handleResize, 300);
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, [isRotated]);
 
@@ -2344,8 +2337,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       }
       const rawX = clientX - rect.left;
       const rawY = clientY - rect.top;
-      const stageOffsetX = (virtualWidth - 1024) / 2;
-      const clickX = Math.round((rawX / scale) - stageOffsetX);
+      const clickX = Math.round(rawX / scale);
       const clickY = Math.round(rawY / scale);
       targetX = Math.max(bounds.minX, Math.min(bounds.maxX, clickX));
       targetY = Math.max(bounds.minY, Math.min(bounds.maxY, clickY));
@@ -2584,14 +2576,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
   return (
     <div className="relative w-full h-full bg-[#050302] flex items-center justify-center select-none overflow-hidden font-sans">
 
-      {/* Full-bleed casino table background layer (ensures 100% of mobile screen is covered) */}
+      {/* Full-bleed casino table background layer (ensures 100% of mobile screen is covered seamlessly) */}
       <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
         <img
           src="/games/xocdia/assets_hd/casino_table_master.webp"
           alt=""
-          className="w-full h-full object-cover brightness-60 contrast-110 blur-xs scale-105"
+          className="w-full h-full object-cover object-center brightness-90 contrast-105"
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/30 pointer-events-none" />
       </div>
 
       {/* ========================================================= */}
@@ -2599,15 +2591,15 @@ export const XocDiaLandscapeGame: React.FC = () => {
       {/* ========================================================= */}
       <div
         ref={containerRef}
-        className="relative overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] z-1"
+        className="relative z-1 shrink-0 select-none"
         style={{
-          width: virtualWidth,
+          width: 1024,
           height: 507,
           transform: `scale(${scale})`,
           transformOrigin: "center center",
         }}
       >
-        {/* Master table surface stretches to full virtualWidth */}
+        {/* Master table surface */}
         <img
           src="/games/xocdia/assets_hd/casino_table_master.webp"
           alt="Casino Table"
@@ -2616,16 +2608,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
 
         {/* Ambient table center glow */}
         <div className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 w-[480px] h-[220px] rounded-full bg-amber-500/10 blur-[50px] pointer-events-none z-1" />
-
-        {/* Centered table layout container: holds the 1024x507 game elements at exact center */}
-        <div
-          className="absolute top-0 h-[507px]"
-          style={{
-            width: 1024,
-            left: "50%",
-            transform: "translateX(-50%)",
-          }}
-        >
 
         {/* ========================================================= */}
         {/* LAYER 1: DEALER ON ROYAL GOLDEN THRONE (TOP CENTER) */}
@@ -4316,8 +4298,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
             </div>
           </div>
         )}
-        {/* Close centered 1024 table layout */}
-        </div>
       </div>
     </div>
   );
