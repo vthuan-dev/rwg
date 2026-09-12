@@ -3254,7 +3254,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         >
           {/* Nhắc nhở chọn phỉnh nếu chưa chọn */}
           {!selectedChip && (
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[10px] font-black shadow-lg border border-white pointer-events-none animate-bounce whitespace-nowrap z-40">
+            <div className="absolute -top-6 left-[45px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-black text-[10px] font-black shadow-lg border border-white pointer-events-none animate-bounce whitespace-nowrap z-40">
               Chọn phỉnh cược 👇
             </div>
           )}
