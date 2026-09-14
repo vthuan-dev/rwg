@@ -24,6 +24,7 @@ import { formatMoney } from "@/lib/money";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
 import { AdminErrorState } from "@/components/admin/AdminStates";
+import { canViewLedger } from "@/lib/adminIdentity";
 
 /** Số liệu tổng hợp — khớp DashboardSummaryResponse. */
 interface Summary {
@@ -63,6 +64,7 @@ interface DashboardData {
 
 export default function AdminDashboardPage() {
   const { t } = useTranslation();
+  const canSeeLedger = canViewLedger();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -152,16 +154,20 @@ export default function AdminDashboardPage() {
               kiem tra that qua /admin/health. Mot dong chu xanh co dinh se van
               xanh khi backend sap, va no mau thuan voi badge do ben canh. */}
           <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-slate-400" />
-            <span className="text-xs font-semibold text-slate-700">
-              {t("admin.dashboard.data_window")}
-            </span>
-            {summary ? (
-              <span className="text-xs text-slate-500 font-bold tabular-nums ml-1">
-                {summary.from} → {summary.to}
-              </span>
-            ) : (
-              <span className="text-xs text-slate-400 font-medium ml-1">—</span>
+            {canSeeLedger && (
+              <>
+                <Activity className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-700">
+                  {t("admin.dashboard.data_window")}
+                </span>
+                {summary ? (
+                  <span className="text-xs text-slate-500 font-bold tabular-nums ml-1">
+                    {summary.from} → {summary.to}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-400 font-medium ml-1">—</span>
+                )}
+              </>
             )}
           </div>
           <button
@@ -181,32 +187,34 @@ export default function AdminDashboardPage() {
         ) : (
           <>
             {/* Tai chinh 30 ngay */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MoneyCard
-                label={t("admin.dashboard.total_deposits")}
-                value={summary?.totalDeposits}
-                icon={<ArrowDownToLine className="w-4 h-4" />}
-                tone="emerald"
-              />
-              <MoneyCard
-                label={t("admin.dashboard.total_withdrawals")}
-                value={summary?.totalWithdrawals}
-                icon={<ArrowUpFromLine className="w-4 h-4" />}
-                tone="red"
-              />
-              <MoneyCard
-                label={t("admin.dashboard.total_turnover")}
-                value={summary?.totalTurnover}
-                icon={<Coins className="w-4 h-4" />}
-                tone="blue"
-              />
-              <MoneyCard
-                label={t("admin.dashboard.total_commission")}
-                value={summary?.totalCommissionPaid}
-                icon={<Network className="w-4 h-4" />}
-                tone="amber"
-              />
-            </div>
+            {canSeeLedger && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MoneyCard
+                  label={t("admin.dashboard.total_deposits")}
+                  value={summary?.totalDeposits}
+                  icon={<ArrowDownToLine className="w-4 h-4" />}
+                  tone="emerald"
+                />
+                <MoneyCard
+                  label={t("admin.dashboard.total_withdrawals")}
+                  value={summary?.totalWithdrawals}
+                  icon={<ArrowUpFromLine className="w-4 h-4" />}
+                  tone="red"
+                />
+                <MoneyCard
+                  label={t("admin.dashboard.total_turnover")}
+                  value={summary?.totalTurnover}
+                  icon={<Coins className="w-4 h-4" />}
+                  tone="blue"
+                />
+                <MoneyCard
+                  label={t("admin.dashboard.total_commission")}
+                  value={summary?.totalCommissionPaid}
+                  icon={<Network className="w-4 h-4" />}
+                  tone="amber"
+                />
+              </div>
+            )}
 
             {/* Hang doi can xu ly */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

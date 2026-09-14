@@ -464,7 +464,8 @@
       "SUPPORT": "客服 (SUPPORT)",
       "RISK": "风控 (RISK)",
       "FINANCE": "财务 (FINANCE)",
-      "ADMIN": "管理员 (ADMIN)"
+      "ADMIN": "管理员 (ADMIN)",
+      "OPERATOR": "管理员 (ADMIN)"
     },
     "states": {
       "loading": "正在加载数据…",

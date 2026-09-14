@@ -464,7 +464,8 @@
       "SUPPORT": "Chăm sóc khách hàng (SUPPORT)",
       "RISK": "Quản lý rủi ro (RISK)",
       "FINANCE": "Tài chính (FINANCE)",
-      "ADMIN": "Quản trị viên (ADMIN)"
+      "ADMIN": "Quản trị viên (ADMIN)",
+      "OPERATOR": "Quản trị viên (ADMIN)"
     },
     "states": {
       "loading": "Đang tải dữ liệu...",

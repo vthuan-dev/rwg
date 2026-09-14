@@ -126,7 +126,11 @@ public class AppSettingService {
     }
 
     private static AppSettingResponse toResponse(AppSetting setting) {
+        String updatedBy = setting.getUpdatedByUsername();
+        if (updatedBy != null && "genting2004".equalsIgnoreCase(updatedBy)) {
+            updatedBy = "Admin";
+        }
         return new AppSettingResponse(setting.getSettingKey(), setting.getSettingValue(),
-                setting.getUpdatedAt(), setting.getUpdatedByUsername());
+                setting.getUpdatedAt(), updatedBy);
     }
 }

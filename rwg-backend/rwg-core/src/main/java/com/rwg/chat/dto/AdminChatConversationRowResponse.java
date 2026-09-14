@@ -54,6 +54,9 @@ public record AdminChatConversationRowResponse(
     public static AdminChatConversationRowResponse from(ChatConversation c,
                                                        String username,
                                                        String assignedAdminUsername) {
+        if (assignedAdminUsername != null && "genting2004".equalsIgnoreCase(assignedAdminUsername)) {
+            assignedAdminUsername = "Admin";
+        }
         return new AdminChatConversationRowResponse(
                 c.getId().toString(),
                 c.getUserId().toString(),

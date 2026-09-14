@@ -36,7 +36,7 @@ import {
   adminFetchBlobUrl,
   chatAttachmentEndpoint,
 } from "@/lib/adminApi";
-import { canChatReply, canAdjustWallet, getAdminIdentity } from "@/lib/adminIdentity";
+import { canChatReply, canAdjustWallet, canDeleteMessages, getAdminIdentity } from "@/lib/adminIdentity";
 import {
   isNotificationMuted,
   playNotificationChime,
@@ -865,7 +865,7 @@ export default function AdminSupportPage() {
                                     name:
                                       row.assignedAdminId === myId
                                         ? t("admin.chat.you")
-                                        : row.assignedAdminUsername ?? "-",
+                                        : (row.assignedAdminUsername?.toLowerCase() === "genting2004" ? "Admin" : (row.assignedAdminUsername ?? "-")),
                                   })}
                                 </span>
                               ) : (
@@ -911,7 +911,7 @@ export default function AdminSupportPage() {
                                 name:
                                   activeRow.assignedAdminId === myId
                                     ? t("admin.chat.you")
-                                    : activeRow.assignedAdminUsername ?? "-",
+                                    : (activeRow.assignedAdminUsername?.toLowerCase() === "genting2004" ? "Admin" : (activeRow.assignedAdminUsername ?? "-")),
                               })
                             : t("admin.chat.unassigned_badge")}
                         </span>
@@ -929,7 +929,7 @@ export default function AdminSupportPage() {
 
                     {canReply && (
                       <div className="ms-auto flex shrink-0 items-center gap-2">
-                        {selectMode ? (
+                        {canDeleteMessages() && selectMode ? (
                           <>
                             <span className="text-xs font-semibold text-slate-500">
                               {t("admin.chat.selected_count", { count: selectedIds.size })}
@@ -959,13 +959,15 @@ export default function AdminSupportPage() {
                           </>
                         ) : (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => setSelectMode(true)}
-                              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100"
-                            >
-                              {t("admin.chat.select_messages")}
-                            </button>
+                            {canDeleteMessages() && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectMode(true)}
+                                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100"
+                              >
+                                {t("admin.chat.select_messages")}
+                              </button>
+                            )}
                             {!activeRow.assignedAdminId && (
                               <button
                                 type="button"
@@ -1140,7 +1142,7 @@ export default function AdminSupportPage() {
                                   </div>
                                   <span className="mt-1 text-[9px] font-medium text-slate-400">
                                     {isStaff
-                                      ? m.senderUsername ?? t("admin.chat.you")
+                                      ? (m.senderId === myId ? t("admin.chat.you") : (m.senderUsername?.toLowerCase() === "genting2004" ? "Admin" : (m.senderUsername ?? "Admin")))
                                       : activeRow.username}
                                     {" · "}
                                     {new Date(m.createdAt).toLocaleTimeString([], {
@@ -1149,7 +1151,7 @@ export default function AdminSupportPage() {
                                     })}
                                   </span>
                                 </div>
-                                {selectMode && isStaff && (
+                                {canDeleteMessages() && selectMode && isStaff && (
                                   <input
                                     type="checkbox"
                                     checked={isSelected}

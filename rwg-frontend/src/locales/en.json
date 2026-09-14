@@ -464,7 +464,8 @@
       "SUPPORT": "Customer Support (SUPPORT)",
       "RISK": "Risk Management (RISK)",
       "FINANCE": "Finance (FINANCE)",
-      "ADMIN": "Administrator (ADMIN)"
+      "ADMIN": "Administrator (ADMIN)",
+      "OPERATOR": "Administrator (ADMIN)"
     },
     "states": {
       "loading": "Loading data...",

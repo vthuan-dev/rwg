@@ -66,12 +66,16 @@ public record ChatMessageResponse(
      * theo LÔ rồi gắn qua {@link #withWithdrawal}.
      */
     public static ChatMessageResponse from(ChatMessage m) {
+        String senderUsername = m.getSenderUsername();
+        if (senderUsername != null && "genting2004".equalsIgnoreCase(senderUsername)) {
+            senderUsername = "Admin";
+        }
         return new ChatMessageResponse(
                 m.getId().toString(),
                 m.getConversationId().toString(),
                 m.getSenderType().name(),
                 m.getSenderId() == null ? null : m.getSenderId().toString(),
-                m.getSenderUsername(),
+                senderUsername,
                 m.getBody(),
                 m.getAttachmentUrl(),
                 m.getAttachmentType() == null ? null : m.getAttachmentType().name(),

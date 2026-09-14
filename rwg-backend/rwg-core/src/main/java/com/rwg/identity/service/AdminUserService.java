@@ -575,9 +575,14 @@ public class AdminUserService {
     // ===== helpers =====
 
     private User requireUser(UUID userId) {
-        return userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
                         ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.user"));
+        if (user.getRole() != UserRole.PLAYER) {
+            throw new ApiException(ErrorCode.NOT_FOUND,
+                    ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.user");
+        }
+        return user;
     }
 
     private void requireNotSelf(UUID targetUserId, UUID adminId) {

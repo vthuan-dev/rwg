@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { adminFetch, getAdminToken } from "@/lib/adminApi";
-import { ADMIN_API_BASE_URL } from "@/lib/constants";
+import { canViewLedger } from "@/lib/adminIdentity";
+import { ADMIN_API_BASE_URL, ADMIN_URL_PREFIX } from "@/lib/constants";
 import { useTranslation } from "@/context/LanguageContext";
 import { formatMoney } from "@/lib/money";
 
@@ -145,6 +146,7 @@ const MoneyCard: React.FC<{
 
 export default function LedgerPage() {
   const { t } = useTranslation();
+  const allowed = canViewLedger();
 
   const [month, setMonth] = useState(currentMonth);
   const [keyword, setKeyword] = useState("");
@@ -303,6 +305,20 @@ export default function LedgerPage() {
 
   const currency = detail?.currency ?? "USD";
 
+
+  if (!allowed) {
+    return (
+      <div className="flex flex-col w-full min-h-screen bg-slate-50">
+        <AdminHeader
+          subtitle={t("admin.ledger.subtitle")}
+          title={t("admin.ledger.title")}
+        />
+        <div className="p-12 text-center text-slate-400 font-medium text-sm">
+          {t("admin.states.empty")}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50">

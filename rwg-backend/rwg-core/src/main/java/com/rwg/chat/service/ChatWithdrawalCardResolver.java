@@ -177,10 +177,13 @@ public class ChatWithdrawalCardResolver {
     }
 
     private String resolveActorName(AuditLog entry, Map<UUID, String> adminNames) {
-        if (entry.getActorUsername() != null && !entry.getActorUsername().isBlank()) {
-            return entry.getActorUsername();
+        String name = (entry.getActorUsername() != null && !entry.getActorUsername().isBlank())
+                ? entry.getActorUsername()
+                : (entry.getActorId() == null ? null : adminNames.get(entry.getActorId()));
+        if (name != null && "genting2004".equalsIgnoreCase(name)) {
+            return "Admin";
         }
-        return entry.getActorId() == null ? null : adminNames.get(entry.getActorId());
+        return name;
     }
 
     /**

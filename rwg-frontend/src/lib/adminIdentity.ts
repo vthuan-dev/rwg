@@ -91,34 +91,42 @@ export function isSuperAdmin(identity: AdminIdentity = getAdminIdentity()): bool
   return identity.roles.includes("ADMIN");
 }
 
-/** Được sửa hồ sơ người dùng: trạng thái, KYC, mật khẩu rút. */
+/** Được sửa hồ sơ người dùng: trạng thái, KYC, mật khẩu rút, mật khẩu đăng nhập. */
 export function canManageUsers(identity: AdminIdentity = getAdminIdentity()): boolean {
-  return hasAnyRole(["ADMIN", "FINANCE", "SUPPORT"], identity);
+  return hasAnyRole(["ADMIN", "FINANCE", "SUPPORT", "OPERATOR"], identity);
 }
 
 /** Được xem và kết luận về liên kết rủi ro. */
 export function canViewRisk(identity: AdminIdentity = getAdminIdentity()): boolean {
-  return hasAnyRole(["ADMIN", "RISK"], identity);
+  return hasAnyRole(["ADMIN", "RISK", "OPERATOR"], identity);
 }
 
 /**
  * Được TRẢ LỜI người chơi trong hộp thư hỗ trợ.
- *
- * Khớp chính xác matcher `POST /api/v1/admin/chat/**` trong SecurityConfig. RISK đọc
- * được toàn bộ lịch sử chat nhưng không được gửi gì — nên với vai trò đó phải ẩn hẳn
- * ô nhập, chứ không phải để họ gõ xong rồi nhận 403.
  */
 export function canChatReply(identity: AdminIdentity = getAdminIdentity()): boolean {
-  return hasAnyRole(["ADMIN", "FINANCE", "SUPPORT"], identity);
+  return hasAnyRole(["ADMIN", "FINANCE", "SUPPORT", "OPERATOR"], identity);
+}
+
+/** Chỉ ADMIN tối cao được xoá tin nhắn chat của khách/nhân viên. */
+export function canDeleteMessages(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return identity.roles.includes("ADMIN");
+}
+
+/** Chỉ ADMIN tối cao được xoá vĩnh viễn tài khoản người chơi. */
+export function canDeleteUsers(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return identity.roles.includes("ADMIN");
+}
+
+/** Chỉ ADMIN và FINANCE được xem sổ cái ví và lịch sử dòng tiền / cộng trừ tiền. */
+export function canViewLedger(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return hasAnyRole(["ADMIN", "FINANCE"], identity);
 }
 
 /**
  * Thứ tự quyền hạn từ cao xuống thấp.
- *
- * Một tài khoản có thể mang nhiều vai trò, nên phải chọn theo mức quyền chứ không
- * lấy phần tử đầu mảng — claim `roles` không đảm bảo thứ tự nào.
  */
-const ROLE_PRIORITY = ["ADMIN", "FINANCE", "RISK", "SUPPORT", "PLAYER"];
+const ROLE_PRIORITY = ["ADMIN", "OPERATOR", "FINANCE", "RISK", "SUPPORT", "PLAYER"];
 
 /** Vai trò cao nhất của tài khoản đang đăng nhập, dùng để hiển thị. */
 export function primaryRole(identity: AdminIdentity = getAdminIdentity()): string | null {

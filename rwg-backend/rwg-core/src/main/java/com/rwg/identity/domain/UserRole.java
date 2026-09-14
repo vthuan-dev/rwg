@@ -26,7 +26,8 @@ public enum UserRole {
     ADMIN,
     FINANCE,
     SUPPORT,
-    RISK;
+    RISK,
+    OPERATOR;
 
     /** Các vai trò thuộc khu quản trị (mọi role trừ PLAYER). */
     public boolean isStaff() {

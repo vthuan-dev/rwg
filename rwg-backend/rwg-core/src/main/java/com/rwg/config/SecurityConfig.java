@@ -171,22 +171,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/role").hasRole("ADMIN")
                         // Đổi % hoa hồng ảnh hưởng tiền chi cho mọi đại lý -> chỉ ADMIN.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/affiliate/config").hasRole("ADMIN")
-                        // Hạn mức cược quyết định mức thiệt hại tối đa mỗi lệnh cược -> chỉ ADMIN.
-                        // Nâng maxBet lên rất cao là một đường rút tiền không cần chạm ví nào.
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/limits").hasRole("ADMIN")
+                        // Hạn mức cược quyết định mức thiệt hại tối đa mỗi lệnh cược -> ADMIN + OPERATOR.
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/limits")
+                            .hasAnyRole("ADMIN", "OPERATOR")
 
-                        // Bật/tắt bàn: thêm RISK — phát hiện bàn bất thường là việc của họ, và
-                        // tắt bàn không chuyển đồng nào nên không thuộc nhóm thao tác tiền.
+                        // Bật/tắt bàn: ADMIN, RISK, OPERATOR.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/games/tables/*/status")
-                            .hasAnyRole("ADMIN", "RISK")
+                            .hasAnyRole("ADMIN", "RISK", "OPERATOR")
 
-                        // Khu risk (chống đa tài khoản): ADMIN + RISK, gồm cả thao tác GHI.
-                        // Đây là lần đầu RISK được ghi dữ liệu — trước giờ chỉ đọc báo cáo.
-                        // Hợp lý vì đánh giá gian lận đúng là việc của họ, và các thao tác
-                        // này KHÔNG chuyển một đồng nào nên không cần quy trình 4 mắt.
-                        .requestMatchers("/api/v1/admin/risk/**").hasAnyRole("ADMIN", "RISK")
+                        // Khu risk (chống đa tài khoản): ADMIN, RISK, OPERATOR.
+                        .requestMatchers("/api/v1/admin/risk/**")
+                            .hasAnyRole("ADMIN", "RISK", "OPERATOR")
 
-                        // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK bị chặn ở đây.
+                        // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK/OPERATOR bị chặn ở đây.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/approve")
@@ -196,69 +193,54 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/affiliate/commissions/run")
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods/*/reveal")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         // THÊM / GỠ tài khoản nhận tiền hộ người chơi.
-                        //
-                        // ĐẶT Ở ĐÂY, TRƯỚC RULE CHUNG /api/v1/admin/** Ở DƯỚI: Spring lấy
-                        // matcher KHỚP ĐẦU TIÊN. Nếu để rơi vào rule chung thì cả bốn vai
-                        // trò đều qua được và SUPPORT sẽ đổi được tài khoản nhận tiền của
-                        // người chơi — tức chuyển được tiền của người khác về tài khoản mình.
-                        //
-                        // POST khớp chính xác ".../payout-methods" (không có đuôi) nên KHÔNG
-                        // đè lên matcher reveal ở trên; dù có thì reveal đã đứng trước.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*/payout-methods/*")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
 
-                        // Thao tác quản lý user (không chạm tiền): thêm SUPPORT.
+                        // Thao tác quản lý user (không chạm tiền): ADMIN, FINANCE, SUPPORT, OPERATOR.
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/status")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/users/*/kyc")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/reset")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/password/change")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/withdrawal-password/change")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/chat/**")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR")
+                        // CHỈ ADMIN ĐƯỢC XOÁ TIN NHẮN (OPERATOR / SUPPORT không được xoá)
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/chat/**")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT")
+                            .hasRole("ADMIN")
+                        // CHỈ ADMIN ĐƯỢC XOÁ TÀI KHOẢN KHÁCH
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*")
                             .hasRole("ADMIN")
 
-                        // SỔ SÁCH NGƯỜI CHƠI: chỉ ADMIN + FINANCE.
-                        //
-                        // Báo cáo này phơi ra TOÀN BỘ lịch sử tiền của một người chơi — số dư,
-                        // tiền nạp, tiền rút, thắng thua từng game. SUPPORT và RISK không có
-                        // nghiệp vụ nào cần tới nó, nên không để rơi vào matcher chung bên dưới.
+                        // SỔ SÁCH NGƯỜI CHƠI & LỊCH SỬ GIAO DỊCH VÍ: CHỈ ADMIN + FINANCE.
                         .requestMatchers("/api/v1/admin/reports/**")
                             .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers("/api/v1/admin/users/*/wallet/transactions")
+                            .hasAnyRole("ADMIN", "FINANCE")
 
-                        // BANNER TRANG CHỦ: chỉ ADMIN được GHI.
-                        //
-                        // Banner hiển thị trên trang chủ CÔNG KHAI, nên tải ảnh lên đây là đặt
-                        // nội dung trước mặt mọi khách truy cập. Trước đây thao tác này rơi vào
-                        // matcher chung nên SUPPORT và RISK đều tải và xoá được — rộng hơn mọi
-                        // thao tác ghi khác trong khu quản trị. GET vẫn mở cho cả bốn vai trò.
-                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/banners/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/banners/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/banners/**").hasRole("ADMIN")
+                        // AUDIT LOG & PHÊ DUYỆT 4 MẮT: CHỈ ADMIN TỐI CAO ĐƯỢC XEM
+                        .requestMatchers("/api/v1/admin/audit/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/approvals/**").hasRole("ADMIN")
 
-                        // NOI DUNG CHU HIEN CHO KHACH: chi ADMIN duoc GHI.
-                        //
-                        // Cung ly do nhu banner ngay tren: doan chu nay hien ra truoc MOI khach,
-                        // nen sua no la dat noi dung truoc mat toan bo nguoi dung. De roi vao
-                        // matcher chung ben duoi thi SUPPORT va RISK cung sua duoc — rong hon moi
-                        // thao tac ghi khac trong khu quan tri. GET van mo cho ca bon vai tro.
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/admin/settings/**").hasRole("ADMIN")
+                        // BANNER TRANG CHỦ: ADMIN + OPERATOR được GHI.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/banners/**").hasAnyRole("ADMIN", "OPERATOR")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/banners/**").hasAnyRole("ADMIN", "OPERATOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/banners/**").hasAnyRole("ADMIN", "OPERATOR")
 
-                        // Còn lại trong khu admin (chủ yếu GET tra cứu/báo cáo): mọi nhân sự
-                        // quản trị, gồm RISK chỉ đọc. Các POST/PATCH ghi đã bị chặn hẹp ở trên.
+                        // NỘI DUNG CHỮ HIỆN CHO KHÁCH: ADMIN + OPERATOR được GHI.
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/admin/settings/**").hasAnyRole("ADMIN", "OPERATOR")
+
+                        // Còn lại trong khu admin: mọi nhân sự quản trị (bao gồm OPERATOR)
                         .requestMatchers("/api/v1/admin/**")
-                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "RISK")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "RISK", "OPERATOR")
 
                         // Health + docs công khai
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()

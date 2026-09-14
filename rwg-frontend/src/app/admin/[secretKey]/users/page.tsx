@@ -41,6 +41,8 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import {
   canAdjustWallet,
   canManageUsers,
+  canViewLedger,
+  canDeleteUsers,
 } from "@/lib/adminIdentity";
 
 /**
@@ -211,6 +213,8 @@ export default function AdminUsersPage() {
   // roi nhan 403 khong hieu vi sao.
   const canAdjust = canAdjustWallet();
   const canManage = canManageUsers();
+  const canSeeLedger = canViewLedger();
+  const canDelete = canDeleteUsers();
 
   /** Nhãn mức KYC tra trong file dịch; mức lạ hiện nguyên mã. */
   const kycLabel = (level: string): string => {
@@ -936,15 +940,17 @@ export default function AdminUsersPage() {
                   </ModalSection>
                 )}
 
-                <ModalSection
-                  id="ledger"
-                  label={t("admin.users.ledger.title")}
-                  icon={ScrollText}
-                  open={openSection === "ledger"}
-                  onToggle={toggleSection}
-                >
-                  <WalletLedgerPanel userId={detail.id} />
-                </ModalSection>
+                {canSeeLedger && (
+                  <ModalSection
+                    id="ledger"
+                    label={t("admin.users.ledger.title")}
+                    icon={ScrollText}
+                    open={openSection === "ledger"}
+                    onToggle={toggleSection}
+                  >
+                    <WalletLedgerPanel userId={detail.id} />
+                  </ModalSection>
+                )}
               </div>
             )}
 
@@ -1115,42 +1121,44 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* Block 3: Admin Xóa tài khoản người dùng */}
-                <div className="flex flex-col gap-2 p-3.5 bg-white border border-red-200 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                    <span className="text-[11px] font-extrabold text-red-700 uppercase tracking-wide">
-                      Xóa Tài Khoản (Nguy Hiểm)
-                    </span>
+                {canDelete && (
+                  <div className="flex flex-col gap-2 p-3.5 bg-white border border-red-200 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                      <span className="text-[11px] font-extrabold text-red-700 uppercase tracking-wide">
+                        Xóa Tài Khoản (Nguy Hiểm)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="password"
+                        value={deletePin}
+                        onChange={(e) => {
+                          setDeletePin(e.target.value);
+                          setDeleteOk(false);
+                          setDeleteError("");
+                        }}
+                        placeholder="Mã xác nhận bảo mật..."
+                        className="flex-1 bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                      />
+                      <button
+                        onClick={handleDeleteUser}
+                        disabled={deleteSaving || deletePin.trim().length === 0}
+                        className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shrink-0"
+                      >
+                        {deleteSaving ? "..." : "Xóa"}
+                      </button>
+                    </div>
+                    {deleteError && (
+                      <span className="text-[11px] text-red-700 font-semibold">{deleteError}</span>
+                    )}
+                    {deleteOk && (
+                      <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Đã xóa tài khoản thành công!
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="password"
-                      value={deletePin}
-                      onChange={(e) => {
-                        setDeletePin(e.target.value);
-                        setDeleteOk(false);
-                        setDeleteError("");
-                      }}
-                      placeholder="Mã xác nhận bảo mật..."
-                      className="flex-1 bg-slate-50 border border-slate-200 focus:border-red-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                    />
-                    <button
-                      onClick={handleDeleteUser}
-                      disabled={deleteSaving || deletePin.trim().length === 0}
-                      className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shrink-0"
-                    >
-                      {deleteSaving ? "..." : "Xóa"}
-                    </button>
-                  </div>
-                  {deleteError && (
-                    <span className="text-[11px] text-red-700 font-semibold">{deleteError}</span>
-                  )}
-                  {deleteOk && (
-                    <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Đã xóa tài khoản thành công!
-                    </span>
-                  )}
-                </div>
+                )}
 
 
 

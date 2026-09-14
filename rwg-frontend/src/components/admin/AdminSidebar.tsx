@@ -16,6 +16,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { removeAdminToken, adminFetch, getAdminToken } from "@/lib/adminApi";
+import { canViewLedger } from "@/lib/adminIdentity";
 import { useTranslation } from "@/context/LanguageContext";
 import { ADMIN_URL_PREFIX } from "@/lib/constants";
 
@@ -113,13 +114,15 @@ export const AdminSidebar: React.FC = () => {
           label: t("admin.nav.affiliates"),
           icon: Network,
         },
-        // SỔ SÁCH Ở NHÓM TÀI CHÍNH, không ở nhóm cấu hình hệ thống: đối chiếu
-        // sổ sách là việc tài chính làm thường xuyên, không phải một thiết lập.
-        {
-          href: `${ADMIN_URL_PREFIX}/ledger`,
-          label: t("admin.nav.ledger"),
-          icon: BookText,
-        },
+        ...(canViewLedger()
+          ? [
+              {
+                href: `${ADMIN_URL_PREFIX}/ledger`,
+                label: t("admin.nav.ledger"),
+                icon: BookText,
+              },
+            ]
+          : []),
       ],
     },
     {
