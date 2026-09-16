@@ -116,6 +116,11 @@ export const BetSubmitBar: React.FC<BetSubmitBarProps> = ({
                 onStakeChange(event.target.value);
               }
             }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
             type="text"
             value={stake}
           />

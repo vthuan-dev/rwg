@@ -404,12 +404,14 @@ public class SettlementService {
                 Money payout = outcome.winByUser().get(userId);
                 broadcaster.unicastKl28Win(userId,
                         outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        outcome.round().getRoundSeq(),
                         result, payout.amount(),
                         outcome.balanceAfterWin().get(userId).amount());
             } else {
                 BigDecimal balanceAfter = walletService.getBalance(userId).amount();
                 broadcaster.unicastKl28Win(userId,
                         outcome.round().getTableId().toString(), outcome.round().getId().toString(),
+                        outcome.round().getRoundSeq(),
                         result, BigDecimal.ZERO, balanceAfter);
             }
         });

@@ -11,7 +11,6 @@ import { BetOptionGrid } from "@/components/game/BetOptionGrid";
 import { BetSubmitBar } from "@/components/game/BetSubmitBar";
 import { BetTabs } from "@/components/game/BetTabs";
 import { NumberOddsGrid } from "@/components/game/NumberOddsGrid";
-import { BettorsTable } from "@/components/game/BettorsTable";
 import { BetBlockingOverlay } from "@/components/game/BetBlockingOverlay";
 import { useTranslation } from "@/context/LanguageContext";
 import { MAX_BET_SELECTIONS, mergeServerOdds } from "@/lib/betOptions";
@@ -195,14 +194,17 @@ function BetDetailContent() {
         setTables(list);
         const found = findTable(list, idParam);
         setTable(found);
-        setLoading(false);
 
         if (!found) {
           setError(t("bet.table_not_found"));
+          setLoading(false);
           return;
         }
 
         await Promise.allSettled([loadRound(found.id), loadWallet(), loadOdds(found.id)]);
+        if (!cancelled && aliveRef.current) {
+          setLoading(false);
+        }
       } catch (err) {
         if (cancelled || !aliveRef.current) return;
         if (err instanceof ApiError && err.status === 401) {
@@ -239,6 +241,59 @@ function BetDetailContent() {
     };
   }, [table]);
 
+  // Lắng nghe kết quả ván đấu real-time qua websocket
+  useEffect(() => {
+    const handleGameResult = (e: Event) => {
+      const detail = (e as CustomEvent<any>).detail;
+      if (!detail) return;
+
+      const isCurrentTable =
+        (detail.tableId && table && detail.tableId === table.id) ||
+        detail.gameType === "KL28" ||
+        detail.gameType === table?.gameType;
+
+      if (isCurrentTable) {
+        if (detail.balanceAfter != null) {
+          setWallet((prev) =>
+            prev
+              ? { ...prev, balance: detail.balanceAfter }
+              : ({ balance: detail.balanceAfter, currency: table?.currency || "USD" } as any)
+          );
+        }
+        if (detail.kl28Sum != null || detail.kl28Numbers != null) {
+          setLastRound((prev) => ({
+            ...prev,
+            roundSeq: detail.roundSeq ?? prev?.roundSeq,
+            kl28Numbers: detail.kl28Numbers ?? prev?.kl28Numbers,
+            kl28Sum: detail.kl28Sum ?? prev?.kl28Sum,
+            startedAt: new Date().toISOString(),
+          } as GameRound));
+        }
+        void loadWallet();
+        if (detail.roundId) {
+          void loadBets(detail.roundId);
+        }
+        if (table) {
+          void loadRound(table.id);
+        }
+      }
+    };
+
+    window.addEventListener("game_result", handleGameResult);
+    return () => {
+      window.removeEventListener("game_result", handleGameResult);
+    };
+  }, [table, loadWallet, loadBets, loadRound]);
+
+  // Tự động kiểm tra vòng mới mỗi 2 giây nếu đang ở khoảng trống giữa hai vòng
+  useEffect(() => {
+    if (!table || round !== null) return;
+    const timer = setInterval(() => {
+      void loadRound(table.id);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [table, round, loadRound]);
+
   // Cập nhật tỷ lệ cược odds real-time qua websocket khi admin chỉnh sửa
   useEffect(() => {
     const handleOddsUpdate = (e: Event) => {
@@ -261,6 +316,10 @@ function BetDetailContent() {
    */
   useEffect(() => {
     if (!round) return;
+    if (roundIdRef.current === null) {
+      roundIdRef.current = round.roundId;
+      return;
+    }
     if (roundIdRef.current === round.roundId) return;
 
     roundIdRef.current = round.roundId;
@@ -476,16 +535,20 @@ function BetDetailContent() {
               <MatchInfoPanel
                 betHistoryHref={`/bet/history?id=${encodeURIComponent(idParam)}&ref=${encodeURIComponent(selfHref)}`}
                 drawHistoryHref={`/draw/history?id=${encodeURIComponent(idParam)}&ref=${encodeURIComponent(selfHref)}`}
-                onExpired={() => void loadRound(table.id)}
+                onExpired={() => {
+                  if (!table) return;
+                  void loadRound(table.id);
+                  void loadWallet();
+                  setTimeout(() => {
+                    if (aliveRef.current && table) {
+                      void loadRound(table.id);
+                      void loadWallet();
+                    }
+                  }, 1500);
+                }}
                 round={round}
               />
             </div>
-
-            <BettorsTable
-              bets={bets}
-              labelFor={labelForBetType}
-              roundSeq={round?.roundSeq ?? null}
-            />
 
             <BetTabs
               tabs={[

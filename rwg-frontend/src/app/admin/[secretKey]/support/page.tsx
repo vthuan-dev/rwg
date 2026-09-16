@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Headphones,
   Loader2,
@@ -141,6 +141,17 @@ interface ConversationPage {
 type QueueFilter = "ALL" | "UNASSIGNED" | "MINE" | "CLOSED";
 
 /**
+ * Sắp xếp các luồng hội thoại theo tin nhắn mới nhất lên đầu tiên.
+ */
+function sortRowsByLatestMessage(list: ConversationRow[]): ConversationRow[] {
+  return [...list].sort((a, b) => {
+    const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+    const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
+/**
  * Hộp thư hỗ trợ người chơi.
  *
  * Bố cục hai cột: danh sách luồng bên trái, nội dung bên phải. Đây là dạng của mọi
@@ -172,11 +183,11 @@ export default function AdminSupportPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
 
   /**
-   * Tự động xóa các tin nhắn đã quá 30 phút trên màn hình (quét mỗi 10 giây).
+   * Tự động xóa các tin nhắn và luồng hội thoại đã quá 30 phút trên màn hình (quét mỗi 10 giây).
    * Khách hoặc Admin thoát ra vào lại trong vòng 30 phút thì tin nhắn vẫn còn nguyên.
+   * Luồng không còn tin nhắn trong 30 phút sẽ tự động biến mất khỏi danh sách hàng đợi bên trái.
    */
   useEffect(() => {
-    if (!activeId) return;
     const interval = setInterval(() => {
       const cutoffTime = Date.now() - 30 * 60 * 1000;
       setMessages((prev) => {
@@ -185,10 +196,19 @@ export default function AdminSupportPage() {
         );
         return filtered.length === prev.length ? prev : filtered;
       });
+      setRows((prev) => {
+        const filtered = prev.filter(
+          (r) =>
+            r.lastMessageAt &&
+            new Date(r.lastMessageAt).getTime() >= cutoffTime &&
+            r.lastMessagePreview
+        );
+        return filtered.length === prev.length ? prev : filtered;
+      });
     }, 10_000);
 
     return () => clearInterval(interval);
-  }, [activeId]);
+  }, []);
 
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -280,7 +300,14 @@ export default function AdminSupportPage() {
     try {
       const data = await adminFetch<ConversationPage>(buildQuery());
       setListError("");
-      return data.content ?? [];
+      const cutoffTime = Date.now() - 30 * 60 * 1000;
+      const activeRows = (data.content ?? []).filter(
+        (r) =>
+          r.lastMessageAt &&
+          new Date(r.lastMessageAt).getTime() >= cutoffTime &&
+          r.lastMessagePreview
+      );
+      return sortRowsByLatestMessage(activeRows);
     } catch (err) {
       setListError((err as Error).message);
       return null;
@@ -694,19 +721,20 @@ export default function AdminSupportPage() {
       }
       requestAnimationFrame(() => scrollToBottom(true));
 
-      // Trả lời sẽ TỰ nhận phụ trách ở backend, nên dòng hộp thư phải phản ánh ngay
-      // điều đó — nếu không thì nút "Nhận phụ trách" vẫn hiện dù việc đã có người.
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === activeId && !r.assignedAdminId
-            ? {
-                ...r,
-                assignedAdminId: myId,
-                assignedAdminUsername: saved.senderUsername,
-              }
-            : r
-        )
-      );
+      // Trả lời sẽ TỰ nhận phụ trách ở backend, đồng thời cập nhật tin mới nhất và đưa lên đầu danh sách
+      setRows((prev) => {
+        const index = prev.findIndex((r) => r.id === activeId);
+        if (index < 0) return prev;
+        const current = prev[index];
+        const updated: ConversationRow = {
+          ...current,
+          lastMessageAt: saved.createdAt,
+          lastMessagePreview: saved.body || "chat.preview.image",
+          assignedAdminId: current.assignedAdminId ?? myId,
+          assignedAdminUsername: current.assignedAdminUsername ?? saved.senderUsername,
+        };
+        return [updated, ...prev.filter((_, i) => i !== index)];
+      });
       setThreadError("");
     } catch (err) {
       setThreadError((err as Error).message);
@@ -746,7 +774,9 @@ export default function AdminSupportPage() {
         `/admin/chat/conversations/${activeId}/${action}`,
         { method: "POST" }
       );
-      setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setRows((prev) =>
+        sortRowsByLatestMessage(prev.map((r) => (r.id === updated.id ? updated : r)))
+      );
       setThreadError("");
       // Nhận việc và đóng luồng đều ghi thêm một dòng SYSTEM vào lịch sử, nên phải
       // tải lại phần thân để dòng đó hiện ra.
@@ -791,7 +821,8 @@ export default function AdminSupportPage() {
     return isKey ? t(preview) : preview;
   };
 
-  const waitingCount = rows.filter((r) => r.unreadCount > 0).length;
+  const sortedRows = useMemo(() => sortRowsByLatestMessage(rows), [rows]);
+  const waitingCount = sortedRows.filter((r) => r.unreadCount > 0).length;
 
   return (
     <div className="flex w-full min-h-screen flex-col bg-slate-50">
@@ -805,7 +836,7 @@ export default function AdminSupportPage() {
           <div className="flex items-center gap-2">
             <Headphones className="h-5 w-5 text-red-600" />
             <span className="text-sm font-extrabold text-slate-900">
-              {t("admin.chat.inbox_title")} ({rows.length})
+              {t("admin.chat.inbox_title")} ({sortedRows.length})
             </span>
             {waitingCount > 0 && (
               <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-bold text-red-700">
@@ -897,11 +928,11 @@ export default function AdminSupportPage() {
                   <div className="flex items-center justify-center py-14">
                     <Loader2 className="h-5 w-5 animate-spin text-red-600" />
                   </div>
-                ) : rows.length === 0 ? (
+                ) : sortedRows.length === 0 ? (
                   <AdminEmptyState message={t("admin.chat.inbox_empty")} />
                 ) : (
                   <ul className="divide-y divide-slate-100">
-                    {rows.map((row) => {
+                    {sortedRows.map((row) => {
                       const isActive = row.id === activeId;
                       return (
                         <li key={row.id}>

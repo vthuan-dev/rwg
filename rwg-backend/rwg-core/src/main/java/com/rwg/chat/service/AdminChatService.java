@@ -130,9 +130,11 @@ public class AdminChatService {
                 ? null
                 : "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
 
+        Instant minActiveAt = Instant.now().minus(chatProperties.autoDeleteAfter());
+
         Page<ChatConversation> conversations = conversationRepository.searchForAdmin(
                 status, assignedTo, Boolean.TRUE.equals(unassignedOnly) ? Boolean.TRUE : null,
-                normalized, pageable);
+                normalized, minActiveAt, pageable);
 
         Map<UUID, String> usernames = usernamesFor(conversations.getContent());
 
@@ -336,9 +338,10 @@ public class AdminChatService {
     /** Tổng chưa đọc toàn hệ thống, cho viên tròn đỏ trên sidebar quản trị. */
     @Transactional(readOnly = true)
     public ChatUnreadResponse unread() {
+        Instant minActiveAt = Instant.now().minus(chatProperties.autoDeleteAfter());
         return ChatUnreadResponse.of(
-                conversationRepository.totalUnreadForAdmin(),
-                conversationRepository.countConversationsAwaitingReply());
+                conversationRepository.totalUnreadForAdmin(minActiveAt),
+                conversationRepository.countConversationsAwaitingReply(minActiveAt));
     }
 
     /**
@@ -376,6 +379,16 @@ public class AdminChatService {
             msg.markDeleted(staffId, staffUsername);
         }
         messageRepository.saveAll(toDelete);
+
+        Instant cutoff = Instant.now().minus(chatProperties.autoDeleteAfter());
+        List<ChatMessage> latestActive = messageRepository.findLatestActiveInConversation(
+                conversationId, cutoff, PageRequest.of(0, 1));
+        if (latestActive.isEmpty()) {
+            conversation.updateLastMessage(null);
+        } else {
+            conversation.updateLastMessage(latestActive.get(0));
+        }
+        conversationRepository.save(conversation);
 
         // Phát sự kiện xóa để cả hai phía xóa bong bóng khỏi màn hình ngay.
         // publishAfterCommit đảm bảo gửi SAU khi transaction commit — tránh gửi

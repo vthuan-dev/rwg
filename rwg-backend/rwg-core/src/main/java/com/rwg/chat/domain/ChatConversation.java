@@ -154,8 +154,10 @@ public class ChatConversation {
             touchLastMessage(message);
         } else {
             this.lastMessagePreview = null;
+            this.lastMessageAt = null;
             this.unreadForAdmin = 0;
             this.unreadForPlayer = 0;
+            this.status = ChatConversationStatus.CLOSED;
         }
     }
 

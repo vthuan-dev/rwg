@@ -186,6 +186,12 @@ public class GameEventBroadcaster {
 
     public void unicastKl28Win(UUID userId, String tableId, String roundId, Kl28Engine.RoundResult result,
                                BigDecimal payout, BigDecimal balanceAfter) {
+        unicastKl28Win(userId, tableId, roundId, null, result, payout, balanceAfter);
+    }
+
+    public void unicastKl28Win(UUID userId, String tableId, String roundId, Long roundSeq,
+                               Kl28Engine.RoundResult result,
+                               BigDecimal payout, BigDecimal balanceAfter) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < result.getNumbers().size(); i++) {
             sb.append(result.getNumbers().get(i));
@@ -195,6 +201,7 @@ public class GameEventBroadcaster {
                 PlayerWinPayload.kl28(
                         tableId,
                         roundId,
+                        roundSeq,
                         sb.toString(),
                         result.getSum(),
                         payout.toPlainString(),
