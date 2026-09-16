@@ -687,6 +687,8 @@
     "wallet_1": "기본 계정",
     "deposit": "입금",
     "withdraw": "출금",
+    "total_deposited": "총 충전액",
+    "today_profit": "오늘의 수익",
     "referral_program": "추천 프로그램",
     "invite_friends": "친구 초대",
     "invite_friends_description": "추천한 플레이어로부터 커미션을 받으세요",

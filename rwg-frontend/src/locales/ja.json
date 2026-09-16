@@ -687,6 +687,8 @@
     "wallet_1": "メインアカウント",
     "deposit": "入金",
     "withdraw": "出金",
+    "total_deposited": "総入金額",
+    "today_profit": "本日の利益",
     "referral_program": "紹介プログラム",
     "invite_friends": "友達を招待",
     "invite_friends_description": "紹介したプレイヤーからコミッションを獲得",

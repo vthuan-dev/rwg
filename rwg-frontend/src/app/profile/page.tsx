@@ -224,7 +224,7 @@ export default function ProfilePage() {
                       className="icon-icon10 size-5 text-[1.25rem] text-primary"
                     />
                     <div className="text-[0.6875rem] leading-normal text-white/70">
-                      {t("profile.deposit")}
+                      {t("profile.total_deposited")}
                     </div>
                     <div className="text-[0.8125rem] font-bold text-white tracking-tight tabular-nums truncate max-w-full">
                       {formatMoney(wallet?.totalDeposited ?? "0")} {wallet?.currency ?? "USD"}
@@ -232,14 +232,14 @@ export default function ProfilePage() {
                   </Link>
                   <Link
                     className="flex flex-1 flex-col items-center gap-y-1 bg-[#1F1F1F] py-3 px-2 text-center"
-                    href="/asset/withdraw"
+                    href="/bet/history?ref=/profile"
                   >
                     <i
                       aria-hidden="true"
                       className="icon-icon11 size-5 text-[1.25rem] text-primary"
                     />
                     <div className="text-[0.6875rem] leading-normal text-white/70">
-                      {t("profile.withdraw")}
+                      {t("profile.today_profit")}
                     </div>
                     <div
                       className={`text-[0.8125rem] font-bold tracking-tight tabular-nums truncate max-w-full ${

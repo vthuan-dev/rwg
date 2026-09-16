@@ -694,6 +694,8 @@
     "wallet_1": "Main account",
     "deposit": "Deposit",
     "withdraw": "Withdraw",
+    "total_deposited": "Total Deposited",
+    "today_profit": "Today's Profit",
     "referral_program": "Referral program",
     "invite_friends": "Invite friends",
     "invite_friends_description": "Earn commission from the players you refer",
