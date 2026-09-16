@@ -299,4 +299,29 @@ class DepositFlowTest {
                                 """))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void walletMeReturnsTotalDepositedAndTodayProfit() throws Exception {
+        String username = unique("wallprof");
+        String bearer = registerLoginBearer(username);
+
+        // Ban đầu chưa nạp chưa cược: totalDeposited = 0, todayProfit = 0
+        MvcResult res1 = mockMvc.perform(get("/api/v1/wallet/me").header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andReturn();
+        var json1 = objectMapper.readTree(res1.getResponse().getContentAsString());
+        assertThat(new BigDecimal(json1.get("balance").asText())).isEqualByComparingTo("0");
+        assertThat(new BigDecimal(json1.get("totalDeposited").asText())).isEqualByComparingTo("0");
+        assertThat(new BigDecimal(json1.get("todayProfit").asText())).isEqualByComparingTo("0");
+
+        // Nạp 200 -> totalDeposited = 200, balance = 200
+        deposit(bearer, "200");
+        MvcResult res2 = mockMvc.perform(get("/api/v1/wallet/me").header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andReturn();
+        var json2 = objectMapper.readTree(res2.getResponse().getContentAsString());
+        assertThat(new BigDecimal(json2.get("balance").asText())).isEqualByComparingTo("200");
+        assertThat(new BigDecimal(json2.get("totalDeposited").asText())).isEqualByComparingTo("200");
+        assertThat(new BigDecimal(json2.get("todayProfit").asText())).isEqualByComparingTo("0");
+    }
 }
