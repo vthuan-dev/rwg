@@ -12,7 +12,7 @@ import {
   ShieldOff,
 } from "lucide-react";
 import { adminFetch, AdminApiError } from "@/lib/adminApi";
-import { getAdminIdentity, isSuperAdmin } from "@/lib/adminIdentity";
+import { getAdminIdentity, canEditUserOdds } from "@/lib/adminIdentity";
 import { useTranslation } from "@/context/LanguageContext";
 
 /** Khớp UserOddsOptionResponse của backend. */
@@ -173,7 +173,7 @@ function seedPairDrafts(data: UserOddsData): Record<string, string> {
 export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
   const { t, locale } = useTranslation();
   const identity = getAdminIdentity();
-  const canEdit = isSuperAdmin(identity);
+  const canEdit = canEditUserOdds(identity);
 
   /** Backend chặn tự sửa cho mình; ẩn ô nhập trước để không bấm rồi mới báo lỗi. */
   const isSelf = identity.userId === userId;
@@ -461,15 +461,6 @@ export const UserGameOddsPanel: React.FC<Props> = ({ userId, username }) => {
           </span>
         </div>
       </div>
-
-      {!canEdit && (
-        <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-          <span className="text-[11px] font-semibold text-slate-500">
-            {t("admin.users.odds.read_only")}
-          </span>
-        </div>
-      )}
 
       {error && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5">

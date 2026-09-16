@@ -69,7 +69,7 @@ export function getAdminIdentity(): AdminIdentity {
  * điều chỉnh ví và phê duyệt lệnh rút chỉ mở cho ADMIN và FINANCE. SUPPORT và RISK
  * xem được nhưng không được thao tác.
  */
-const MONEY_ROLES = ["ADMIN", "FINANCE"];
+const MONEY_ROLES = ["ADMIN", "FINANCE", "OPERATOR"];
 
 export function canAdjustWallet(identity: AdminIdentity = getAdminIdentity()): boolean {
   return identity.roles.some((r) => MONEY_ROLES.includes(r));
@@ -121,6 +121,16 @@ export function canDeleteUsers(identity: AdminIdentity = getAdminIdentity()): bo
 /** Chỉ ADMIN và FINANCE được xem sổ cái ví và lịch sử dòng tiền / cộng trừ tiền. */
 export function canViewLedger(identity: AdminIdentity = getAdminIdentity()): boolean {
   return hasAnyRole(["ADMIN", "FINANCE"], identity);
+}
+
+/** Được chỉnh sửa tỷ lệ cược riêng của người chơi: ADMIN và OPERATOR. */
+export function canEditUserOdds(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return hasAnyRole(["ADMIN", "OPERATOR"], identity);
+}
+
+/** Được xem và quản lý tài khoản nhận tiền người chơi: ADMIN, FINANCE và OPERATOR. */
+export function canManagePayoutMethods(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return hasAnyRole(["ADMIN", "FINANCE", "OPERATOR"], identity);
 }
 
 /**

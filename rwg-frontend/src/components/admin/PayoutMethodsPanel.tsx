@@ -8,14 +8,13 @@ import {
   Eye,
   Copy,
   Check,
-  ShieldOff,
   Star,
   Trash2,
   ShieldAlert,
   Clock,
 } from "lucide-react";
 import { adminFetch } from "@/lib/adminApi";
-import { canAdjustWallet } from "@/lib/adminIdentity";
+import { canManagePayoutMethods } from "@/lib/adminIdentity";
 import { useTranslation } from "@/context/LanguageContext";
 
 /** Một phương thức nhận tiền — khớp AdminPayoutMethodResponse của backend. */
@@ -68,10 +67,10 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
   const { t } = useTranslation();
 
   /**
-   * Quyền xem số đầy đủ trùng với quyền chạm tiền (ADMIN/FINANCE) — khớp rule
+   * Quyền xem số đầy đủ và thêm/gỡ tài khoản (ADMIN/FINANCE/OPERATOR) — khớp rule
    * trong SecurityConfig.
    */
-  const canReveal = canAdjustWallet();
+  const canReveal = canManagePayoutMethods();
 
   const [methods, setMethods] = useState<PayoutMethod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -290,14 +289,6 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      {!canReveal && (
-        <div className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <ShieldOff className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-          <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
-            {t("admin.users.payout.no_permission")}
-          </span>
-        </div>
-      )}
 
       {revealError && (
         <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
@@ -549,14 +540,7 @@ export const PayoutMethodsPanel: React.FC<Props> = ({ userId }) => {
       })}
 
       {/* THÊM TÀI KHOẢN HỘ */}
-      {!canReveal ? (
-        <div className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <ShieldOff className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-          <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
-            {t("admin.users.payout.no_add_permission")}
-          </span>
-        </div>
-      ) : hasActive ? (
+      {!canReveal ? null : hasActive ? (
         // ĐÃ CÓ TÀI KHOẢN — không hiện form. Luật "mỗi người một tài khoản" áp cả
         // cho admin: hai bản ghi cùng isDefault sẽ làm lúc rút tiền có hai ứng viên và
         // kết quả phụ thuộc thứ tự trả về của DB.

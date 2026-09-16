@@ -622,6 +622,8 @@ export interface Wallet {
   /** Chuỗi thập phân, KHÔNG phải số. Xem ghi chú ở `placeBet`. */
   balance: string;
   currency: string;
+  totalDeposited?: string;
+  todayProfit?: string;
 }
 
 /**

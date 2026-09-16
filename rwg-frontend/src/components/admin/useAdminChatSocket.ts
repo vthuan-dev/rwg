@@ -78,14 +78,24 @@ export function useAdminChatSocket(onEvent: (event: AdminChatEvent) => void) {
     const token = getAdminToken();
     if (!token) return;
 
+    const wsUrl = ADMIN_WS_URL.startsWith("https://")
+      ? ADMIN_WS_URL.replace(/^https:\/\//, "wss://")
+      : ADMIN_WS_URL.startsWith("http://")
+      ? ADMIN_WS_URL.replace(/^http:\/\//, "ws://")
+      : ADMIN_WS_URL;
+
     const client = new Client({
-      brokerURL: ADMIN_WS_URL.replace(/^http/, "ws"),
+      brokerURL: wsUrl,
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       debug: () => {},
     });
+
+    client.onWebSocketError = (evt) => {
+      console.warn("WebSocket transport error (admin chat):", evt);
+    };
 
     client.onConnect = () => {
       client.subscribe("/topic/admin/chat", (msg) => {

@@ -146,11 +146,6 @@ export function ChatWithdrawalCard({ card, onDecided }: Props) {
         </div>
       )}
 
-      {isPending && !canDecide && (
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-medium text-slate-500">
-          {t("admin.chat.withdrawal.no_permission")}
-        </p>
-      )}
 
       {isPending && canDecide && !pending && (
         <div className="flex gap-2">

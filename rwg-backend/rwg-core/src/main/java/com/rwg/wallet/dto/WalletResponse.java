@@ -7,6 +7,11 @@ public record WalletResponse(
         String walletId,
         String userId,
         String balance,
-        String currency
+        String currency,
+        String totalDeposited,
+        String todayProfit
 ) {
+    public WalletResponse(String walletId, String userId, String balance, String currency) {
+        this(walletId, userId, balance, currency, "0.00", "0.00");
+    }
 }

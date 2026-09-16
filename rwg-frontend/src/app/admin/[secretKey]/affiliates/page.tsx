@@ -255,8 +255,8 @@ export default function AdminAffiliatesPage() {
               [
                 ["commissions", t("affiliates.tab_commissions"), Layers],
                 ["downline", t("affiliates.tab_downline"), Network],
-                ["config", t("affiliates.tab_config"), Settings2],
-              ] as const
+                ...(canEditConfig ? [["config", t("affiliates.tab_config"), Settings2] as const] : []),
+              ] as Array<[Tab, string, typeof Layers]>
             ).map(([key, label, Icon]) => (
               <button
                 key={key}
@@ -472,17 +472,8 @@ export default function AdminAffiliatesPage() {
         )}
 
         {/* Tab: cau hinh ti le */}
-        {!loadError && tab === "config" && settings && (
+        {!loadError && tab === "config" && settings && canEditConfig && (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-5 shadow-xs max-w-xl">
-            {/* Doi ti le hoa hong la ADMIN-only trong SecurityConfig, FINANCE khong duoc. */}
-            {!canEditConfig && (
-              <div className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                <AlertCircle className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                <span className="text-xs text-slate-600 font-medium leading-relaxed">
-                  {t("affiliates.config_admin_only")}
-                </span>
-              </div>
-            )}
 
             {actionOk && (
               <div className="flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl">

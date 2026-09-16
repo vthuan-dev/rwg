@@ -153,14 +153,7 @@ export const UserPermissionPanel: React.FC<Props> = ({
           </span>
         </div>
 
-        {!canChangeRole ? (
-          <div className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-            <ShieldOff className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-            <span className="text-xs text-slate-600 font-medium leading-relaxed">
-              {t("admin.users.role.only_admin")}
-            </span>
-          </div>
-        ) : isSelf ? (
+        {!canChangeRole ? null : isSelf ? (
           <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-300 rounded-xl">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <span className="text-xs text-amber-800 font-semibold leading-relaxed">

@@ -531,6 +531,69 @@ export default function AdminSupportPage() {
 
   useAdminChatSocket(handleEvent);
 
+  /**
+   * Tự động đồng bộ tin nhắn định kỳ ngầm (silent polling).
+   * Lớp lưới an toàn thứ hai song song với WebSocket:
+   * Nếu có tin nhắn mới mà vì lý do nào đó (mạng chập chờn, kết nối WebSocket đang reconnect),
+   * tin nhắn vẫn tự động nhảy vào giao diện sau tối đa 3 giây mà nhân viên KHÔNG CẦN thoát ra vào lại.
+   */
+  useEffect(() => {
+    if (!activeId) return;
+
+    const interval = setInterval(async () => {
+      const currentId = activeIdRef.current;
+      if (!currentId) return;
+      try {
+        const page = await adminFetch<Message[]>(
+          `/admin/chat/conversations/${currentId}/messages`
+        );
+        const reversed = [...page].reverse();
+        setMessages((prev) => {
+          if (prev.length !== reversed.length) {
+            requestAnimationFrame(() => scrollToBottom(true));
+            return reversed;
+          }
+          const lastPrev = prev[prev.length - 1];
+          const lastNew = reversed[reversed.length - 1];
+          if (lastPrev?.id !== lastNew?.id || lastPrev?.readAt !== lastNew?.readAt) {
+            requestAnimationFrame(() => scrollToBottom(true));
+            return reversed;
+          }
+          return prev;
+        });
+      } catch {
+        // Im lặng, không làm gián đoạn UI
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeId, scrollToBottom]);
+
+  /**
+   * Tự động làm mới danh sách hàng đợi hỗ trợ định kỳ để phát hiện luồng mới của khách
+   */
+  useEffect(() => {
+    const listInterval = setInterval(async () => {
+      try {
+        const data = await fetchRows();
+        if (data) {
+          setRows((prev) => {
+            const prevKey = prev.map((r) => `${r.id}:${r.lastMessageAt}:${r.unreadCount}`).join("|");
+            const newKey = data.map((r) => `${r.id}:${r.lastMessageAt}:${r.unreadCount}`).join("|");
+            if (prevKey !== newKey) {
+              return data;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // Im lặng
+      }
+    }, 6000);
+
+    return () => clearInterval(listInterval);
+  }, [fetchRows]);
+
   const toggleMessageSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -1266,14 +1329,7 @@ export default function AdminSupportPage() {
                         </button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3">
-                      <EyeOff className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="text-[11px] font-medium text-slate-500">
-                        {t("admin.chat.read_only")}
-                      </span>
-                    </div>
-                  )}
+                  ) : null}
                 </>
               )}
             </section>

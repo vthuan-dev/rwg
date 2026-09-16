@@ -183,15 +183,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/risk/**")
                             .hasAnyRole("ADMIN", "RISK", "OPERATOR")
 
-                        // Thao tác CHẠM TIỀN: ADMIN hoặc FINANCE. SUPPORT/RISK/OPERATOR bị chặn ở đây.
+                        // Thao tác CHẠM TIỀN: ADMIN, FINANCE, OPERATOR. SUPPORT/RISK bị chặn ở đây.
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/wallet/adjust")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/approve")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/withdrawals/*/reject")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/affiliate/commissions/run")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/users/*/payout-methods/*/reveal")
                             .hasAnyRole("ADMIN", "FINANCE", "OPERATOR")
                         // THÊM / GỠ tài khoản nhận tiền hộ người chơi.

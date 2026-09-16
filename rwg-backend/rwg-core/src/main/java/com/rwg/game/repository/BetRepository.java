@@ -179,4 +179,14 @@ public interface BetRepository extends JpaRepository<Bet, BetId> {
                                            @Param("from") Instant from,
                                            @Param("to") Instant to,
                                            Pageable pageable);
+
+    /**
+     * Tổng lợi nhuận (payout - stake) của các ván cược đã kết toán của một người chơi trong khoảng thời gian.
+     */
+    @Query("select coalesce(sum(b.payout - b.stake), 0) from Bet b "
+            + "where b.userId = :userId and b.status = com.rwg.game.domain.BetStatus.SETTLED "
+            + "and b.createdAt >= :from and b.createdAt < :to")
+    BigDecimal sumNetProfitByUserInRange(@Param("userId") UUID userId,
+                                         @Param("from") Instant from,
+                                         @Param("to") Instant to);
 }

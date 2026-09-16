@@ -27,8 +27,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
+import com.rwg.game.repository.BetRepository;
+import com.rwg.payment.domain.PaymentStatus;
+import com.rwg.payment.domain.PaymentType;
+import com.rwg.payment.repository.PaymentOrderRepository;
 
 /**
  * Lõi tiền của hệ thống (chặng 2 Phase b, đã sửa theo review 3 chiều). Nguyên tắc:
@@ -51,20 +57,28 @@ public class WalletService {
     private final WalletLedgerGuardRepository guardRepository;
     private final WalletCreator walletCreator;
     private final AuditTrailService audit;
+    private final PaymentOrderRepository paymentOrderRepository;
+    private final BetRepository betRepository;
     private final TransactionTemplate txWrite;
     private final TransactionTemplate txRead;
+
+    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     public WalletService(WalletRepository walletRepository,
                          WalletTransactionRepository transactionRepository,
                          WalletLedgerGuardRepository guardRepository,
                          WalletCreator walletCreator,
                          AuditTrailService audit,
+                         PaymentOrderRepository paymentOrderRepository,
+                         BetRepository betRepository,
                          PlatformTransactionManager transactionManager) {
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
         this.guardRepository = guardRepository;
         this.walletCreator = walletCreator;
         this.audit = audit;
+        this.paymentOrderRepository = paymentOrderRepository;
+        this.betRepository = betRepository;
         // debit/credit dùng TransactionTemplate (thay vì @Transactional tự gọi) để
         // bắt DataIntegrityViolationException NGOÀI transaction — transaction thua
         // race đã rollback xong mới đọc số dư hiện có, tránh session bị hỏng.
@@ -105,11 +119,50 @@ public class WalletService {
     /** Thông tin ví. KHÔNG tạo ví (fix M6): ví chưa có -> ví ảo balance 0. */
     @Transactional(readOnly = true)
     public WalletResponse getWallet(UUID userId) {
-        return walletRepository.findByUserId(userId)
-                .map(w -> new WalletResponse(w.getId().toString(), w.getUserId().toString(),
-                        Money.of(w.getBalance()).amount().toPlainString(), w.getCurrency()))
-                .orElseGet(() -> new WalletResponse(null, userId.toString(),
-                        Money.zero().amount().toPlainString(), Wallet.DEFAULT_CURRENCY));
+        BigDecimal deposited = paymentOrderRepository.sumAmountByUserAndTypeAndStatus(
+                userId, PaymentType.DEPOSIT, PaymentStatus.SUCCESS);
+        if (deposited == null) {
+            deposited = BigDecimal.ZERO;
+        }
+
+        Wallet wallet = walletRepository.findByUserId(userId).orElse(null);
+        if (wallet != null) {
+            BigDecimal adjustCredit = transactionRepository.sumCreditByWalletIdAndRefType(wallet.getId(), WalletRefType.ADJUSTMENT);
+            if (adjustCredit != null) {
+                deposited = deposited.add(adjustCredit);
+            }
+        }
+
+        LocalDate today = LocalDate.now(VN_ZONE);
+        Instant from = today.atStartOfDay(VN_ZONE).toInstant();
+        Instant to = today.plusDays(1).atStartOfDay(VN_ZONE).toInstant();
+        BigDecimal todayProfit = betRepository.sumNetProfitByUserInRange(userId, from, to);
+        if (todayProfit == null) {
+            todayProfit = BigDecimal.ZERO;
+        }
+
+        String totalDepositedStr = Money.of(deposited).amount().toPlainString();
+        String todayProfitStr = Money.of(todayProfit).amount().toPlainString();
+
+        if (wallet != null) {
+            return new WalletResponse(
+                    wallet.getId().toString(),
+                    wallet.getUserId().toString(),
+                    Money.of(wallet.getBalance()).amount().toPlainString(),
+                    wallet.getCurrency(),
+                    totalDepositedStr,
+                    todayProfitStr
+            );
+        } else {
+            return new WalletResponse(
+                    null,
+                    userId.toString(),
+                    Money.zero().amount().toPlainString(),
+                    Wallet.DEFAULT_CURRENCY,
+                    totalDepositedStr,
+                    todayProfitStr
+            );
+        }
     }
 
     /** Lịch sử giao dịch. KHÔNG tạo ví (fix M6): ví chưa có -> trang rỗng. */

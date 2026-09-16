@@ -137,14 +137,16 @@ export const WalletAdjustPanel: React.FC<Props> = ({
     }
   };
 
-  if (!allowed || isSelf) {
+  if (!allowed) {
+    return null;
+  }
+
+  if (isSelf) {
     return (
       <div className="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
         <ShieldOff className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-          {isSelf
-            ? t("admin.users.wallet.err_self")
-            : t("admin.users.wallet.no_permission")}
+          {t("admin.users.wallet.err_self")}
         </p>
       </div>
     );
