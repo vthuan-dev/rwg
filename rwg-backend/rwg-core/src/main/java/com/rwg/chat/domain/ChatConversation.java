@@ -147,6 +147,19 @@ public class ChatConversation {
     }
 
     /**
+     * Cập nhật lại tin nhắn mới nhất còn hiệu lực sau khi dọn dẹp các tin quá hạn 30 phút.
+     */
+    public void updateLastMessage(ChatMessage message) {
+        if (message != null) {
+            touchLastMessage(message);
+        } else {
+            this.lastMessagePreview = null;
+            this.unreadForAdmin = 0;
+            this.unreadForPlayer = 0;
+        }
+    }
+
+    /**
      * Một phía vừa đọc hết: đưa bộ đếm của CHÍNH phía đó về 0.
      *
      * Nhận vào loại người gửi của những tin ĐƯỢC đọc, chứ không phải phía đang đọc.

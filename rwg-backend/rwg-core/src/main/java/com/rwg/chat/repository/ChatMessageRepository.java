@@ -35,11 +35,13 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, ChatMe
             SELECT m FROM ChatMessage m
             WHERE m.conversationId = :conversationId
               AND m.deletedAt IS NULL
+              AND (:minCreatedAt IS NULL OR m.createdAt >= :minCreatedAt)
               AND (:before IS NULL OR m.createdAt < :before)
             ORDER BY m.createdAt DESC
             """)
     List<ChatMessage> findPageBefore(@Param("conversationId") UUID conversationId,
                                      @Param("before") Instant before,
+                                     @Param("minCreatedAt") Instant minCreatedAt,
                                      Pageable pageable);
 
     /**
@@ -57,12 +59,39 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, ChatMe
             WHERE m.conversationId = :conversationId
               AND m.visibleTo = com.rwg.chat.domain.ChatVisibility.ALL
               AND m.deletedAt IS NULL
+              AND (:minCreatedAt IS NULL OR m.createdAt >= :minCreatedAt)
               AND (:before IS NULL OR m.createdAt < :before)
             ORDER BY m.createdAt DESC
             """)
     List<ChatMessage> findPageBeforeVisibleToPlayer(@Param("conversationId") UUID conversationId,
                                                     @Param("before") Instant before,
+                                                    @Param("minCreatedAt") Instant minCreatedAt,
                                                     Pageable pageable);
+
+    /**
+     * Tìm các tin nhắn chưa bị xóa nhưng đã quá hạn cutoff (ví dụ quá 30 phút).
+     */
+    @Query("""
+            SELECT m FROM ChatMessage m
+            WHERE m.deletedAt IS NULL
+              AND m.createdAt < :cutoff
+            ORDER BY m.createdAt ASC
+            """)
+    List<ChatMessage> findExpiredMessages(@Param("cutoff") Instant cutoff, Pageable pageable);
+
+    /**
+     * Tìm tin nhắn mới nhất còn hiệu lực của một hội thoại.
+     */
+    @Query("""
+            SELECT m FROM ChatMessage m
+            WHERE m.conversationId = :conversationId
+              AND m.deletedAt IS NULL
+              AND m.createdAt >= :minCreatedAt
+            ORDER BY m.createdAt DESC
+            """)
+    List<ChatMessage> findLatestActiveInConversation(@Param("conversationId") UUID conversationId,
+                                                     @Param("minCreatedAt") Instant minCreatedAt,
+                                                     Pageable pageable);
 
     /**
      * Tìm nhiều tin theo danh sách id để xóa hàng loạt.

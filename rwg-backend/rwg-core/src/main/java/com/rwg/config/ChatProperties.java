@@ -40,7 +40,17 @@ public record ChatProperties(
          * relay giữa hai JVM. Không có cầu này thì tin nhân sự gửi ở app admin không
          * bao giờ tới được trình duyệt người chơi đang nối vào app player.
          */
-        String relayChannel
+        String relayChannel,
+
+        /**
+         * Thời gian tin nhắn tự động hết hạn và xóa (mặc định: 30 phút).
+         */
+        Duration autoDeleteAfter,
+
+        /**
+         * Chu kỳ quét dọn ngầm tin nhắn quá hạn (mặc định: 30 giây).
+         */
+        Duration autoDeleteInterval
 ) {
 
     public ChatProperties {
@@ -48,5 +58,11 @@ public record ChatProperties(
         if (rateWindow == null) rateWindow = Duration.ofMinutes(1);
         if (pageSize <= 0) pageSize = 30;
         if (relayChannel == null || relayChannel.isBlank()) relayChannel = "rwg:chat:events";
+        if (autoDeleteAfter == null || autoDeleteAfter.isNegative() || autoDeleteAfter.isZero()) {
+            autoDeleteAfter = Duration.ofMinutes(30);
+        }
+        if (autoDeleteInterval == null || autoDeleteInterval.isNegative() || autoDeleteInterval.isZero()) {
+            autoDeleteInterval = Duration.ofSeconds(30);
+        }
     }
 }

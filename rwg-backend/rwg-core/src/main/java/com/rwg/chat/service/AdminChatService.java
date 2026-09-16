@@ -178,8 +178,9 @@ public class AdminChatService {
     public List<ChatMessageResponse> messages(UUID conversationId, Instant before) {
         requireConversation(conversationId);
 
+        Instant minCreatedAt = Instant.now().minus(chatProperties.autoDeleteAfter());
         List<ChatMessage> page = messageRepository
-                .findPageBefore(conversationId, before,
+                .findPageBefore(conversationId, before, minCreatedAt,
                         PageRequest.of(0, chatProperties.pageSize()));
 
         Set<UUID> orderIds = page.stream()

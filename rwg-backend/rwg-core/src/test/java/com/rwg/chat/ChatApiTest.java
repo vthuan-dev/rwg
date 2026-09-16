@@ -20,8 +20,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -59,6 +62,12 @@ class ChatApiTest {
 
     @Autowired
     ChatConversationRepository conversationRepository;
+
+    @Autowired
+    com.rwg.chat.repository.ChatMessageRepository messageRepository;
+
+    @Autowired
+    com.rwg.chat.service.ChatAutoExpiryScheduler autoExpiryScheduler;
 
     // ===== helper (theo mẫu PayoutMethodApiTest) =====
 
@@ -458,7 +467,7 @@ class ChatApiTest {
         String msgId = sentMsg.get("id").asText();
         String conversationId = myConversationId(player);
 
-        String staff = staffBearer(UserRole.SUPPORT);
+        String staff = staffBearer(UserRole.ADMIN);
 
         // 1. Thực hiện xóa tin nhắn
         mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
@@ -498,7 +507,7 @@ class ChatApiTest {
         String msgId = sentMsg.get("id").asText();
         String conversationId = myConversationId(player);
 
-        String staff = staffBearer(UserRole.SUPPORT);
+        String staff = staffBearer(UserRole.ADMIN);
 
         mockMvc.perform(delete("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
                         .header("Authorization", staff)
@@ -510,7 +519,7 @@ class ChatApiTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
-@Test
+    @Test
     @DisplayName("Người chơi và vai trò RISK không được quyền xóa tin nhắn")
     void playerAndRiskCannotDeleteMessages() throws Exception {
         String player = playerBearer(register("chatdel2"));
@@ -543,7 +552,7 @@ class ChatApiTest {
     @Test
     @DisplayName("Xóa tin nhắn sai định dạng hoặc vượt quá 100 tin nhắn bị từ chối")
     void deleteMessagesValidation() throws Exception {
-        String staff = staffBearer(UserRole.SUPPORT);
+        String staff = staffBearer(UserRole.ADMIN);
         String conversationId = UUID.randomUUID().toString();
 
         // 1. Danh sách trống
@@ -569,5 +578,63 @@ class ChatApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(sb.toString()))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Tin nhắn giữ nguyên trong 30 phút khi thoát ra vào lại; tự động xóa sau 30 phút")
+    void messagesRetainedWithin30MinAndAutoExpiredAfter30Min() throws Exception {
+        String playerUsername = register("chat30m");
+        String player = playerBearer(playerUsername);
+        String conversationId = myConversationId(player);
+        String staff = staffBearer(UserRole.ADMIN);
+
+        // 1. Gửi tin nhắn mới M1 (trong vòng 30 phút)
+        JsonNode m1 = sendAsPlayer(player, "Tin nhan trong 30 phut", null);
+        String m1Id = m1.get("id").asText();
+
+        // 2. Khách "thoát ra vào lại": gọi lại API lấy tin nhắn -> M1 vẫn còn nguyên
+        mockMvc.perform(get("/api/v1/chat/messages").header("Authorization", player))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(m1Id));
+
+        // Admin mở luồng -> M1 cũng hiển thị
+        mockMvc.perform(get("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(m1Id));
+
+        // 3. Tạo một tin nhắn M2 có createdAt cách đây 35 phút (đã quá hạn 30 phút)
+        UUID convUuid = UUID.fromString(conversationId);
+        User playerUser = userRepository.findByUsername(playerUsername).orElseThrow();
+        com.rwg.chat.domain.ChatMessage oldMsg = com.rwg.chat.domain.ChatMessage.fromPlayer(
+                convUuid, playerUser.getId(), playerUsername, "Tin nhan cu hon 30 phut", null);
+        Instant oldCreatedAt = Instant.now().minus(Duration.ofMinutes(35)).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        ReflectionTestUtils.setField(oldMsg, "createdAt", oldCreatedAt);
+        messageRepository.saveAndFlush(oldMsg);
+
+        // 4. Player và Admin tải tin nhắn: M2 đã bị lọc bỏ (chỉ thấy M1)
+        mockMvc.perform(get("/api/v1/chat/messages").header("Authorization", player))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(m1Id));
+
+        mockMvc.perform(get("/api/v1/admin/chat/conversations/" + conversationId + "/messages")
+                        .header("Authorization", staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(m1Id));
+
+        // 5. Chạy background scheduler quét dọn
+        autoExpiryScheduler.sweepExpiredMessages();
+
+        // 6. Kiểm tra trong DB: M2 đã được soft delete bởi SYSTEM_AUTO_30M
+        com.rwg.chat.domain.ChatMessage checkedOldMsg = messageRepository.findAll().stream()
+                .filter(m -> m.getId().equals(oldMsg.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(checkedOldMsg.getDeletedAt()).isNotNull();
+        assertThat(checkedOldMsg.getDeletedByUsername()).isEqualTo("SYSTEM_AUTO_30M");
     }
 }

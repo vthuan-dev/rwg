@@ -16,6 +16,7 @@ import {
   Bell,
   BellOff,
   Wallet as WalletIcon,
+  Clock,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
@@ -169,6 +170,25 @@ export default function AdminSupportPage() {
   const [threadError, setThreadError] = useState("");
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+
+  /**
+   * Tự động xóa các tin nhắn đã quá 30 phút trên màn hình (quét mỗi 10 giây).
+   * Khách hoặc Admin thoát ra vào lại trong vòng 30 phút thì tin nhắn vẫn còn nguyên.
+   */
+  useEffect(() => {
+    if (!activeId) return;
+    const interval = setInterval(() => {
+      const cutoffTime = Date.now() - 30 * 60 * 1000;
+      setMessages((prev) => {
+        const filtered = prev.filter(
+          (m) => new Date(m.createdAt).getTime() >= cutoffTime
+        );
+        return filtered.length === prev.length ? prev : filtered;
+      });
+    }, 10_000);
+
+    return () => clearInterval(interval);
+  }, [activeId]);
 
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -987,6 +1007,11 @@ export default function AdminSupportPage() {
                           isp={activeRow.geoIsp}
                           ip={activeRow.lastIp}
                         />
+                        <span aria-hidden="true" className="text-slate-300">·</span>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200/70" title="Tin nhắn tự động hết hạn và xóa sau 30 phút">
+                          <Clock className="h-3 w-3 text-amber-500" />
+                          Tự động xóa sau 30p
+                        </span>
                       </span>
                     </div>
 

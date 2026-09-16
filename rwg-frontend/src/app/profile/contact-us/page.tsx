@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquareDashed, Loader2, ChevronUp } from "lucide-react";
+import { MessageSquareDashed, Loader2, ChevronUp, Clock } from "lucide-react";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { TopNavigationBar } from "@/components/layout/TopNavigationBar";
 import { ChatBubble, type PendingChatMessage } from "@/components/chat/ChatBubble";
@@ -117,6 +117,24 @@ export default function ContactUsPage() {
     }
     setChecked(true);
   }, [router]);
+
+  /**
+   * Tự động xóa các tin nhắn đã quá 30 phút trên màn hình người chơi (quét mỗi 10 giây).
+   * Thoát ra vào lại trong 30 phút tin nhắn vẫn còn nguyên từ DB.
+   */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cutoffTime = Date.now() - 30 * 60 * 1000;
+      setMessages((prev) => {
+        const filtered = prev.filter(
+          (m) => m.pending || new Date(m.createdAt).getTime() >= cutoffTime
+        );
+        return filtered.length === prev.length ? prev : filtered;
+      });
+    }, 10_000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   /**
    * Rời trang chat.
@@ -482,6 +500,12 @@ export default function ContactUsPage() {
           nhắn — lúc đó ô nhập trôi khỏi màn hình. */}
       <main className="flex min-h-0 grow flex-col bg-[#0d0d0f]">
         <div ref={scrollRef} className="flex min-h-0 grow flex-col overflow-y-auto py-3">
+          <div className="mb-2 flex justify-center px-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16161a] border border-[#28282e] px-3 py-1 text-[10px] font-medium text-[#8b8b93]">
+              <Clock className="size-3 text-amber-500/80" />
+              Tin nhắn tự động bảo mật & xóa sau 30 phút
+            </span>
+          </div>
           {loading ? (
             <div className="flex grow flex-col items-center justify-center gap-y-3">
               <Loader2 className="size-6 animate-spin text-primary" />

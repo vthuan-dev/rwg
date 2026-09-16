@@ -96,8 +96,9 @@ public class ChatService {
             // Đây là đường đọc, và một hàm đọc lại ghi dữ liệu là thứ không ai đoán được.
             return List.of();
         }
+        Instant minCreatedAt = Instant.now().minus(chatProperties.autoDeleteAfter());
         return messageRepository
-                .findPageBeforeVisibleToPlayer(conversation.getId(), before,
+                .findPageBeforeVisibleToPlayer(conversation.getId(), before, minCreatedAt,
                         PageRequest.of(0, chatProperties.pageSize()))
                 .stream()
                 .map(ChatMessageResponse::from)
