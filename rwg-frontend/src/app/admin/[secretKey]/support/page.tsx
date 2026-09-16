@@ -16,7 +16,6 @@ import {
   Bell,
   BellOff,
   Wallet as WalletIcon,
-  Clock,
 } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminErrorState, AdminEmptyState } from "@/components/admin/AdminStates";
@@ -1038,11 +1037,6 @@ export default function AdminSupportPage() {
                           isp={activeRow.geoIsp}
                           ip={activeRow.lastIp}
                         />
-                        <span aria-hidden="true" className="text-slate-300">·</span>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200/70" title="Tin nhắn tự động hết hạn và xóa sau 30 phút">
-                          <Clock className="h-3 w-3 text-amber-500" />
-                          Tự động xóa sau 30p
-                        </span>
                       </span>
                     </div>
 
