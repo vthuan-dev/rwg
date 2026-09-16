@@ -11,8 +11,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -37,6 +39,7 @@ public class RedisPresenceStore implements PresenceStore {
     private static final Logger log = LoggerFactory.getLogger(RedisPresenceStore.class);
 
     private static final String KEY_PREFIX = "rwg:presence:";
+    private static final String ACTIVE_ZSET_KEY = "rwg:presence:active";
 
     private final StringRedisTemplate redis;
     private final PresenceProperties properties;
@@ -49,17 +52,44 @@ public class RedisPresenceStore implements PresenceStore {
     @Override
     public void touch(UUID userId) {
         try {
+            long now = Instant.now().toEpochMilli();
             // Ghi kèm TTL trong MỘT lệnh, không phải SET rồi EXPIRE riêng: hai lệnh thì
             // một lần mất kết nối giữa chúng để lại khoá không bao giờ hết hạn.
             redis.opsForValue().set(
                     KEY_PREFIX + userId,
-                    String.valueOf(Instant.now().toEpochMilli()),
+                    String.valueOf(now),
                     properties.retention());
+            redis.opsForZSet().add(ACTIVE_ZSET_KEY, userId.toString(), now);
         } catch (RuntimeException redisDown) {
             // Nuốt lỗi CÓ CHỦ Ý. Hàm này nằm trên đường đi của MỌI request người chơi;
             // để lỗi thoát ra sẽ biến một sự cố Redis thành lỗi 500 trên toàn bộ ứng dụng
             // chỉ vì một chấm màu trong khu quản trị.
             log.debug("Không ghi được mốc hoạt động cho {}: {}", userId, redisDown.getMessage());
+        }
+    }
+
+    @Override
+    public Set<UUID> getOnlineUserIds() {
+        try {
+            long minScore = Instant.now().minus(properties.onlineWindow()).toEpochMilli();
+            Set<String> members = redis.opsForZSet().rangeByScore(ACTIVE_ZSET_KEY, minScore, Double.MAX_VALUE);
+            if (members == null || members.isEmpty()) {
+                return Set.of();
+            }
+            // Dọn dẹp bản ghi cũ hơn retention
+            long expireScore = Instant.now().minus(properties.retention()).toEpochMilli();
+            redis.opsForZSet().removeRangeByScore(ACTIVE_ZSET_KEY, 0, expireScore);
+
+            Set<UUID> result = new HashSet<>();
+            for (String m : members) {
+                try {
+                    result.add(UUID.fromString(m));
+                } catch (IllegalArgumentException ignored) {}
+            }
+            return result;
+        } catch (RuntimeException redisDown) {
+            log.debug("Không đọc được danh sách online từ Redis: {}", redisDown.getMessage());
+            return Set.of();
         }
     }
 

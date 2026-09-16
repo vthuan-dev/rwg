@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +51,19 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                               @Param("excludeClosed") boolean excludeClosed,
                               @Param("keyword") String keyword,
                               Pageable pageable);
+
+    @Query("select u from User u where "
+            + "u.role = com.rwg.identity.domain.UserRole.PLAYER and "
+            + "(:status is null or u.status = :status) and "
+            + "(:excludeClosed = false or u.status <> com.rwg.identity.domain.UserStatus.CLOSED) and "
+            + "(:keyword is null or lower(u.username) like :keyword "
+            + "or lower(u.email) like :keyword) "
+            + "order by (case when u.id in :onlineIds then 0 else 1 end), u.createdAt desc")
+    Page<User> searchForAdminOnlineFirst(@Param("status") UserStatus status,
+                                         @Param("excludeClosed") boolean excludeClosed,
+                                         @Param("keyword") String keyword,
+                                         @Param("onlineIds") Collection<UUID> onlineIds,
+                                         Pageable pageable);
 
     long countByStatus(UserStatus status);
 

@@ -97,7 +97,7 @@ interface PresenceEntry {
  * Khớp với chu kỳ quét WebSocket ở backend (rwg.presence.refresh-interval): làm mới dày hơn
  * cũng không sớm hơn được, vì mốc ở Redis chỉ đổi theo nhịp đó.
  */
-const PRESENCE_REFRESH_MS = 30_000;
+const PRESENCE_REFRESH_MS = 5_000;
 
 /**
  * Chi tiết user — khớp AdminUserDetailResponse của backend.
@@ -529,6 +529,54 @@ export default function AdminUsersPage() {
     };
   }, [visibleUserIds]);
 
+  /**
+   * Tự động làm mới danh sách ngầm mỗi 10 giây (khi ở trang 1 và không mở modal)
+   * Giúp phát hiện và đưa tài khoản vừa online lên đầu bảng ngay lập tức.
+   */
+  useEffect(() => {
+    if (page !== 0 || selectedUser || statusModalUser) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchUsers();
+        if (data) {
+          applyResult(data);
+        }
+      } catch {
+        // Im lặng, không làm phiền giao diện
+      }
+    }, 10_000);
+
+    return () => clearInterval(interval);
+  }, [page, selectedUser, statusModalUser, fetchUsers, applyResult]);
+
+  /**
+   * Sắp xếp danh sách hiển thị ưu tiên:
+   * 1. Tài khoản đang online (online === true) luôn ở đầu bảng.
+   * 2. Nếu cùng online hoặc cùng offline: sắp xếp theo lastSeenAt mới nhất -> createdAt mới nhất.
+   */
+  const sortedUsers = React.useMemo(() => {
+    return [...users].sort((a, b) => {
+      const aOnline = presence[a.id]?.online ?? a.online;
+      const bOnline = presence[b.id]?.online ?? b.online;
+      if (aOnline && !bOnline) return -1;
+      if (!aOnline && bOnline) return 1;
+
+      const aSeen = presence[a.id]?.lastSeenAt ?? a.lastSeenAt;
+      const bSeen = presence[b.id]?.lastSeenAt ?? b.lastSeenAt;
+      if (aSeen && bSeen) {
+        const diff = new Date(bSeen).getTime() - new Date(aSeen).getTime();
+        if (diff !== 0) return diff;
+      } else if (aSeen && !bSeen) {
+        return -1;
+      } else if (!aSeen && bSeen) {
+        return 1;
+      }
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [users, presence]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
@@ -650,7 +698,7 @@ export default function AdminUsersPage() {
                     </td>
                   </tr>
                 )}
-                {users.map((u) => (
+                {sortedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-700 font-extrabold text-xs">

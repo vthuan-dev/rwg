@@ -3,6 +3,7 @@ package com.rwg.presence.service;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -45,4 +46,11 @@ public interface PresenceStore {
      * "chưa từng thấy" với "thấy lần cuối lúc nào đó".
      */
     Map<UUID, Instant> lastSeen(Collection<UUID> userIds);
+
+    /**
+     * Danh sách các userId đang online gần đây (trong cửa sổ onlineWindow).
+     */
+    default Set<UUID> getOnlineUserIds() {
+        return Set.of();
+    }
 }

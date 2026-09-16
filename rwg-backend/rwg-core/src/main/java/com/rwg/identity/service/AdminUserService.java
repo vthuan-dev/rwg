@@ -191,14 +191,24 @@ public class AdminUserService {
                 ? null
                 : "%" + escapeLike(keyword.trim().toLowerCase()) + "%";
 
-        Page<User> found = userRepository.searchForAdmin(
-                statusFilter,
-                // Khi admin chủ động lọc theo status cụ thể thì không ẩn CLOSED nữa —
-                // họ biết họ đang tìm gì. Khi tìm theo keyword cũng hiện CLOSED để
-                // không bỏ sót kết quả. Chỉ ẩn khi duyệt danh sách không filter.
-                statusFilter == null && (keyword == null || keyword.isBlank()),
-                keywordFilter,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        boolean excludeClosed = statusFilter == null && (keyword == null || keyword.isBlank());
+        Set<UUID> onlineUserIds = presenceQueryService.getOnlineUserIds();
+
+        Page<User> found;
+        if (onlineUserIds != null && !onlineUserIds.isEmpty()) {
+            found = userRepository.searchForAdminOnlineFirst(
+                    statusFilter,
+                    excludeClosed,
+                    keywordFilter,
+                    onlineUserIds,
+                    PageRequest.of(page, size));
+        } else {
+            found = userRepository.searchForAdmin(
+                    statusFilter,
+                    excludeClosed,
+                    keywordFilter,
+                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        }
 
         // MỘT truy vấn cho toàn bộ ví của trang, không phải mỗi dòng một lượt: với size mặc
         // định 20 thì cách kia thành 21 truy vấn cho một lần vẽ bảng.

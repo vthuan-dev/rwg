@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -67,5 +68,12 @@ public class PresenceQueryService {
                     return new PresenceEntryResponse(id, isOnline(at), at);
                 })
                 .toList();
+    }
+
+    /**
+     * Danh sách các userId đang online hiện tại.
+     */
+    public Set<UUID> getOnlineUserIds() {
+        return presenceStore.getOnlineUserIds();
     }
 }
