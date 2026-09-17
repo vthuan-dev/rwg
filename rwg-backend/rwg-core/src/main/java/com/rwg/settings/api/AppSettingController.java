@@ -60,7 +60,7 @@ public class AppSettingController {
         } catch (Exception ignored) {
         }
 
-        BigDecimal rate = new BigDecimal("25000");
+        BigDecimal rate = new BigDecimal("26008");
         if (setting != null && setting.value() != null && !setting.value().isBlank()) {
             try {
                 rate = new BigDecimal(setting.value().trim());
@@ -72,7 +72,7 @@ public class AppSettingController {
                 "baseCurrency", "USD",
                 "targetCurrency", "VND",
                 "rate", rate,
-                "formattedRate", "1 USD = " + String.format(Locale.US, "%,d", rate.longValue()) + " VND"
+                "formattedRate", "1 USD = " + String.format(Locale.US, "%,.2f", rate.doubleValue()) + " Vietnamese dong"
         );
     }
 

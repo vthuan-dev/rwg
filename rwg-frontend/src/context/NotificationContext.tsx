@@ -105,7 +105,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const stompClientRef = useRef<Client | null>(null);
-  const exchangeRateRef = useRef<number>(25000);
+  const exchangeRateRef = useRef<number>(26008);
 
   const addToast = useCallback(
     (type: ToastItem["type"], title: string, message: string) => {
@@ -245,7 +245,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           const payload = JSON.parse(msg.body);
           const payoutUsd = Number(payload.payout || "0");
-          const rate = exchangeRateRef.current > 0 ? exchangeRateRef.current : 25000;
+          const rate = exchangeRateRef.current > 0 ? exchangeRateRef.current : 26008;
           const isGamePage =
             typeof window !== "undefined" && window.location.pathname.startsWith("/games/");
 

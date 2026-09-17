@@ -399,8 +399,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const [coins, setCoins] = useState<number[]>([1, 1, 0, 0]); // 2 red 2 white
   const [balance, setBalance] = useState<number | null>(null); // VND quy đổi từ số dư thật
   const [usdBalance, setUsdBalance] = useState<number | null>(null); // số dư USD thật trong ví
-  const [exchangeRate, setExchangeRate] = useState<number>(25000); // Dynamic exchange rate USD -> VND
-  const [exchangeRateFormatted, setExchangeRateFormatted] = useState<string>("1 USD = 25,000 VND");
+  const [exchangeRate, setExchangeRate] = useState<number>(26008); // Dynamic exchange rate USD -> VND
+  const [exchangeRateFormatted, setExchangeRateFormatted] = useState<string>("1 USD = 26,008.00 Vietnamese dong");
   const [selectedChip, setSelectedChip] = useState<number | null>(null); // Bắt buộc người chơi chọn phỉnh trước khi cược
   const [highlightChipBar, setHighlightChipBar] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -2517,7 +2517,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
     }
 
     // ===== 2. GỌI API ĐẶT CƯỢC NGẦM TRONG NỀN (BACKGROUND ASYNC) =====
-    const rate = exchangeRateRef.current || 25000;
+    const rate = exchangeRateRef.current || 26008;
     const stakeUsdStr = (() => {
       const raw = selectedChip / rate;
       return raw.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");

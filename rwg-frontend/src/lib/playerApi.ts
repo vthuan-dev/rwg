@@ -647,7 +647,7 @@ export interface CurrencyExchangeRate {
  * Lấy tỷ giá quy đổi tiền tệ hiện hành (USD -> VND).
  *
  * Đọc từ backend endpoint `/settings/exchange-rate`.
- * Mặc định fallback 1 USD = 25,000 VND nếu mạng có sự cố.
+ * Mặc định fallback 1 USD = 26,008.00 Vietnamese dong nếu mạng có sự cố.
  */
 export async function getExchangeRate(): Promise<CurrencyExchangeRate> {
   try {
@@ -656,8 +656,8 @@ export async function getExchangeRate(): Promise<CurrencyExchangeRate> {
     return {
       baseCurrency: "USD",
       targetCurrency: "VND",
-      rate: 25000,
-      formattedRate: "1 USD = 25,000 VND",
+      rate: 26008,
+      formattedRate: "1 USD = 26,008.00 Vietnamese dong",
     };
   }
 }

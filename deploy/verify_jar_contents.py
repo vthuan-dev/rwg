@@ -26,6 +26,7 @@ REQUIRED = [
     "com/rwg/identity/dto/LoginHistoryEntryResponse.class",
     "db/migration/V20260917_01__them_bet_locked_cho_users.sql",
     "com/rwg/identity/dto/ToggleBetLockRequest.class",
+    "db/migration/V20260917_02__cap_nhat_exchange_rate_26008.sql",
 ]
 
 NESTED_CORE = "BOOT-INF/lib/rwg-core-0.1.0-SNAPSHOT.jar"
