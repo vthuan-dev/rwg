@@ -249,7 +249,7 @@ public class AdminUserService {
                     // Kết luận online tính Ở ĐÂY chứ không để phía hiển thị tự so với hiện
                     // tại: ngưỡng im lặng là quyết định nghiệp vụ nằm trong cấu hình, và
                     // đồng hồ của máy người vận hành có thể lệch.
-                    presenceQueryService.isOnline(lastSeenAt), lastSeenAt);
+                    presenceQueryService.isOnline(lastSeenAt), lastSeenAt, user.isBetLocked());
         });
     }
 
@@ -292,7 +292,8 @@ public class AdminUserService {
                 Money.of(deposited).amount().toPlainString(),
                 Money.of(withdrawn).amount().toPlainString(),
                 paymentOrderRepository.countByUserIdAndTypeAndStatus(
-                        userId, PaymentType.WITHDRAWAL, PaymentStatus.PENDING));
+                        userId, PaymentType.WITHDRAWAL, PaymentStatus.PENDING),
+                user.isBetLocked());
     }
 
     /**
@@ -423,6 +424,24 @@ public class AdminUserService {
         audit.record(adminId, null, AuditTrailService.ADMIN_KYC_UPDATED,
                 "USER", userId.toString(),
                 details("from", from.name(), "to", to.name(), "reason", request.reason()), ip);
+        return AuthService.toResponse(user);
+    }
+
+    /**
+     * Bật / tắt khóa cược ngầm (Stealth Bet Lock) cho người chơi.
+     * KHÔNG gọi revokeSessions() để phiên đăng nhập của người chơi vẫn giữ nguyên.
+     */
+    @Transactional
+    public UserResponse toggleBetLock(UUID userId, boolean locked, UUID adminId, String ip) {
+        User user = requireUser(userId);
+        if (user.isBetLocked() != locked) {
+            user.setBetLocked(locked);
+            userRepository.save(user);
+
+            audit.record(adminId, null, "ADMIN_USER_BET_LOCK_TOGGLED",
+                    "USER", userId.toString(),
+                    Map.of("betLocked", String.valueOf(locked), "username", user.getUsername()), ip);
+        }
         return AuthService.toResponse(user);
     }
 

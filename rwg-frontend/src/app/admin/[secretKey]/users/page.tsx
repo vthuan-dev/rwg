@@ -7,6 +7,7 @@ import {
   Filter,
   RefreshCw,
   Shield,
+  ShieldAlert,
   Lock,
   Ban,
   CheckCircle2,
@@ -82,6 +83,7 @@ interface UserItem {
   online: boolean;
   /** Mốc hoạt động cuối; null nghĩa là CHƯA RÕ, không phải "đã rời đi từ lâu". */
   lastSeenAt: string | null;
+  betLocked: boolean;
 }
 
 /** Một dòng của điểm cuối làm mới — khớp PresenceEntryResponse của backend. */
@@ -122,6 +124,7 @@ interface UserDetail {
   totalDeposited: string;
   totalWithdrawn: string;
   pendingWithdrawals: number;
+  betLocked: boolean;
 }
 
 /** Khung phân trang backend trả về (com.rwg.common.PageResponse). */
@@ -295,6 +298,30 @@ export default function AdminUsersPage() {
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteOk, setDeleteOk] = useState(false);
+
+  // Khóa cược ngầm (Stealth Bet Lock)
+  const [betLockLoading, setBetLockLoading] = useState(false);
+
+  const handleToggleBetLock = async (userId: string, locked: boolean) => {
+    setBetLockLoading(true);
+    try {
+      await adminFetch(`/admin/users/${userId}/bet-lock`, {
+        method: "PATCH",
+        body: JSON.stringify({ locked }),
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, betLocked: locked } : u))
+      );
+      setDetail((prev) => (prev && prev.id === userId ? { ...prev, betLocked: locked } : prev));
+      if (selectedUser && selectedUser.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, betLocked: locked } : prev));
+      }
+    } catch (err) {
+      alert((err as Error).message || "Không thể cập nhật trạng thái khóa cược");
+    } finally {
+      setBetLockLoading(false);
+    }
+  };
 
   /**
    * Tải danh sách user theo trang + bộ lọc hiện tại.
@@ -710,21 +737,28 @@ export default function AdminUsersPage() {
                       {u.email ?? <span className="text-slate-300">&mdash;</span>}
                     </td>
                     <td className="py-3.5 px-4">
-                      {u.status === "ACTIVE" && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ACTIVE
-                        </span>
-                      )}
-                      {u.status === "LOCKED" && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 w-fit">
-                          <Lock className="w-3 h-3 text-amber-600" /> LOCKED
-                        </span>
-                      )}
-                      {u.status === "BANNED" && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-red-50 text-red-700 border border-red-200 flex items-center gap-1 w-fit">
-                          <Ban className="w-3 h-3 text-red-600" /> BANNED
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {u.status === "ACTIVE" && (
+                          <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> ACTIVE
+                          </span>
+                        )}
+                        {u.status === "LOCKED" && (
+                          <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 w-fit">
+                            <Lock className="w-3 h-3 text-amber-600" /> LOCKED
+                          </span>
+                        )}
+                        {u.status === "BANNED" && (
+                          <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-red-50 text-red-700 border border-red-200 flex items-center gap-1 w-fit">
+                            <Ban className="w-3 h-3 text-red-600" /> BANNED
+                          </span>
+                        )}
+                        {u.betLocked && (
+                          <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1 w-fit" title="Tài khoản bị cấm cược ngầm">
+                            <ShieldAlert className="w-2.5 h-2.5 text-purple-600" /> Khóa cược
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* ĐANG ONLINE HAY KHÔNG.
@@ -791,6 +825,18 @@ export default function AdminUsersPage() {
                           className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-colors"
                         >
                           {t("admin.users.btn_detail")}
+                        </button>
+                        <button
+                          onClick={() => void handleToggleBetLock(u.id, !u.betLocked)}
+                          disabled={betLockLoading}
+                          className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors ${
+                            u.betLocked
+                              ? "bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700"
+                              : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
+                          }`}
+                          title={u.betLocked ? "Bấm để Mở khóa cược" : "Bấm để Khóa cược (ngầm)"}
+                        >
+                          {u.betLocked ? "Mở cược" : "Khóa cược"}
                         </button>
                         <button
                           onClick={() => {
@@ -1087,6 +1133,36 @@ export default function AdminUsersPage() {
                     <span className="text-xs font-bold text-slate-900">
                       {kycLabel(detail.kycLevel)}
                     </span>
+                  )}
+                </div>
+
+                {/* Khóa cược ngầm (Stealth Bet Lock) */}
+                <div className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl">
+                  <div className="flex flex-col gap-0.5 pr-4">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-purple-600" />
+                      <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-wide">
+                        Khóa đặt cược (Chế độ ngầm)
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Khách vẫn đăng nhập bình thường. Khi đặt cược: không trừ tiền, không thắng/thua, không hiện cảnh báo lỗi.
+                    </span>
+                  </div>
+
+                  {canManage && (
+                    <button
+                      type="button"
+                      disabled={betLockLoading}
+                      onClick={() => void handleToggleBetLock(detail.id, !detail.betLocked)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shrink-0 ${
+                        detail.betLocked
+                          ? "bg-purple-600 hover:bg-purple-700 text-white"
+                          : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {detail.betLocked ? "Đang khóa cược (Bấm mở)" : "Khóa đặt cược"}
+                    </button>
                   )}
                 </div>
 

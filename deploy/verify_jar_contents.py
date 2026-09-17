@@ -24,6 +24,8 @@ REQUIRED = [
     # users.last_login_at va audit_log deu da co tu truoc, tinh nang nay chi lo du lieu
     # san co ra API. Nen class DTO nay la dau hieu DUY NHAT xac nhan ma moi vao jar.
     "com/rwg/identity/dto/LoginHistoryEntryResponse.class",
+    "db/migration/V20260917_01__them_bet_locked_cho_users.sql",
+    "com/rwg/identity/dto/ToggleBetLockRequest.class",
 ]
 
 NESTED_CORE = "BOOT-INF/lib/rwg-core-0.1.0-SNAPSHOT.jar"

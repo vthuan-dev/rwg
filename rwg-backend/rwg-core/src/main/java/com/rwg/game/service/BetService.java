@@ -15,6 +15,8 @@ import com.rwg.game.dto.BetResponse;
 import com.rwg.game.repository.BetRepository;
 import com.rwg.game.repository.GameRoundRepository;
 import com.rwg.game.repository.GameTableRepository;
+import com.rwg.identity.domain.User;
+import com.rwg.identity.repository.UserRepository;
 import com.rwg.wallet.domain.WalletRefType;
 import com.rwg.wallet.service.WalletService;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class BetService {
     private final WalletService walletService;
     private final GameEventBroadcaster broadcaster;
     private final OddsResolver oddsResolver;
+    private final UserRepository userRepository;
     private final Object[] lockStripes = new Object[LOCK_STRIPES];
 
     public BetService(GameTableRepository tableRepository,
@@ -51,13 +54,15 @@ public class BetService {
                       BetRepository betRepository,
                       WalletService walletService,
                       GameEventBroadcaster broadcaster,
-                      OddsResolver oddsResolver) {
+                      OddsResolver oddsResolver,
+                      UserRepository userRepository) {
         this.tableRepository = tableRepository;
         this.roundRepository = roundRepository;
         this.betRepository = betRepository;
         this.walletService = walletService;
         this.broadcaster = broadcaster;
         this.oddsResolver = oddsResolver;
+        this.userRepository = userRepository;
         for (int i = 0; i < LOCK_STRIPES; i++) {
             lockStripes[i] = new Object();
         }
@@ -110,6 +115,26 @@ public class BetService {
                 .orElseThrow(() -> new ApiException(ErrorCode.ROUND_NOT_FOUND));
         if (round.getPhase() != RoundPhase.BETTING_OPEN) {
             throw new ApiException(ErrorCode.ROUND_BETTING_CLOSED);
+        }
+
+        // Khóa đặt cược ngầm (Stealth Bet Lock):
+        // Nếu người chơi bị admin khóa cược, hệ thống vẫn validate cược bình thường,
+        // nhưng KHÔNG trừ ví, KHÔNG lưu cược vào DB (để không tham gia settlement -> không thắng/thua).
+        // Trả về BetResponse thành công kèm số dư gốc giữ nguyên ("tiền vẫn vậy").
+        boolean isBetLocked = userRepository.findById(userId)
+                .map(User::isBetLocked)
+                .orElse(false);
+        if (isBetLocked) {
+            Money balance = walletService.getBalance(userId);
+            return new BetResponse(
+                    UUID.randomUUID().toString(),
+                    round.getId().toString(),
+                    betType.name(),
+                    selection,
+                    stake.amount().toPlainString(),
+                    "PLACED",
+                    balance.amount().toPlainString()
+            );
         }
 
         String idempotencyKey = "BET:" + round.getId() + ":" + userId + ":" + request.seq();

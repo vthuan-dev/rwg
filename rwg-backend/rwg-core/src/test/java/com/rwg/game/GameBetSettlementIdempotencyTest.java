@@ -220,4 +220,33 @@ class GameBetSettlementIdempotencyTest {
         assertThat(bet.getStatus()).isEqualTo(BetStatus.SETTLED);
         assertThat(bet.getPayout()).isEqualByComparingTo(BigDecimal.ZERO);
     }
+
+    @Test
+    void betLockedUserSimulatesPlacementWithoutDebitOrRecord() {
+        GameTable table = newTable();
+        GameRound round = newRound(table.getId());
+        UUID userId = fundedUser("betlock", "100");
+
+        // Khóa cược tài khoản
+        var user = userRepository.findById(userId).orElseThrow();
+        user.setBetLocked(true);
+        userRepository.save(user);
+
+        // Khách đặt cược $10
+        BetResponse res = betService.placeBet(table.getId(), userId, new BetRequest("STRAIGHT", "17", "10", 1));
+
+        // Phản hồi giả lập thành công để giao diện không báo lỗi
+        assertThat(res.status()).isEqualTo("PLACED");
+        assertThat(new java.math.BigDecimal(res.balanceAfter())).isEqualByComparingTo("100.00");
+
+        // Tiền trong ví giữ nguyên (tiền vẫn vậy)
+        assertThat(walletService.getBalance(userId).amount()).isEqualByComparingTo("100");
+
+        // Không ghi nhận bet vào database
+        assertThat(betRepository.countByRoundId(round.getId())).isZero();
+
+        // Kết quả xổ dù trúng (17) cũng không cộng tiền, không trừ tiền (không thắng không thua)
+        settlementService.settleRound(round.getId(), 17);
+        assertThat(walletService.getBalance(userId).amount()).isEqualByComparingTo("100");
+    }
 }

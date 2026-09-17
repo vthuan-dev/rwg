@@ -23,6 +23,7 @@ public record AdminUserDetailResponse(
         String currency,
         String totalDeposited,
         String totalWithdrawn,
-        long pendingWithdrawals
+        long pendingWithdrawals,
+        boolean betLocked
 ) {
 }

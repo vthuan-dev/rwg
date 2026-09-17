@@ -49,6 +49,7 @@ public record AdminUserListItemResponse(
         String balance,
         String currency,
         boolean online,
-        Instant lastSeenAt
+        Instant lastSeenAt,
+        boolean betLocked
 ) {
 }

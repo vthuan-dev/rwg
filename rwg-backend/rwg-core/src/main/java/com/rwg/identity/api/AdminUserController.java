@@ -117,6 +117,16 @@ public class AdminUserController {
                 ClientAddresses.clientIp(httpRequest));
     }
 
+    @PatchMapping("/{id}/bet-lock")
+    @Operation(summary = "Khóa hoặc mở khóa đặt cược ngầm cho người chơi")
+    public UserResponse toggleBetLock(@PathVariable UUID id,
+                                      @RequestBody com.rwg.identity.dto.ToggleBetLockRequest request,
+                                      @AuthenticationPrincipal Jwt jwt,
+                                      HttpServletRequest httpRequest) {
+        return adminUserService.toggleBetLock(id, request.locked(), UUID.fromString(jwt.getSubject()),
+                ClientAddresses.clientIp(httpRequest));
+    }
+
     @PostMapping("/{id}/password/change")
     @Operation(summary = "Admin tự đổi Mật khẩu đăng nhập (cấp 1) cho người chơi")
     public UserResponse overrideLoginPassword(@PathVariable UUID id,

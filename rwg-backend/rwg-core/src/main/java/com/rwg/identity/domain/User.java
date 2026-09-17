@@ -69,6 +69,9 @@ public class User {
     @Column(name = "status", nullable = false, length = 16)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Column(name = "bet_locked", nullable = false)
+    private boolean betLocked = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "kyc_level", nullable = false, length = 16)
     private KycLevel kycLevel = KycLevel.NONE;
@@ -163,5 +166,13 @@ public class User {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public boolean isBetLocked() {
+        return betLocked;
+    }
+
+    public void setBetLocked(boolean betLocked) {
+        this.betLocked = betLocked;
     }
 }
