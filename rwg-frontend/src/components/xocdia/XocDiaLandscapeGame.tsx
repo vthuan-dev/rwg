@@ -599,6 +599,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
           minPool: typeof j.minPool === "number" ? j.minPool : 100000000,
         };
         setJackpot(jackpotCfgRef.current.pool);
+        poolRef.current = jackpotCfgRef.current.pool;
+        // Khởi tạo mốc jackpot ban đầu từ server — TUYỆT ĐỐI không nổ popup cho ván đã thắng từ trước
+        lastWonRef.current = j.lastWon || "";
+        hasInitializedJackpotRef.current = true;
       }
 
       let currentRate = exchangeRate;
@@ -659,7 +663,14 @@ export const XocDiaLandscapeGame: React.FC = () => {
           const curPool = typeof j.pool === "number" ? j.pool : prevPool;
           poolRef.current = curPool;
           setJackpot(curPool);
-          // Phat hien van no THAT tu server: lastWon doi (ca ban cung poll nen cung thay)
+          // Neu lan dau doc jackpot (phong truong hop fetchBackendData chua xong/cham):
+          if (!hasInitializedJackpotRef.current) {
+            lastWonRef.current = curWon;
+            hasInitializedJackpotRef.current = true;
+            return;
+          }
+
+          // Phat hien van no THAT su dien ra trong luc dang o trong ban (curWon doi so voi moc truoc):
           if (curWon && curWon !== prevWon) {
             lastWonRef.current = curWon;
             const parsed = parseLastWon(curWon);
@@ -672,9 +683,10 @@ export const XocDiaLandscapeGame: React.FC = () => {
               setJackpotDice(quad);
               const isMine =
                 winnerName.toLowerCase() === (realUsernameRef.current || "").toLowerCase();
+              const doorText = DOOR_LABEL_REAL[j.targetDoor] || (j.targetDoor === "RANDOM" ? "Tứ Quý 6" : j.targetDoor);
               setJackpotWin({
                 amount: winAmount,
-                door: DOOR_LABEL_REAL[j.targetDoor] || j.targetDoor,
+                door: doorText,
                 dice: quad,
                 winnerName,
                 roundSeq,
@@ -694,6 +706,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                   6000
                 );
               } else {
+                // Nguoi khac trung: ca ban cung thay
                 speakDealer(
                   `NỔ HŨ JACKPOT! ${winnerName} vừa húp ${Math.round(winAmount / 1000).toLocaleString()}K với Tứ Quý ${diceVal}! Chúc mừng đại gia!`,
                   6000
@@ -701,8 +714,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
               }
               setTimeout(() => setJackpotWin(null), 8000);
             }
-          } else if (!prevWon && curWon) {
-            lastWonRef.current = curWon;
           }
         }
       } catch (err) {
@@ -1035,6 +1046,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
   });
   // lastWon dang "username +123456 (van 42)" — ca ban cung poll, cung thay no
   const lastWonRef = useRef<string>("");
+  const hasInitializedJackpotRef = useRef<boolean>(false);
   const poolRef = useRef<number>(295313767);
   const realUsernameRef = useRef<string>("VIP Tôi");
   const DOOR_TO_DICE_REAL: Record<string, number> = {
@@ -4395,7 +4407,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
                 ))}
               </div>
               <div className="text-[11px] font-bold text-rose-200 tracking-wider uppercase">
-                Tứ Quý {jackpotWin.door}
+                {jackpotWin.door.startsWith("Tứ Quý") ? jackpotWin.door : `Tứ Quý ${jackpotWin.door}`}
               </div>
               <div className="text-[13px] font-black text-amber-200 tracking-wide">
                 {jackpotWin.winnerName}
