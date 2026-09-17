@@ -572,163 +572,6 @@ export const XocDiaLandscapeGame: React.FC = () => {
   const [isLoadingBackend, setIsLoadingBackend] = useState<boolean>(false);
   const [sessionTotalWon, setSessionTotalWon] = useState<number>(0);
 
-  const fetchBackendData = async () => {
-    setIsLoadingBackend(true);
-    try {
-      const [uData, wData, rateData, cfgData, jackpotData] = await Promise.allSettled([
-        me(),
-        walletMe(),
-        getExchangeRate(),
-        getXocDiaConfig(),
-        getXocDiaJackpot(),
-      ]);
-
-      if (cfgData.status === "fulfilled" && cfgData.value) {
-        if (typeof cfgData.value.botCount === "number") {
-          syncBotConfig(cfgData.value.botCount, cfgData.value.botChatEnabled);
-        }
-      }
-
-      if (jackpotData.status === "fulfilled" && jackpotData.value) {
-        const j = jackpotData.value;
-        jackpotCfgRef.current = {
-          triggerMode: j.triggerMode || "AUTO",
-          autoRate: typeof j.autoRate === "number" ? j.autoRate : 0.001,
-          targetDoor: j.targetDoor || "RANDOM",
-          pool: typeof j.pool === "number" ? j.pool : 295313767,
-          minPool: typeof j.minPool === "number" ? j.minPool : 100000000,
-        };
-        setJackpot(jackpotCfgRef.current.pool);
-        poolRef.current = jackpotCfgRef.current.pool;
-        // Khởi tạo mốc jackpot ban đầu từ server — TUYỆT ĐỐI không nổ popup cho ván đã thắng từ trước
-        lastWonRef.current = j.lastWon || "";
-        hasInitializedJackpotRef.current = true;
-      }
-
-      let currentRate = exchangeRate;
-      if (rateData.status === "fulfilled" && rateData.value?.rate) {
-        currentRate = rateData.value.rate;
-        setExchangeRate(currentRate);
-        if (rateData.value.formattedRate) {
-          setExchangeRateFormatted(rateData.value.formattedRate);
-        }
-      }
-
-      if (uData.status === "fulfilled" && uData.value?.username) {
-        setRealUsername(uData.value.username);
-        realUsernameRef.current = uData.value.username;
-      }
-
-      if (wData.status === "fulfilled" && wData.value?.balance) {
-        applyUsdBalance(parseFloat(wData.value.balance), null, true);
-      }
-
-      const bRes = await betsHistory(undefined, 0, 25).catch(() => null);
-      if (bRes && Array.isArray(bRes.content)) {
-        setBackendBets(bRes.content);
-      }
-    } catch (err) {
-      console.warn("Backend fetch in xocdia modal:", err);
-    } finally {
-      setIsLoadingBackend(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBackendData();
-
-    // Periodic Real-time Sync of Bot + Jackpot configuration from Admin CMS (every 3s)
-    const interval = setInterval(async () => {
-      try {
-        const cfg = await getXocDiaConfig();
-        if (cfg && typeof cfg.botCount === "number") {
-          syncBotConfig(cfg.botCount, cfg.botChatEnabled);
-        }
-      } catch (err) {
-        // Silently catch network hiccups
-      }
-      try {
-        const j = await getXocDiaJackpot();
-        if (j) {
-          jackpotCfgRef.current = {
-            triggerMode: j.triggerMode || "AUTO",
-            autoRate: typeof j.autoRate === "number" ? j.autoRate : 0.001,
-            targetDoor: j.targetDoor || "RANDOM",
-            pool: typeof j.pool === "number" ? j.pool : jackpotCfgRef.current.pool,
-            minPool: typeof j.minPool === "number" ? j.minPool : jackpotCfgRef.current.minPool,
-          };
-          const prevWon = lastWonRef.current || "";
-          const curWon = j.lastWon || "";
-          const prevPool = poolRef.current;
-          const curPool = typeof j.pool === "number" ? j.pool : prevPool;
-          poolRef.current = curPool;
-          setJackpot(curPool);
-          // Neu lan dau doc jackpot (phong truong hop fetchBackendData chua xong/cham):
-          if (!hasInitializedJackpotRef.current) {
-            lastWonRef.current = curWon;
-            hasInitializedJackpotRef.current = true;
-            return;
-          }
-
-          // Phat hien van no THAT su dien ra trong luc dang o trong ban (curWon doi so voi moc truoc):
-          if (curWon && curWon !== prevWon) {
-            lastWonRef.current = curWon;
-            const parsed = parseLastWon(curWon);
-            const winAmount = parsed?.amount || Math.max(0, prevPool - curPool);
-            const winnerName = parsed?.winnerName || (j as unknown as { winner?: string }).winner || "";
-            const roundSeq = parsed?.roundSeq || 0;
-            if (winAmount > 0 && winnerName) {
-              const diceVal = DOOR_TO_DICE_REAL[j.targetDoor] || 6;
-              const quad = [diceVal, diceVal, diceVal, diceVal];
-              setJackpotDice(quad);
-              const isMine =
-                winnerName.toLowerCase() === (realUsernameRef.current || "").toLowerCase();
-              const doorText = DOOR_LABEL_REAL[j.targetDoor] || (j.targetDoor === "RANDOM" ? "Tứ Quý 6" : j.targetDoor);
-              setJackpotWin({
-                amount: winAmount,
-                door: doorText,
-                dice: quad,
-                winnerName,
-                roundSeq,
-                isMine,
-              });
-              playSound("win");
-              if (isMine) {
-                // Minh trung: refresh vi that tu server de khop so du
-                walletMe()
-                  .then((w) => {
-                    if (w?.balance) applyUsdBalance(parseFloat(w.balance), null, true);
-                  })
-                  .catch(() => {});
-                setSessionTotalWon((prev) => prev + winAmount);
-                speakDealer(
-                  `NỔ HŨ JACKPOT! Tứ Quý ${diceVal}-${diceVal}-${diceVal}-${diceVal} — Chúc mừng ${winnerName} húp trọn ${Math.round(winAmount / 1000).toLocaleString()}K! Quá đỉnh luôn!!`,
-                  6000
-                );
-              } else {
-                // Nguoi khac trung: ca ban cung thay
-                speakDealer(
-                  `NỔ HŨ JACKPOT! ${winnerName} vừa húp ${Math.round(winAmount / 1000).toLocaleString()}K với Tứ Quý ${diceVal}! Chúc mừng đại gia!`,
-                  6000
-                );
-              }
-              setTimeout(() => setJackpotWin(null), 8000);
-            }
-          }
-        }
-      } catch (err) {
-        // Silently catch network hiccups
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (showTopWins) {
-      fetchBackendData();
-    }
-  }, [showTopWins]);
 
   // =========================================================
   // IN-GAME LIVE CHAT ROOM & TROLL AI BOT MODERATOR
@@ -1182,6 +1025,164 @@ export const XocDiaLandscapeGame: React.FC = () => {
       // tiền nào dựa vào con số này.
     }
   }, []);
+
+  const fetchBackendData = async () => {
+    setIsLoadingBackend(true);
+    try {
+      const [uData, wData, rateData, cfgData, jackpotData] = await Promise.allSettled([
+        me(),
+        walletMe(),
+        getExchangeRate(),
+        getXocDiaConfig(),
+        getXocDiaJackpot(),
+      ]);
+
+      if (cfgData.status === "fulfilled" && cfgData.value) {
+        if (typeof cfgData.value.botCount === "number") {
+          syncBotConfig(cfgData.value.botCount, cfgData.value.botChatEnabled);
+        }
+      }
+
+      if (jackpotData.status === "fulfilled" && jackpotData.value) {
+        const j = jackpotData.value;
+        jackpotCfgRef.current = {
+          triggerMode: j.triggerMode || "AUTO",
+          autoRate: typeof j.autoRate === "number" ? j.autoRate : 0.001,
+          targetDoor: j.targetDoor || "RANDOM",
+          pool: typeof j.pool === "number" ? j.pool : 295313767,
+          minPool: typeof j.minPool === "number" ? j.minPool : 100000000,
+        };
+        setJackpot(jackpotCfgRef.current.pool);
+        poolRef.current = jackpotCfgRef.current.pool;
+        // Khởi tạo mốc jackpot ban đầu từ server — TUYỆT ĐỐI không nổ popup cho ván đã thắng từ trước
+        lastWonRef.current = j.lastWon || "";
+        hasInitializedJackpotRef.current = true;
+      }
+
+      let currentRate = exchangeRate;
+      if (rateData.status === "fulfilled" && rateData.value?.rate) {
+        currentRate = rateData.value.rate;
+        setExchangeRate(currentRate);
+        if (rateData.value.formattedRate) {
+          setExchangeRateFormatted(rateData.value.formattedRate);
+        }
+      }
+
+      if (uData.status === "fulfilled" && uData.value?.username) {
+        setRealUsername(uData.value.username);
+        realUsernameRef.current = uData.value.username;
+      }
+
+      if (wData.status === "fulfilled" && wData.value?.balance) {
+        applyUsdBalance(parseFloat(wData.value.balance), null, true);
+      }
+
+      const bRes = await betsHistory(undefined, 0, 25).catch(() => null);
+      if (bRes && Array.isArray(bRes.content)) {
+        setBackendBets(bRes.content);
+      }
+    } catch (err) {
+      console.warn("Backend fetch in xocdia modal:", err);
+    } finally {
+      setIsLoadingBackend(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackendData();
+
+    // Periodic Real-time Sync of Bot + Jackpot configuration from Admin CMS (every 3s)
+    const interval = setInterval(async () => {
+      try {
+        const cfg = await getXocDiaConfig();
+        if (cfg && typeof cfg.botCount === "number") {
+          syncBotConfig(cfg.botCount, cfg.botChatEnabled);
+        }
+      } catch (err) {
+        // Silently catch network hiccups
+      }
+      try {
+        const j = await getXocDiaJackpot();
+        if (j) {
+          jackpotCfgRef.current = {
+            triggerMode: j.triggerMode || "AUTO",
+            autoRate: typeof j.autoRate === "number" ? j.autoRate : 0.001,
+            targetDoor: j.targetDoor || "RANDOM",
+            pool: typeof j.pool === "number" ? j.pool : jackpotCfgRef.current.pool,
+            minPool: typeof j.minPool === "number" ? j.minPool : jackpotCfgRef.current.minPool,
+          };
+          const prevWon = lastWonRef.current || "";
+          const curWon = j.lastWon || "";
+          const prevPool = poolRef.current;
+          const curPool = typeof j.pool === "number" ? j.pool : prevPool;
+          poolRef.current = curPool;
+          setJackpot(curPool);
+          // Neu lan dau doc jackpot (phong truong hop fetchBackendData chua xong/cham):
+          if (!hasInitializedJackpotRef.current) {
+            lastWonRef.current = curWon;
+            hasInitializedJackpotRef.current = true;
+            return;
+          }
+
+          // Phat hien van no THAT su dien ra trong luc dang o trong ban (curWon doi so voi moc truoc):
+          if (curWon && curWon !== prevWon) {
+            lastWonRef.current = curWon;
+            const parsed = parseLastWon(curWon);
+            const winAmount = parsed?.amount || Math.max(0, prevPool - curPool);
+            const winnerName = parsed?.winnerName || (j as unknown as { winner?: string }).winner || "";
+            const roundSeq = parsed?.roundSeq || 0;
+            if (winAmount > 0 && winnerName) {
+              const diceVal = DOOR_TO_DICE_REAL[j.targetDoor] || 6;
+              const quad = [diceVal, diceVal, diceVal, diceVal];
+              setJackpotDice(quad);
+              const isMine =
+                winnerName.toLowerCase() === (realUsernameRef.current || "").toLowerCase();
+              const doorText = DOOR_LABEL_REAL[j.targetDoor] || (j.targetDoor === "RANDOM" ? "Tứ Quý 6" : j.targetDoor);
+              setJackpotWin({
+                amount: winAmount,
+                door: doorText,
+                dice: quad,
+                winnerName,
+                roundSeq,
+                isMine,
+              });
+              playSound("win");
+              if (isMine) {
+                // Minh trung: refresh vi that tu server de khop so du
+                walletMe()
+                  .then((w) => {
+                    if (w?.balance) applyUsdBalance(parseFloat(w.balance), null, true);
+                  })
+                  .catch(() => {});
+                setSessionTotalWon((prev) => prev + winAmount);
+                speakDealer(
+                  `NỔ HŨ JACKPOT! Tứ Quý ${diceVal}-${diceVal}-${diceVal}-${diceVal} — Chúc mừng ${winnerName} húp trọn ${Math.round(winAmount / 1000).toLocaleString()}K! Quá đỉnh luôn!!`,
+                  6000
+                );
+              } else {
+                // Nguoi khac trung: ca ban cung thay
+                speakDealer(
+                  `NỔ HŨ JACKPOT! ${winnerName} vừa húp ${Math.round(winAmount / 1000).toLocaleString()}K với Tứ Quý ${diceVal}! Chúc mừng đại gia!`,
+                  6000
+                );
+              }
+              setTimeout(() => setJackpotWin(null), 8000);
+            }
+          }
+        }
+      } catch (err) {
+        // Silently catch network hiccups
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (showTopWins) {
+      fetchBackendData();
+    }
+  }, [showTopWins]);
 
   // Giai quyet table XOC_DIA + round hien tai de co roundId that cho placeBet.
   useEffect(() => {
