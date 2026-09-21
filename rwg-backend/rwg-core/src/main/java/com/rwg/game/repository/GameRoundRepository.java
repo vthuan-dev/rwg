@@ -54,6 +54,7 @@ public interface GameRoundRepository extends JpaRepository<GameRound, GameRoundI
     /** Công bố kết quả khi vào RESULT: lưu số trúng + result_at (đo settlement_lag). */
     @Modifying
     @Query("update GameRound r set r.winningNumber = :winningNumber, r.resultAt = :resultAt, " +
+            "r.phase = com.rwg.game.domain.RoundPhase.RESULT, " +
             "r.updatedAt = :now where r.id = :id and r.createdAt = :createdAt and r.status = :open")
     int markResult(@Param("id") UUID id, @Param("createdAt") Instant createdAt,
                    @Param("winningNumber") Integer winningNumber, @Param("resultAt") Instant resultAt,
@@ -70,6 +71,7 @@ public interface GameRoundRepository extends JpaRepository<GameRound, GameRoundI
             "r.baccaratBankerPair = :bankerPair, " +
             "r.baccaratResult = :result, " +
             "r.resultAt = :resultAt, " +
+            "r.phase = com.rwg.game.domain.RoundPhase.RESULT, " +
             "r.updatedAt = :now " +
             "where r.id = :id and r.createdAt = :createdAt and r.status = :open")
     int markBaccaratResult(@Param("id") UUID id, @Param("createdAt") Instant createdAt,
@@ -90,6 +92,7 @@ public interface GameRoundRepository extends JpaRepository<GameRound, GameRoundI
             "r.kl28Numbers = :kl28Numbers, " +
             "r.kl28Sum = :kl28Sum, " +
             "r.resultAt = :resultAt, " +
+            "r.phase = com.rwg.game.domain.RoundPhase.RESULT, " +
             "r.updatedAt = :now " +
             "where r.id = :id and r.createdAt = :createdAt and r.status = :open")
     int markKl28Result(@Param("id") UUID id, @Param("createdAt") Instant createdAt,
@@ -107,6 +110,7 @@ public interface GameRoundRepository extends JpaRepository<GameRound, GameRoundI
             "r.xocDiaSeed = :seed, " +
             "r.xocDiaSeedHash = :seedHash, " +
             "r.resultAt = :resultAt, " +
+            "r.phase = com.rwg.game.domain.RoundPhase.RESULT, " +
             "r.updatedAt = :now " +
             "where r.id = :id and r.createdAt = :createdAt and r.status = :open")
     int markXocDiaResult(@Param("id") UUID id, @Param("createdAt") Instant createdAt,

@@ -29,6 +29,7 @@ import XocDiaCanvas from "./XocDiaCanvas";
 import { RubyDice } from "./RubyDice";
 import { JackpotCoinShower } from "./JackpotCoinShower";
 import { useOrientation } from "./GameOrientationWrapper";
+import { useNotification } from "@/context/NotificationContext";
 
 type Phase = "BETTING_OPEN" | "BETTING_CLOSED" | "SPINNING" | "RESULT" | "SETTLE";
 
@@ -391,6 +392,8 @@ export const XocDiaLandscapeGame: React.FC = () => {
       clearTimeout(t2);
     };
   }, [isRotated]);
+
+  const { subscribeTopic } = useNotification();
 
   // Game lifecycle states
   const [phase, setPhase] = useState<Phase>("BETTING_OPEN");
@@ -2170,10 +2173,16 @@ export const XocDiaLandscapeGame: React.FC = () => {
       highestCompletedSeqRef.current = -1;
       latestServerBalanceAfterRef.current = null;
       revealedRoundIdRef.current = null;
-      revealedOpenUntilRef.current = 0;
-      if (scheduledCloseTimerRef.current) {
-        clearTimeout(scheduledCloseTimerRef.current);
-        scheduledCloseTimerRef.current = null;
+      
+      // KHÔNG reset revealedOpenUntilRef và scheduledCloseTimerRef nếu bát đang mở cho ván vừa rồi
+      // Bát phải được giữ mở trọn vẹn đủ 5 giây để người chơi xem kết quả
+      const now = Date.now();
+      if (now >= revealedOpenUntilRef.current) {
+        revealedOpenUntilRef.current = 0;
+        if (scheduledCloseTimerRef.current) {
+          clearTimeout(scheduledCloseTimerRef.current);
+          scheduledCloseTimerRef.current = null;
+        }
       }
       onServerRoundChanged();
 
@@ -2202,7 +2211,9 @@ export const XocDiaLandscapeGame: React.FC = () => {
       const parsed = parseXocDiaCoins(round.xocDiaCoins);
       if (parsed) {
         revealedRoundIdRef.current = round.roundId;
-        revealedOpenUntilRef.current = Date.now() + 6500;
+        revealedOpenUntilRef.current = Date.now() + 5000;
+        phaseRef.current = "RESULT";
+        setPhase("RESULT");
         revealServerResult(
           round,
           parsed,
@@ -2214,7 +2225,9 @@ export const XocDiaLandscapeGame: React.FC = () => {
         const fallbackCoins: number[] = [];
         for (let i = 0; i < 4; i++) fallbackCoins.push(i < round.xocDiaRedCount ? 1 : 0);
         revealedRoundIdRef.current = round.roundId;
-        revealedOpenUntilRef.current = Date.now() + 6500;
+        revealedOpenUntilRef.current = Date.now() + 5000;
+        phaseRef.current = "RESULT";
+        setPhase("RESULT");
         revealServerResult(round, fallbackCoins, round.xocDiaRedCount);
       }
     }
@@ -2222,12 +2235,13 @@ export const XocDiaLandscapeGame: React.FC = () => {
     if (nextPhase === "BETTING_OPEN") {
       const now = Date.now();
       if (now < revealedOpenUntilRef.current) {
-        // Bát đang mở show kết quả cho người chơi xem (tối thiểu 6.5s)
-        // Giữ phase là RESULT cho tới khi hết 6.5s, sau đó mới tự động đậy bát sang BETTING_OPEN!
+        // Bát đang mở show kết quả cho người chơi xem (tầm 5s)
+        // Giữ phase là RESULT cho tới khi hết 5s, sau đó mới tự động đậy bát sang BETTING_OPEN!
         const remaining = revealedOpenUntilRef.current - now;
         if (!scheduledCloseTimerRef.current) {
           scheduledCloseTimerRef.current = setTimeout(() => {
             scheduledCloseTimerRef.current = null;
+            revealedOpenUntilRef.current = 0;
             phaseRef.current = "BETTING_OPEN";
             setPhase("BETTING_OPEN");
           }, remaining);
@@ -2237,6 +2251,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
           clearTimeout(scheduledCloseTimerRef.current);
           scheduledCloseTimerRef.current = null;
         }
+        revealedOpenUntilRef.current = 0;
         phaseRef.current = nextPhase;
         setPhase(nextPhase);
       }
@@ -2284,6 +2299,46 @@ export const XocDiaLandscapeGame: React.FC = () => {
       clearInterval(timer);
     };
   }, [xocTableId]);
+
+  // Lắng nghe sự kiện bàn chơi realtime qua WebSocket (/topic/game/table/{xocTableId})
+  useEffect(() => {
+    if (!xocTableId) return;
+    const unsubscribe = subscribeTopic(`/topic/game/table/${xocTableId}`, (payload: any) => {
+      if (!payload) return;
+      if (payload.type === "ROUND_RESULT") {
+        const coins = parseXocDiaCoins(payload.xocDiaCoins);
+        const redCount =
+          typeof payload.xocDiaRedCount === "number"
+            ? payload.xocDiaRedCount
+            : coins
+            ? coins.reduce((a, b) => a + b, 0)
+            : null;
+        if (coins && redCount !== null && revealedRoundIdRef.current !== payload.roundId) {
+          revealedRoundIdRef.current = payload.roundId;
+          revealedOpenUntilRef.current = Date.now() + 5000;
+          phaseRef.current = "RESULT";
+          setPhase("RESULT");
+          revealServerResult(
+            { roundId: payload.roundId, roundSeq: payload.roundSeq } as any,
+            coins,
+            redCount
+          );
+        }
+      } else if (payload.type === "ROUND_PHASE") {
+        if (payload.phase === "SPINNING") {
+          phaseRef.current = "SPINNING";
+          setPhase("SPINNING");
+        } else if (payload.phase === "BETTING_CLOSED") {
+          phaseRef.current = "BETTING_CLOSED";
+          setPhase("BETTING_CLOSED");
+        } else if (payload.phase === "RESULT") {
+          phaseRef.current = "RESULT";
+          setPhase("RESULT");
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [xocTableId, subscribeTopic]);
 
   // Đồng hồ đếm ngược: nội suy từ mốc kết thúc pha do server trả về, giữa hai nhịp poll.
   // Tự trừ 1 giây mỗi nhịp như trước thì đồng hồ trôi dần và lệch hẳn khỏi server.
@@ -2339,7 +2394,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
         if (parsed) {
           revealedRoundIdRef.current = detail.roundId;
           const redCount = detail.xocDiaRedCount ?? parsed.reduce((a, b) => a + b, 0);
-          revealedOpenUntilRef.current = Date.now() + 6500;
+          revealedOpenUntilRef.current = Date.now() + 5000;
           phaseRef.current = "RESULT";
           setPhase("RESULT");
           // Dựng GameRound tối thiểu cho revealServerResult

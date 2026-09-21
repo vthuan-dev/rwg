@@ -15,7 +15,7 @@ public record GameProperties(Round round, Duration betPlacedWindow) {
     public GameProperties {
         if (round == null) {
             round = new Round(Duration.ofSeconds(45), Duration.ofSeconds(2),
-                    Duration.ofSeconds(8), Duration.ofSeconds(3), Duration.ofSeconds(5));
+                    Duration.ofSeconds(8), Duration.ofSeconds(5), Duration.ofSeconds(5));
         }
         if (betPlacedWindow == null) {
             betPlacedWindow = Duration.ofMillis(250);
@@ -30,7 +30,7 @@ public record GameProperties(Round round, Duration betPlacedWindow) {
             if (bettingOpen == null) bettingOpen = Duration.ofSeconds(45);
             if (bettingClosed == null) bettingClosed = Duration.ofSeconds(2);
             if (spinning == null) spinning = Duration.ofSeconds(8);
-            if (result == null) result = Duration.ofSeconds(3);
+            if (result == null) result = Duration.ofSeconds(5);
             if (settle == null) settle = Duration.ofSeconds(5);
         }
     }

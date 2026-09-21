@@ -44,6 +44,7 @@ interface NotificationContextType {
   toasts: ToastItem[];
   addToast: (type: ToastItem["type"], title: string, message: string) => void;
   removeToast: (id: string) => void;
+  subscribeTopic: (topic: string, onMessage: (data: any) => void) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -54,6 +55,7 @@ const NotificationContext = createContext<NotificationContextType>({
   toasts: [],
   addToast: () => {},
   removeToast: () => {},
+  subscribeTopic: () => () => {},
 });
 
 export const useNotification = () => useContext(NotificationContext);
@@ -106,6 +108,55 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const stompClientRef = useRef<Client | null>(null);
   const exchangeRateRef = useRef<number>(26008);
+  const dynamicSubscriptionsRef = useRef<Map<string, Set<(data: any) => void>>>(new Map());
+  const activeStompSubsRef = useRef<Map<string, { unsubscribe: () => void }>>(new Map());
+
+  const subscribeTopic = useCallback(
+    (topic: string, onMessage: (data: any) => void) => {
+      if (!dynamicSubscriptionsRef.current.has(topic)) {
+        dynamicSubscriptionsRef.current.set(topic, new Set());
+      }
+      dynamicSubscriptionsRef.current.get(topic)!.add(onMessage);
+
+      const client = stompClientRef.current;
+      if (client && client.connected && !activeStompSubsRef.current.has(topic)) {
+        try {
+          const sub = client.subscribe(topic, (msg) => {
+            try {
+              const data = JSON.parse(msg.body);
+              const listeners = dynamicSubscriptionsRef.current.get(topic);
+              if (listeners) {
+                listeners.forEach((cb) => {
+                  try { cb(data); } catch (e) { console.error("Error in topic listener:", e); }
+                });
+              }
+            } catch (err) {
+              console.error("Lỗi parse topic message:", err);
+            }
+          });
+          activeStompSubsRef.current.set(topic, sub);
+        } catch (e) {
+          console.error("Lỗi subscribe topic:", topic, e);
+        }
+      }
+
+      return () => {
+        const listeners = dynamicSubscriptionsRef.current.get(topic);
+        if (listeners) {
+          listeners.delete(onMessage);
+          if (listeners.size === 0) {
+            dynamicSubscriptionsRef.current.delete(topic);
+            const sub = activeStompSubsRef.current.get(topic);
+            if (sub) {
+              try { sub.unsubscribe(); } catch {}
+              activeStompSubsRef.current.delete(topic);
+            }
+          }
+        }
+      };
+    },
+    []
+  );
 
   const addToast = useCallback(
     (type: ToastItem["type"], title: string, message: string) => {
@@ -398,6 +449,35 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error("Lỗi xử lý websocket chat:", err);
         }
       });
+
+      // Đăng ký lại các dynamic topic subscriptions nếu có (ví dụ bàn Xóc Đĩa)
+      activeStompSubsRef.current.clear();
+      dynamicSubscriptionsRef.current.forEach((listeners, topic) => {
+        if (listeners.size > 0) {
+          try {
+            const sub = client.subscribe(topic, (msg) => {
+              try {
+                const data = JSON.parse(msg.body);
+                const currentListeners = dynamicSubscriptionsRef.current.get(topic);
+                if (currentListeners) {
+                  currentListeners.forEach((cb) => {
+                    try {
+                      cb(data);
+                    } catch (e) {
+                      console.error("Error in topic listener:", e);
+                    }
+                  });
+                }
+              } catch (err) {
+                console.error("Lỗi parse topic message:", err);
+              }
+            });
+            activeStompSubsRef.current.set(topic, sub);
+          } catch (e) {
+            console.error("Lỗi subscribe topic onConnect:", topic, e);
+          }
+        }
+      });
     };
 
     client.onStompError = (frame) => {
@@ -455,6 +535,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         toasts,
         addToast,
         removeToast,
+        subscribeTopic,
       }}
     >
       {children}

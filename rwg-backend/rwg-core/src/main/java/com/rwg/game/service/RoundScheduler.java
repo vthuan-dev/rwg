@@ -268,7 +268,12 @@ public class RoundScheduler implements ApplicationListener<ApplicationReadyEvent
                 }
                 publishXocDiaResult(round, result);
                 broadcaster.broadcastXocDiaResult(round, result);
-                sleep(gameProperties.round().result());
+                broadcaster.broadcastPhase(round);
+                Duration xocDiaResultDuration = gameProperties.round().result();
+                if (xocDiaResultDuration.toSeconds() < 5) {
+                    xocDiaResultDuration = Duration.ofSeconds(5);
+                }
+                sleep(xocDiaResultDuration);
 
                 requireTransition(round, RoundPhase.SETTLE);
                 awaitXocDiaSettlement(round, result);
