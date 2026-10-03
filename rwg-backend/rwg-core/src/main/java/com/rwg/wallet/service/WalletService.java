@@ -165,12 +165,12 @@ public class WalletService {
         }
     }
 
-    /** Lịch sử giao dịch. KHÔNG tạo ví (fix M6): ví chưa có -> trang rỗng. */
+    /** Lịch sử giao dịch của người chơi: KHÔNG trả các dòng đã bị admin ẩn (hidden=true). */
     @Transactional(readOnly = true)
     public PageResponse<WalletTransactionResponse> listTransactions(UUID userId, int page, int size) {
         return walletRepository.findByUserId(userId)
                 .map(wallet -> {
-                    Page<WalletTransaction> txs = transactionRepository.findByWalletId(wallet.getId(),
+                    Page<WalletTransaction> txs = transactionRepository.findByWalletIdAndHiddenFalse(wallet.getId(),
                             PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
                     return PageResponse.from(txs, WalletService::toResponse);
                 })
@@ -313,6 +313,7 @@ public class WalletService {
                 tx.getBalanceAfter().toPlainString(),
                 tx.getRefType().name(),
                 tx.getRefId(),
-                tx.getStatus().name());
+                tx.getStatus().name(),
+                tx.isHidden());
     }
 }

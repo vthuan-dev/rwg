@@ -61,6 +61,9 @@ public class WalletTransaction {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Column(name = "hidden", nullable = false)
+    private boolean hidden = false;
+
     protected WalletTransaction() {
         // cho JPA
     }
@@ -112,6 +115,9 @@ public class WalletTransaction {
     public String getIdempotencyKey() { return idempotencyKey; }
     public WalletTxStatus getStatus() { return status; }
     public String getDescription() { return description; }
+
+    public boolean isHidden() { return hidden; }
+    public void setHidden(boolean hidden) { this.hidden = hidden; }
 
     public void setDescription(String description) { this.description = description; }
 }

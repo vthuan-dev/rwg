@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Shield, Radio, Globe, WifiOff, Loader2, Bell } from "lucide-react";
+import { Shield, Radio, Globe, WifiOff, Loader2, Bell, Menu } from "lucide-react";
 import { useTranslation } from "@/context/LanguageContext";
 import { adminFetch } from "@/lib/adminApi";
+import { useAdminLayout } from "@/components/admin/AdminLayoutContext";
 import {
   getAdminIdentity,
   primaryRole,
@@ -49,6 +50,7 @@ type HealthState = "checking" | "online" | "offline";
 const HEALTH_INTERVAL_MS = 30_000;
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, subtitle }) => {
+  const { toggleMobileSidebar, chatUnread } = useAdminLayout();
   const { locale, setLocale, t } = useTranslation();
   const [health, setHealth] = useState<HealthState>("checking");
   const [pendingCount, setPendingCount] = useState(0);
@@ -169,20 +171,35 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, subtitle }) => 
   ];
 
   return (
-    <header className="w-full bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-xs">
-      <div className="flex flex-col">
-        <h1 className="text-lg font-extrabold text-slate-900 tracking-tight leading-tight">
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="text-xs text-slate-500 font-medium">{subtitle}</p>
-        )}
+    <header className="w-full bg-white border-b border-slate-200 px-3.5 py-3 sm:px-6 sm:py-4 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {/* Nút mở Menu Sidebar trên Mobile */}
+        <button
+          type="button"
+          onClick={toggleMobileSidebar}
+          className="lg:hidden relative p-2 -ml-1 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition-colors border border-slate-200 bg-slate-50 shrink-0 cursor-pointer shadow-xs"
+          aria-label="Mở menu quản trị"
+        >
+          <Menu className="w-5 h-5" />
+          {(pendingCount > 0 || chatUnread > 0) && (
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white animate-pulse" />
+          )}
+        </button>
+
+        <div className="flex flex-col min-w-0">
+          <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-tight truncate">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="hidden md:block text-xs text-slate-500 font-medium truncate">{subtitle}</p>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Chon ngon ngu */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 shadow-xs">
-          <Globe className="w-3.5 h-3.5 text-slate-500" />
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 flex items-center gap-1.5 shadow-xs">
+          <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <label htmlFor="admin-locale" className="sr-only">
             {t("admin.header.language")}
           </label>
@@ -221,7 +238,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, subtitle }) => 
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="relative p-2.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-red-600 transition-all flex items-center justify-center shrink-0 cursor-pointer border border-slate-200 bg-slate-50 shadow-xs"
+            className="relative p-2 sm:p-2.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-red-600 transition-all flex items-center justify-center shrink-0 cursor-pointer border border-slate-200 bg-slate-50 shadow-xs"
             title="Yêu cầu phê duyệt rút tiền"
           >
             <Bell className="w-4 h-4" />
@@ -233,7 +250,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, subtitle }) => 
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 text-slate-800 text-left">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 text-slate-800 text-left">
               <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
                 <span className="font-bold text-xs text-slate-700">Yêu cầu chờ duyệt ({pendingCount})</span>
                 {pendingCount > 0 && (
@@ -315,9 +332,12 @@ const HealthBadge: React.FC<{ state: HealthState }> = ({ state }) => {
 
   if (state === "checking") {
     return (
-      <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2">
-        <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
-        <span className="text-[11px] font-bold text-slate-500">
+      <div
+        className="bg-slate-50 border border-slate-200 rounded-lg px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 shadow-xs"
+        title={t("admin.header.health_checking")}
+      >
+        <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" />
+        <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">
           {t("admin.header.health_checking")}
         </span>
       </div>
@@ -327,11 +347,12 @@ const HealthBadge: React.FC<{ state: HealthState }> = ({ state }) => {
   if (state === "offline") {
     return (
       <div
-        className="bg-red-50 border border-red-300 rounded-lg px-3 py-1.5 flex items-center gap-2"
+        className="bg-red-50 border border-red-300 rounded-lg px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 shadow-xs"
         role="alert"
+        title={t("admin.header.health_offline")}
       >
-        <WifiOff className="w-3.5 h-3.5 text-red-600" />
-        <span className="text-[11px] font-bold text-red-700">
+        <WifiOff className="w-3.5 h-3.5 text-red-600 shrink-0" />
+        <span className="text-[11px] font-bold text-red-700 hidden sm:inline">
           {t("admin.header.health_offline")}
         </span>
       </div>
@@ -339,9 +360,12 @@ const HealthBadge: React.FC<{ state: HealthState }> = ({ state }) => {
   }
 
   return (
-    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 flex items-center gap-2">
-      <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-      <span className="text-[11px] font-bold text-emerald-700">
+    <div
+      className="bg-emerald-50 border border-emerald-200 rounded-lg px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 shadow-xs"
+      title={t("admin.header.health_online")}
+    >
+      <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
+      <span className="text-[11px] font-bold text-emerald-700 hidden sm:inline">
         {t("admin.header.health_online")}
       </span>
     </div>

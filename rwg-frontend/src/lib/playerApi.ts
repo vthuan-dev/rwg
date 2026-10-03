@@ -571,9 +571,11 @@ export function parseXocDiaCoins(raw: string | null | undefined): number[] | nul
   return coins;
 }
 
-/** Danh sách bàn đang mở. Cần đăng nhập. */
+/** Danh sách bàn đang mở (chỉ trả về bàn có status = ACTIVE). Công khai cho sảnh/trang chủ. */
 export async function gameTables(): Promise<GameTable[]> {
-  return authedRequest<GameTable[]>("/games/tables", { method: "GET" });
+  const token = getPlayerToken();
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+  return request<GameTable[]>("/games/tables", { method: "GET", headers });
 }
 
 /**

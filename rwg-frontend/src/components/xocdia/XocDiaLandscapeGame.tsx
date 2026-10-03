@@ -1193,7 +1193,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
     (async () => {
       try {
         const tables = await gameTables();
-        const xoc = tables.find((t) => t.gameType === "XOC_DIA" && t.status === "ACTIVE") || tables.find((t) => t.gameType === "XOC_DIA");
+        const xoc = tables.find((t) => t.gameType === "XOC_DIA" && t.status === "ACTIVE");
         if (!xoc || cancelled) return;
         xocTableIdRef.current = xoc.id;
         setXocTableId(xoc.id);
@@ -2588,7 +2588,7 @@ export const XocDiaLandscapeGame: React.FC = () => {
       if (!tableId) {
         try {
           const tables = await gameTables();
-          const xoc = tables.find((t) => t.gameType === "XOC_DIA" && t.status === "ACTIVE") || tables.find((t) => t.gameType === "XOC_DIA");
+          const xoc = tables.find((t) => t.gameType === "XOC_DIA" && t.status === "ACTIVE");
           if (xoc) {
             tableId = xoc.id;
             xocTableIdRef.current = xoc.id;

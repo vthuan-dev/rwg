@@ -16,6 +16,8 @@ import com.rwg.wallet.dto.WalletResponse;
 import com.rwg.wallet.dto.WalletTransactionResponse;
 import com.rwg.wallet.repository.WalletRepository;
 import com.rwg.wallet.repository.WalletTransactionRepository;
+import com.rwg.identity.service.AdminDestructivePinService;
+import com.rwg.wallet.domain.WalletTransaction;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,7 @@ public class AdminWalletService {
     private final AuditTrailService audit;
     private final NotificationService notifications;
     private final com.rwg.game.service.GameEventRelay gameEventRelay;
+    private final AdminDestructivePinService pinService;
 
     public AdminWalletService(WalletService walletService,
                               WalletRepository walletRepository,
@@ -71,7 +74,8 @@ public class AdminWalletService {
                               UserRepository userRepository,
                               AuditTrailService audit,
                               NotificationService notifications,
-                              com.rwg.game.service.GameEventRelay gameEventRelay) {
+                              com.rwg.game.service.GameEventRelay gameEventRelay,
+                              AdminDestructivePinService pinService) {
         this.walletService = walletService;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
@@ -79,6 +83,7 @@ public class AdminWalletService {
         this.audit = audit;
         this.notifications = notifications;
         this.gameEventRelay = gameEventRelay;
+        this.pinService = pinService;
     }
 
     // ===== ĐỌC =====
@@ -235,5 +240,78 @@ public class AdminWalletService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR,
                     ErrorCode.VALIDATION_ERROR.defaultMessage(), Map.of("field", "refType"));
         }
+    }
+
+    /**
+     * Ẩn / Hiện dòng giao dịch ví. Yêu cầu mã PIN 171204 của admin.
+     * Khi ẩn: người chơi sẽ KHÔNG thấy dòng này trong lịch sử ví của họ (âm thầm mất).
+     */
+    @Transactional
+    public WalletTransactionResponse toggleHideTransaction(UUID userId, UUID txId, String confirmPin,
+                                                           UUID adminId, String ip) {
+        pinService.verify(adminId, confirmPin);
+        requireUserExists(userId);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+
+        List<WalletTransaction> list = transactionRepository.findByTxId(txId);
+        if (list.isEmpty() || !list.get(0).getWalletId().equals(wallet.getId())) {
+            throw new ApiException(ErrorCode.NOT_FOUND);
+        }
+        WalletTransaction tx = list.get(0);
+        boolean newHidden = !tx.isHidden();
+        transactionRepository.updateHidden(txId, newHidden);
+        tx.setHidden(newHidden);
+
+        audit.record(adminId, null, "WALLET_TRANSACTION_HIDE_TOGGLED",
+                "WALLET_TRANSACTION", txId.toString(),
+                Map.of("userId", userId.toString(), "hidden", newHidden, "refType", tx.getRefType().name()), ip);
+
+        return WalletService.toResponse(tx);
+    }
+
+    /**
+     * Xóa vĩnh viễn một dòng giao dịch ví khỏi DB. Yêu cầu mã PIN 171204 của admin.
+     */
+    @Transactional
+    public void deleteTransaction(UUID userId, UUID txId, String confirmPin,
+                                  UUID adminId, String ip) {
+        pinService.verify(adminId, confirmPin);
+        requireUserExists(userId);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+
+        List<WalletTransaction> list = transactionRepository.findByTxId(txId);
+        if (list.isEmpty() || !list.get(0).getWalletId().equals(wallet.getId())) {
+            throw new ApiException(ErrorCode.NOT_FOUND);
+        }
+        WalletTransaction tx = list.get(0);
+        transactionRepository.deleteByTxId(txId);
+
+        audit.record(adminId, null, "WALLET_TRANSACTION_DELETED",
+                "WALLET_TRANSACTION", txId.toString(),
+                Map.of("userId", userId.toString(),
+                        "refType", tx.getRefType().name(),
+                        "amount", tx.getCredit().compareTo(BigDecimal.ZERO) > 0
+                                ? tx.getCredit().toPlainString()
+                                : tx.getDebit().toPlainString()), ip);
+    }
+
+    /**
+     * Ẩn / Hiện TOÀN BỘ lịch sử giao dịch ví của người chơi. Yêu cầu mã PIN 171204 của admin.
+     */
+    @Transactional
+    public int toggleHideAllTransactions(UUID userId, boolean hide, String confirmPin,
+                                         UUID adminId, String ip) {
+        pinService.verify(adminId, confirmPin);
+        requireUserExists(userId);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
+
+        int updated = transactionRepository.updateHiddenByWalletId(wallet.getId(), hide);
+        audit.record(adminId, null, "WALLET_ALL_TRANSACTIONS_HIDE_TOGGLED",
+                "WALLET", wallet.getId().toString(),
+                Map.of("userId", userId.toString(), "count", updated, "hidden", hide), ip);
+        return updated;
     }
 }

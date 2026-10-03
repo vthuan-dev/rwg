@@ -3,6 +3,7 @@
 import React, { use } from "react";
 import { usePathname, notFound } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminLayoutProvider } from "@/components/admin/AdminLayoutContext";
 import { ADMIN_SECRET_PATH, ADMIN_URL_PREFIX } from "@/lib/constants";
 
 export default function AdminSecretLayout({
@@ -31,14 +32,16 @@ export default function AdminSecretLayout({
   }
 
   return (
-    <div className="w-full min-h-screen bg-slate-100 text-slate-900 flex font-sans antialiased">
-      {/* Admin Sidebar - Fixed Left Sidebar Light */}
-      <AdminSidebar />
+    <AdminLayoutProvider>
+      <div className="w-full min-h-screen bg-slate-100 text-slate-900 flex font-sans antialiased overflow-x-hidden">
+        {/* Admin Sidebar - Fixed Left on Desktop, Off-canvas Drawer on Mobile */}
+        <AdminSidebar />
 
-      {/* Main Content Area - Full Desktop Width Light */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+        {/* Main Content Area - Full Width on Mobile, Flex-1 on Desktop */}
+        <main className="flex-1 flex flex-col min-w-0 w-full bg-slate-50 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </AdminLayoutProvider>
   );
 }

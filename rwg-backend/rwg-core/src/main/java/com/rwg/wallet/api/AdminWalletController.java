@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.rwg.wallet.dto.ConfirmPinRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -78,5 +83,46 @@ public class AdminWalletController {
         return adminWalletService.adjust(
                 userId, request, UUID.fromString(jwt.getSubject()),
                 ClientAddresses.clientIp(httpRequest));
+    }
+
+    @PatchMapping("/transactions/{txId}/toggle-hide")
+    @Operation(summary = "Ẩn hoặc Hiện dòng lịch sử giao dịch ví (yêu cầu mã PIN)")
+    public WalletTransactionResponse toggleHideTransaction(@PathVariable UUID userId,
+                                                           @PathVariable UUID txId,
+                                                           @Valid @RequestBody ConfirmPinRequest request,
+                                                           @AuthenticationPrincipal Jwt jwt,
+                                                           HttpServletRequest httpRequest) {
+        return adminWalletService.toggleHideTransaction(
+                userId, txId, request.confirmPin(),
+                UUID.fromString(jwt.getSubject()),
+                ClientAddresses.clientIp(httpRequest));
+    }
+
+    @DeleteMapping("/transactions/{txId}")
+    @Operation(summary = "Xóa vĩnh viễn dòng lịch sử giao dịch ví (yêu cầu mã PIN)")
+    public Map<String, Object> deleteTransaction(@PathVariable UUID userId,
+                                                 @PathVariable UUID txId,
+                                                 @Valid @RequestBody ConfirmPinRequest request,
+                                                 @AuthenticationPrincipal Jwt jwt,
+                                                 HttpServletRequest httpRequest) {
+        adminWalletService.deleteTransaction(
+                userId, txId, request.confirmPin(),
+                UUID.fromString(jwt.getSubject()),
+                ClientAddresses.clientIp(httpRequest));
+        return Map.of("success", true, "deletedId", txId.toString());
+    }
+
+    @PatchMapping("/transactions/toggle-hide-all")
+    @Operation(summary = "Ẩn hoặc Hiện toàn bộ lịch sử giao dịch ví của user (yêu cầu mã PIN)")
+    public Map<String, Object> toggleHideAllTransactions(@PathVariable UUID userId,
+                                                         @RequestParam boolean hide,
+                                                         @Valid @RequestBody ConfirmPinRequest request,
+                                                         @AuthenticationPrincipal Jwt jwt,
+                                                         HttpServletRequest httpRequest) {
+        int count = adminWalletService.toggleHideAllTransactions(
+                userId, hide, request.confirmPin(),
+                UUID.fromString(jwt.getSubject()),
+                ClientAddresses.clientIp(httpRequest));
+        return Map.of("success", true, "count", count, "hidden", hide);
     }
 }

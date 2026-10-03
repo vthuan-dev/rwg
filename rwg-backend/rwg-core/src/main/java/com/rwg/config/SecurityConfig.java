@@ -156,6 +156,8 @@ public class SecurityConfig {
                         // không có gì để che. Bắt đăng nhập chỉ làm trang nạp/rút phải chờ
                         // xác thực xong mới vẽ được ô nhập số tiền.
                         .requestMatchers("/api/v1/payments/limits").permitAll()
+                        // Danh sách bàn chơi đang mở: công khai để trang chủ hiển thị các game đang hoạt động
+                        .requestMatchers(HttpMethod.GET, "/api/v1/games/tables").permitAll()
 
                         // ===== KHU ADMIN: phân quyền theo route (chặng 5) =====
                         //
@@ -220,11 +222,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*")
                             .hasRole("ADMIN")
 
-                        // SỔ SÁCH NGƯỜI CHƠI & LỊCH SỬ GIAO DỊCH VÍ: CHỈ ADMIN + FINANCE.
+                        // SỔ SÁCH NGƯỜI CHƠI & LỊCH SỬ GIAO DỊCH VÍ: CHỈ ADMIN + FINANCE XEM; ẨN/XÓA CHỈ ADMIN.
                         .requestMatchers("/api/v1/admin/reports/**")
                             .hasAnyRole("ADMIN", "FINANCE")
-                        .requestMatchers("/api/v1/admin/users/*/wallet/transactions")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/admin/users/*/wallet/transactions")
                             .hasAnyRole("ADMIN", "FINANCE")
+                        .requestMatchers("/api/v1/admin/users/*/wallet/transactions/**")
+                            .hasRole("ADMIN")
 
                         // AUDIT LOG & PHÊ DUYỆT 4 MẮT: CHỈ ADMIN TỐI CAO ĐƯỢC XEM
                         .requestMatchers("/api/v1/admin/audit/**").hasRole("ADMIN")

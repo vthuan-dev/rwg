@@ -324,8 +324,7 @@ function BetDetailContent() {
 
     roundIdRef.current = round.roundId;
     seqRef.current = 0;
-    setSelected([]);
-    setSelectedNumbers([]);
+    // Giữ nguyên lựa chọn cược (Lớn, Nhỏ, số) qua các vòng đấu để khách không bị mất lựa chọn
     setNotice(null);
   }, [round]);
 
@@ -450,9 +449,8 @@ function BetDetailContent() {
       );
     } else {
       setNotice(t("bet.placed_successfully"));
-      setSelected([]);
-      setSelectedNumbers([]);
-      setStake("");
+      // Giữ nguyên lựa chọn cược (Lớn, Nhỏ, v.v.) và tiền cược sau khi đặt cược thành công
+      // để người chơi tiếp tục chơi cửa mình muốn mà không phải chọn lại từ đầu.
     }
 
     // Đọc lại số dư và danh sách cược từ server thay vì tự suy: nếu nhóm cược lỗi giữa

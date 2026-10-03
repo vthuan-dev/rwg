@@ -13,6 +13,11 @@ public record WalletTransactionResponse(
         String balanceAfter,
         String refType,
         String refId,
-        String status
+        String status,
+        boolean hidden
 ) {
+    public WalletTransactionResponse(String id, Instant createdAt, String debit, String credit,
+                                     String balanceAfter, String refType, String refId, String status) {
+        this(id, createdAt, debit, credit, balanceAfter, refType, refId, status, false);
+    }
 }

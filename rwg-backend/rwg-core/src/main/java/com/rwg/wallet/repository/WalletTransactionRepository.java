@@ -6,6 +6,7 @@ import com.rwg.wallet.domain.WalletTransactionId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -23,6 +24,27 @@ import java.util.UUID;
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, WalletTransactionId> {
 
     Page<WalletTransaction> findByWalletId(UUID walletId, Pageable pageable);
+
+    Page<WalletTransaction> findByWalletIdAndHiddenFalse(UUID walletId, Pageable pageable);
+
+    @Query("select t from WalletTransaction t where t.id = :id")
+    List<WalletTransaction> findByTxId(@Param("id") UUID id);
+
+    @Modifying
+    @Query("update WalletTransaction t set t.hidden = :hidden where t.id = :id")
+    int updateHidden(@Param("id") UUID id, @Param("hidden") boolean hidden);
+
+    @Modifying
+    @Query("update WalletTransaction t set t.hidden = :hidden where t.walletId = :walletId")
+    int updateHiddenByWalletId(@Param("walletId") UUID walletId, @Param("hidden") boolean hidden);
+
+    @Modifying
+    @Query("delete from WalletTransaction t where t.id = :id")
+    int deleteByTxId(@Param("id") UUID id);
+
+    @Modifying
+    @Query("delete from WalletTransaction t where t.walletId = :walletId")
+    int deleteByWalletId(@Param("walletId") UUID walletId);
 
     boolean existsByIdempotencyKey(String idempotencyKey);
 

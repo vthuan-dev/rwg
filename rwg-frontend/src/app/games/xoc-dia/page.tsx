@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getPlayerToken } from "@/lib/playerApi";
+import { getPlayerToken, gameTables } from "@/lib/playerApi";
 import XocDiaLandscapeGame from "@/components/xocdia/XocDiaLandscapeGame";
 import { GameOrientationWrapper } from "@/components/xocdia/GameOrientationWrapper";
 
 export default function XocDiaPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isTableDisabled, setIsTableDisabled] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("Đang xác thực tài khoản Genting VIP...");
@@ -21,6 +22,32 @@ export default function XocDiaPage() {
       return;
     }
     setIsAuthenticated(true);
+
+    let isSubscribed = true;
+
+    // Kiểm tra bàn chơi có đang ACTIVE không
+    const verifyTable = async () => {
+      try {
+        const tables = await gameTables();
+        const xoc = tables.find((t) => t.gameType === "XOC_DIA" && t.status === "ACTIVE");
+        if (!xoc) {
+          if (isSubscribed) {
+            setIsTableDisabled(true);
+            setLoading(false);
+          }
+          return false;
+        }
+        if (isSubscribed) {
+          setIsTableDisabled(false);
+        }
+        return true;
+      } catch {
+        return true;
+      }
+    };
+
+    void verifyTable();
+    const tableCheckTimer = setInterval(verifyTable, 6000);
 
     const CRITICAL_ASSETS = [
       "/games/xocdia/assets_hd/casino_table_master.webp",
@@ -93,6 +120,8 @@ export default function XocDiaPage() {
     const fallbackTimer = setTimeout(finish, MAX_LOAD_TIME);
 
     return () => {
+      isSubscribed = false;
+      clearInterval(tableCheckTimer);
       clearTimeout(fallbackTimer);
     };
   }, [router]);
@@ -104,6 +133,43 @@ export default function XocDiaPage() {
           <div className="flex flex-col items-center gap-3">
             <div className="w-9 h-9 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
             <p className="text-xs font-mono text-amber-300 tracking-wider">ĐANG XÁC THỰC PHIÊN ĐĂNG NHẬP GENTING VIP...</p>
+          </div>
+        </div>
+      ) : isTableDisabled ? (
+        <div className="relative w-full h-full flex items-center justify-center bg-[#070503] text-white p-6 font-sans select-none">
+          {/* Subtle Ambient Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08)_0%,rgba(0,0,0,0.95)_100%)] pointer-events-none" />
+
+          <div className="relative z-10 max-w-md w-full bg-[#120e0a]/95 border border-amber-500/30 rounded-2xl p-6 sm:p-8 backdrop-blur-2xl shadow-[0_12px_48px_rgba(0,0,0,0.95)] flex flex-col items-center text-center">
+            {/* Warning / Lock Badge */}
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-4 text-red-400 shadow-[0_0_24px_rgba(239,68,68,0.2)]">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 uppercase mb-2">
+              BÀN CHƠI ĐANG TẠM ĐÓNG
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-6 font-medium">
+              Bàn cược Xóc Đĩa VIP hiện đang tạm ngừng nhận cược hoặc đang bảo trì định kỳ. Quý khách vui lòng chọn các trò chơi hấp dẫn khác trên sàn!
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <button
+                onClick={() => router.replace("/")}
+                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs uppercase tracking-wider transition-all active:scale-95 shadow-[0_4px_16px_rgba(245,158,11,0.3)]"
+              >
+                Về Trang Chủ
+              </button>
+              <button
+                onClick={() => router.replace("/bet")}
+                className="flex-1 py-3 px-4 rounded-xl bg-[#1f1914] hover:bg-[#2a221b] border border-amber-500/30 text-amber-300 font-bold text-xs uppercase tracking-wider transition-all active:scale-95"
+              >
+                Xem Sảnh Game Khác
+              </button>
+            </div>
           </div>
         </div>
       ) : loading ? (

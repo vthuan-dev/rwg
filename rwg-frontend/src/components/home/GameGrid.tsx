@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
+import { gameTables } from "@/lib/playerApi";
 
 interface GameItem {
   id: string;
@@ -79,6 +80,38 @@ const GRID_IMAGE_SIZES = "(max-width: 640px) 50vw, 310px";
 
 export const GameGrid: React.FC = () => {
   const { t } = useTranslation();
+  const [activeTypes, setActiveTypes] = React.useState<Set<string> | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const fetchActive = async () => {
+      try {
+        const tables = await gameTables();
+        if (!cancelled && Array.isArray(tables)) {
+          const types = new Set(
+            tables
+              .filter((tbl) => tbl.status === "ACTIVE")
+              .map((tbl) => tbl.gameType.toUpperCase())
+          );
+          setActiveTypes(types);
+        }
+      } catch {
+        // Giữ nguyên nếu mạng lỗi
+      }
+    };
+
+    void fetchActive();
+    // Tự động kiểm tra mỗi 8s: admin vừa tắt bàn là trang chủ ẩn ngay không cần F5
+    const interval = setInterval(fetchActive, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const visibleGames = activeTypes
+    ? GAMES.filter((game) => activeTypes.has(game.gameType.toUpperCase()))
+    : GAMES;
 
   return (
     <section className="w-full px-4 my-2">
@@ -87,7 +120,7 @@ export const GameGrid: React.FC = () => {
       </h2>
 
       <ul className="grid grid-cols-2 gap-3">
-        {GAMES.map((game) => (
+        {visibleGames.map((game) => (
           <li key={game.id} className="flex">
             <Link
               href={game.customHref ?? `/bet/detail?id=${game.gameType.toLowerCase()}&ref=/`}
