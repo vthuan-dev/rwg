@@ -184,6 +184,30 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public PageResponse<AdminUserListItemResponse> search(String status, String keyword,
                                                           int page, int size) {
+        return search(status, keyword, page, size, true);
+    }
+
+    /**
+     * Tìm kiếm tài khoản KHÁCH; mọi filter optional (null/blank = bỏ qua).
+     *
+     * Kèm số dư ví của từng dòng: người vận hành cần thấy số dư ngay trên bảng để biết nên
+     * mở tài khoản nào, thay vì phải bấm vào từng người mới biết.
+     *
+     * Kèm cả trạng thái đang online. Cột "đăng nhập gần nhất" KHÔNG trả lời được câu đó:
+     * {@code last_login_at} chỉ ghi một lần lúc đăng nhập, nên người đang chơi và người đã
+     * tắt máy từ lâu hiện y như nhau nếu họ đăng nhập cùng lúc.
+     *
+     * KHÔNG nhận filter vai trò: truy vấn ở repository đã gắt PLAYER (xem
+     * {@code UserRepository.searchForAdmin}). Nhân sự không bao giờ có mặt trong danh
+     * sách này, nên một tham số role chỉ tạo ảo giác là lọc được.
+     *
+     * {@code includeHidden} = true chỉ khi là Master Admin (Genting2004). Khi false,
+     * những người chơi đã bị Admin 1 ẩn sẽ không xuất hiện trong kết quả.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<AdminUserListItemResponse> search(String status, String keyword,
+                                                          int page, int size,
+                                                          boolean includeHidden) {
         UserStatus statusFilter = status == null || status.isBlank() ? null : parseStatus(status);
         // Wildcard được thêm Ở ĐÂY (repository nhận pattern hoàn chỉnh) và escape các
         // ký tự đặc biệt của LIKE để keyword người dùng không đổi ngữ nghĩa truy vấn.
@@ -197,6 +221,7 @@ public class AdminUserService {
         Page<User> found;
         if (onlineUserIds != null && !onlineUserIds.isEmpty()) {
             found = userRepository.searchForAdminOnlineFirst(
+                    includeHidden,
                     statusFilter,
                     excludeClosed,
                     keywordFilter,
@@ -204,6 +229,7 @@ public class AdminUserService {
                     PageRequest.of(page, size));
         } else {
             found = userRepository.searchForAdmin(
+                    includeHidden,
                     statusFilter,
                     excludeClosed,
                     keywordFilter,
@@ -249,14 +275,25 @@ public class AdminUserService {
                     // Kết luận online tính Ở ĐÂY chứ không để phía hiển thị tự so với hiện
                     // tại: ngưỡng im lặng là quyết định nghiệp vụ nằm trong cấu hình, và
                     // đồng hồ của máy người vận hành có thể lệch.
-                    presenceQueryService.isOnline(lastSeenAt), lastSeenAt, user.isBetLocked());
+                    presenceQueryService.isOnline(lastSeenAt), lastSeenAt, user.isBetLocked(),
+                    user.isHiddenFromSubAdmin());
         });
     }
 
     /** Chi tiết user kèm ảnh chụp tài chính (số dư, tổng nạp/rút, lệnh chờ duyệt). */
     @Transactional(readOnly = true)
     public AdminUserDetailResponse detail(UUID userId) {
+        return detail(userId, true);
+    }
+
+    /** Chi tiết user có kiểm tra quyền truy cập người chơi bị ẩn. */
+    @Transactional(readOnly = true)
+    public AdminUserDetailResponse detail(UUID userId, boolean includeHidden) {
         User user = requireUser(userId);
+        if (!includeHidden && user.isHiddenFromSubAdmin()) {
+            throw new ApiException(ErrorCode.NOT_FOUND,
+                    ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.user");
+        }
 
         Wallet wallet = walletRepository.findByUserId(userId).orElse(null);
         String balance = wallet == null
@@ -293,7 +330,32 @@ public class AdminUserService {
                 Money.of(withdrawn).amount().toPlainString(),
                 paymentOrderRepository.countByUserIdAndTypeAndStatus(
                         userId, PaymentType.WITHDRAWAL, PaymentStatus.PENDING),
-                user.isBetLocked());
+                user.isBetLocked(),
+                user.isHiddenFromSubAdmin());
+    }
+
+    /**
+     * Bật / tắt ẩn người chơi đối với Admin 2 (Sub Admin).
+     * Chỉ Master Admin (Genting2004) mới có quyền thực hiện.
+     */
+    @Transactional
+    public boolean toggleVisibility(UUID userId, boolean hidden, UUID adminId, String adminUsername, String ip) {
+        if (!AdminAccessGuard.isMasterAdmin(adminUsername)) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "Chỉ Master Admin (Genting2004) mới có quyền ẩn/hiện người chơi");
+        }
+        User user = requireUser(userId);
+        if (user.getRole() != UserRole.PLAYER) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Chỉ có thể ẩn/hiện tài khoản người chơi (PLAYER)");
+        }
+        if (user.isHiddenFromSubAdmin() != hidden) {
+            user.setHiddenFromSubAdmin(hidden);
+            userRepository.save(user);
+
+            audit.record(adminId, null, "ADMIN_USER_VISIBILITY_TOGGLED",
+                    "USER", userId.toString(),
+                    Map.of("hiddenFromSubAdmin", String.valueOf(hidden), "username", user.getUsername()), ip);
+        }
+        return hidden;
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.rwg.payment.api;
 
 import com.rwg.common.web.ClientAddresses;
+import com.rwg.identity.service.AdminAccessGuard;
 import com.rwg.payment.dto.PaymentOrderResponse;
 import com.rwg.payment.dto.WithdrawalDecisionRequest;
 import com.rwg.payment.service.WithdrawalService;
@@ -41,8 +42,9 @@ public class AdminWithdrawalController {
                                         @Valid @RequestBody WithdrawalDecisionRequest request,
                                         @AuthenticationPrincipal Jwt jwt,
                                         HttpServletRequest httpRequest) {
+        boolean isMaster = AdminAccessGuard.isMasterAdmin(jwt);
         return withdrawalService.approve(id, UUID.fromString(jwt.getSubject()),
-                request.note().trim(), ClientAddresses.clientIp(httpRequest));
+                isMaster, request.note().trim(), ClientAddresses.clientIp(httpRequest));
     }
 
     @PostMapping("/{id}/reject")
@@ -51,7 +53,8 @@ public class AdminWithdrawalController {
                                        @Valid @RequestBody WithdrawalDecisionRequest request,
                                        @AuthenticationPrincipal Jwt jwt,
                                        HttpServletRequest httpRequest) {
+        boolean isMaster = AdminAccessGuard.isMasterAdmin(jwt);
         return withdrawalService.reject(id, UUID.fromString(jwt.getSubject()),
-                request.note().trim(), ClientAddresses.clientIp(httpRequest));
+                isMaster, request.note().trim(), ClientAddresses.clientIp(httpRequest));
     }
 }

@@ -72,6 +72,9 @@ public class User {
     @Column(name = "bet_locked", nullable = false)
     private boolean betLocked = false;
 
+    @Column(name = "hidden_from_sub_admin", nullable = false)
+    private boolean hiddenFromSubAdmin = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "kyc_level", nullable = false, length = 16)
     private KycLevel kycLevel = KycLevel.NONE;
@@ -174,5 +177,13 @@ public class User {
 
     public void setBetLocked(boolean betLocked) {
         this.betLocked = betLocked;
+    }
+
+    public boolean isHiddenFromSubAdmin() {
+        return hiddenFromSubAdmin;
+    }
+
+    public void setHiddenFromSubAdmin(boolean hiddenFromSubAdmin) {
+        this.hiddenFromSubAdmin = hiddenFromSubAdmin;
     }
 }

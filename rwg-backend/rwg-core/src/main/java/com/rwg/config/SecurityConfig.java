@@ -222,11 +222,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/admin/users/*")
                             .hasRole("ADMIN")
 
-                        // SỔ SÁCH NGƯỜI CHƠI & LỊCH SỬ GIAO DỊCH VÍ: CHỈ ADMIN + FINANCE XEM; ẨN/XÓA CHỈ ADMIN.
+                        // SỔ SÁCH NGƯỜI CHƠI & LỊCH SỬ GIAO DỊCH VÍ: MỞ CHO MỌI NHÂN SỰ QUẢN TRỊ XEM; ẨN/XÓA CHỈ ADMIN.
                         .requestMatchers("/api/v1/admin/reports/**")
                             .hasAnyRole("ADMIN", "FINANCE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/admin/users/*/wallet/transactions")
-                            .hasAnyRole("ADMIN", "FINANCE")
+                            .hasAnyRole("ADMIN", "FINANCE", "SUPPORT", "OPERATOR", "RISK")
                         .requestMatchers("/api/v1/admin/users/*/wallet/transactions/**")
                             .hasRole("ADMIN")
 

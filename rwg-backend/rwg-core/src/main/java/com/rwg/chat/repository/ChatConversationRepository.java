@@ -26,7 +26,8 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
     @Query("""
             SELECT c FROM ChatConversation c
             JOIN User u ON u.id = c.userId
-            WHERE (:status IS NULL OR c.status = :status)
+            WHERE (:includeHidden = true OR u.hiddenFromSubAdmin = false)
+              AND (:status IS NULL OR c.status = :status)
               AND (:assignedAdminId IS NULL OR c.assignedAdminId = :assignedAdminId)
               AND (:unassignedOnly IS NULL OR c.assignedAdminId IS NULL)
               AND (:keyword IS NULL OR lower(u.username) LIKE :keyword)
@@ -34,12 +35,22 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
               AND c.lastMessageAt >= :minActiveAt
             ORDER BY c.lastMessageAt DESC
             """)
-    Page<ChatConversation> searchForAdmin(@Param("status") ChatConversationStatus status,
+    Page<ChatConversation> searchForAdmin(@Param("includeHidden") boolean includeHidden,
+                                         @Param("status") ChatConversationStatus status,
                                          @Param("assignedAdminId") UUID assignedAdminId,
                                          @Param("unassignedOnly") Boolean unassignedOnly,
                                          @Param("keyword") String keyword,
                                          @Param("minActiveAt") Instant minActiveAt,
                                          Pageable pageable);
+
+    default Page<ChatConversation> searchForAdmin(ChatConversationStatus status,
+                                                  UUID assignedAdminId,
+                                                  Boolean unassignedOnly,
+                                                  String keyword,
+                                                  Instant minActiveAt,
+                                                  Pageable pageable) {
+        return searchForAdmin(true, status, assignedAdminId, unassignedOnly, keyword, minActiveAt, pageable);
+    }
 
     /**
      * Tổng số tin người chơi gửi mà chưa nhân sự nào đọc, trên toàn hệ thống.
@@ -47,19 +58,31 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
      */
     @Query("""
             SELECT COALESCE(SUM(c.unreadForAdmin), 0) FROM ChatConversation c
-            WHERE c.status = com.rwg.chat.domain.ChatConversationStatus.OPEN
+            JOIN User u ON u.id = c.userId
+            WHERE (:includeHidden = true OR u.hiddenFromSubAdmin = false)
+              AND c.status = com.rwg.chat.domain.ChatConversationStatus.OPEN
               AND c.lastMessageAt IS NOT NULL
               AND c.lastMessageAt >= :minActiveAt
             """)
-    long totalUnreadForAdmin(@Param("minActiveAt") Instant minActiveAt);
+    long totalUnreadForAdmin(@Param("includeHidden") boolean includeHidden, @Param("minActiveAt") Instant minActiveAt);
+
+    default long totalUnreadForAdmin(Instant minActiveAt) {
+        return totalUnreadForAdmin(true, minActiveAt);
+    }
 
     /** Số luồng đang mở còn tin chưa đọc trong vòng 30 phút. */
     @Query("""
             SELECT COUNT(c) FROM ChatConversation c
-            WHERE c.status = com.rwg.chat.domain.ChatConversationStatus.OPEN
+            JOIN User u ON u.id = c.userId
+            WHERE (:includeHidden = true OR u.hiddenFromSubAdmin = false)
+              AND c.status = com.rwg.chat.domain.ChatConversationStatus.OPEN
               AND c.unreadForAdmin > 0
               AND c.lastMessageAt IS NOT NULL
               AND c.lastMessageAt >= :minActiveAt
             """)
-    long countConversationsAwaitingReply(@Param("minActiveAt") Instant minActiveAt);
+    long countConversationsAwaitingReply(@Param("includeHidden") boolean includeHidden, @Param("minActiveAt") Instant minActiveAt);
+
+    default long countConversationsAwaitingReply(Instant minActiveAt) {
+        return countConversationsAwaitingReply(true, minActiveAt);
+    }
 }

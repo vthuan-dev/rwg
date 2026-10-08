@@ -24,6 +24,7 @@ public record AdminUserDetailResponse(
         String totalDeposited,
         String totalWithdrawn,
         long pendingWithdrawals,
-        boolean betLocked
+        boolean betLocked,
+        boolean hiddenFromSubAdmin
 ) {
 }

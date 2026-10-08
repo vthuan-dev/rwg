@@ -91,7 +91,11 @@ public class WsAuthChannelInterceptor implements ChannelInterceptor {
         try {
             Jwt jwt = jwtDecoder.decode(token);
             UUID userId = UUID.fromString(jwt.getSubject());
-            principal = new UserIdPrincipal(userId, rolesOf(jwt));
+            String username = jwt.getClaimAsString("username");
+            if (username == null || username.isBlank()) {
+                username = jwt.getSubject();
+            }
+            principal = new UserIdPrincipal(userId, username, rolesOf(jwt));
         } catch (JwtException | IllegalArgumentException invalidToken) {
             throw new MessageDeliveryException("STOMP CONNECT rejected: invalid token");
         }
@@ -129,6 +133,12 @@ public class WsAuthChannelInterceptor implements ChannelInterceptor {
             throw new MessageDeliveryException(
                     "STOMP SUBSCRIBE rejected: " + destination + " requires a staff role");
         }
+
+        // Kênh /topic/admin/chat/master chỉ dành riêng cho Master Admin (Genting2004)
+        if (destination.startsWith("/topic/admin/chat/master") && !principal.isMaster()) {
+            throw new MessageDeliveryException(
+                    "STOMP SUBSCRIBE rejected: " + destination + " requires master admin privileges");
+        }
     }
 
     /** Vai trò trong claim "roles" (đã có tiền tố ROLE_ — xem SecurityConfig). */
@@ -140,11 +150,9 @@ public class WsAuthChannelInterceptor implements ChannelInterceptor {
     /**
      * Principal của phiên STOMP: name = userId để unicast {@code /user/queue/...} đúng đích.
      *
-     * MANG THEO cả vai trò. Cách khác là tra lại vai trò từ DB mỗi lần cần kiểm tra,
-     * nhưng SUBSCRIBE là frame nóng và một truy vấn DB cho mỗi lần subscribe là chi phí
-     * không cần thiết — vai trò đã nằm trong token đã được xác thực chữ ký.
+     * MANG THEO cả vai trò và username.
      */
-    public record UserIdPrincipal(UUID userId, List<String> roles) implements Principal {
+    public record UserIdPrincipal(UUID userId, String username, List<String> roles) implements Principal {
 
         @Override
         public String getName() {
@@ -154,6 +162,11 @@ public class WsAuthChannelInterceptor implements ChannelInterceptor {
         /** Có ít nhất một vai trò thuộc khu quản trị. */
         public boolean isStaff() {
             return roles.stream().anyMatch(STAFF_ROLES::contains);
+        }
+
+        /** Là Master Admin (Genting2004). */
+        public boolean isMaster() {
+            return com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(username);
         }
     }
 }

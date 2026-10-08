@@ -226,7 +226,22 @@ public class WithdrawalService {
      */
     @Transactional
     public PaymentOrderResponse approve(UUID orderId, UUID adminId, String note, String ip) {
+        return approve(orderId, adminId, true, note, ip);
+    }
+
+    @Transactional
+    public PaymentOrderResponse approve(UUID orderId, UUID adminId, boolean isMasterAdmin, String note, String ip) {
         requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_APPROVE", ip);
+        if (!isMasterAdmin) {
+            PaymentOrder orderCheck = orderRepository.findFirstById(orderId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
+                            ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.payment_order"));
+            User user = userRepository.findById(orderCheck.getUserId()).orElse(null);
+            if (user != null && user.isHiddenFromSubAdmin()) {
+                throw new ApiException(ErrorCode.NOT_FOUND,
+                        ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.payment_order");
+            }
+        }
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.SETTLED, nowMicros());
         if (updated == 0) {
@@ -256,7 +271,22 @@ public class WithdrawalService {
      */
     @Transactional
     public PaymentOrderResponse reject(UUID orderId, UUID adminId, String note, String ip) {
+        return reject(orderId, adminId, true, note, ip);
+    }
+
+    @Transactional
+    public PaymentOrderResponse reject(UUID orderId, UUID adminId, boolean isMasterAdmin, String note, String ip) {
         requireNotOwnOrder(orderId, adminId, "WITHDRAWAL_REJECT", ip);
+        if (!isMasterAdmin) {
+            PaymentOrder orderCheck = orderRepository.findFirstById(orderId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
+                            ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.payment_order"));
+            User user = userRepository.findById(orderCheck.getUserId()).orElse(null);
+            if (user != null && user.isHiddenFromSubAdmin()) {
+                throw new ApiException(ErrorCode.NOT_FOUND,
+                        ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.payment_order");
+            }
+        }
         int updated = orderRepository.transitionStatus(
                 orderId, PaymentStatus.PENDING, PaymentStatus.VOIDED, nowMicros());
         if (updated == 0) {

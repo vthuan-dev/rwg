@@ -121,6 +121,17 @@ public class AdminChatService {
                                                                String keyword,
                                                                int page,
                                                                int size) {
+        return inbox(status, assignedTo, unassignedOnly, keyword, page, size, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminChatConversationRowResponse> inbox(ChatConversationStatus status,
+                                                               UUID assignedTo,
+                                                               Boolean unassignedOnly,
+                                                               String keyword,
+                                                               int page,
+                                                               int size,
+                                                               boolean includeHidden) {
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.clamp(size, 1, MAX_PAGE_SIZE));
 
         // Chuẩn hoá keyword TẠI ĐÂY, không trong repository: câu JPQL dùng `like`
@@ -133,26 +144,32 @@ public class AdminChatService {
         Instant minActiveAt = Instant.now().minus(chatProperties.autoDeleteAfter());
 
         Page<ChatConversation> conversations = conversationRepository.searchForAdmin(
+                includeHidden,
                 status, assignedTo, Boolean.TRUE.equals(unassignedOnly) ? Boolean.TRUE : null,
                 normalized, minActiveAt, pageable);
 
-        Map<UUID, String> usernames = usernamesFor(conversations.getContent());
+        Map<UUID, User> users = usersFor(conversations.getContent());
 
-        return PageResponse.from(conversations, c -> AdminChatConversationRowResponse.from(
-                c,
-                usernames.get(c.getUserId()),
-                c.getAssignedAdminId() == null ? null : usernames.get(c.getAssignedAdminId())));
+        return PageResponse.from(conversations, c -> {
+            User player = users.get(c.getUserId());
+            User assignedAdmin = c.getAssignedAdminId() == null ? null : users.get(c.getAssignedAdminId());
+            return AdminChatConversationRowResponse.from(
+                    c,
+                    player == null ? null : player.getUsername(),
+                    assignedAdmin == null ? null : assignedAdmin.getUsername(),
+                    player != null && player.isHiddenFromSubAdmin());
+        });
     }
 
     /**
-     * Tên đăng nhập của mọi user liên quan tới một trang hộp thư, lấy trong MỘT truy vấn.
+     * Thông tin User của mọi tài khoản liên quan tới một trang hộp thư, lấy trong MỘT truy vấn.
      *
      * Gom cả người chơi và nhân sự phụ trách vào cùng một tập id rồi gọi
      * {@code findAllById} một lần. Cách tự nhiên hơn là tra tên trong vòng lặp, nhưng
      * đó là N+1: một trang 20 dòng thành tối đa 40 truy vấn phụ, trên màn hình được
      * tải lại mỗi vài giây.
      */
-    private Map<UUID, String> usernamesFor(List<ChatConversation> conversations) {
+    private Map<UUID, User> usersFor(List<ChatConversation> conversations) {
         Set<UUID> ids = new HashSet<>();
         for (ChatConversation c : conversations) {
             ids.add(c.getUserId());
@@ -164,7 +181,7 @@ public class AdminChatService {
             return Map.of();
         }
         return userRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
     }
 
     /**
@@ -178,7 +195,13 @@ public class AdminChatService {
      */
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> messages(UUID conversationId, Instant before) {
-        requireConversation(conversationId);
+        return messages(conversationId, before, true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatMessageResponse> messages(UUID conversationId, Instant before, boolean includeHidden) {
+        ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         Instant minCreatedAt = Instant.now().minus(chatProperties.autoDeleteAfter());
         List<ChatMessage> page = messageRepository
@@ -219,7 +242,17 @@ public class AdminChatService {
                                            String body, UUID clientMsgId,
                                            String attachmentUrl, String attachmentName,
                                            Long attachmentSize) {
+        return replyAsStaff(conversationId, adminId, adminUsername, body, clientMsgId,
+                attachmentUrl, attachmentName, attachmentSize, true);
+    }
+
+    @Transactional
+    public ChatMessageResponse replyAsStaff(UUID conversationId, UUID adminId, String adminUsername,
+                                           String body, UUID clientMsgId,
+                                           String attachmentUrl, String attachmentName,
+                                           Long attachmentSize, boolean includeHidden) {
         ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         if (clientMsgId != null) {
             var existing = messageRepository
@@ -241,9 +274,10 @@ public class AdminChatService {
                         text, attachmentUrl, attachmentName, attachmentSize),
                 ChatSenderType.STAFF);
 
+        boolean hidden = isHiddenPlayer(conversation);
         eventPublisher.publishAfterCommit(ChatEventPayload.message(
                 conversationId.toString(), conversation.getUserId().toString(),
-                ChatMessageResponse.from(saved)));
+                ChatMessageResponse.from(saved), hidden));
 
         return ChatMessageResponse.from(saved);
     }
@@ -263,7 +297,15 @@ public class AdminChatService {
     @Transactional
     public AdminChatConversationRowResponse assign(UUID conversationId, UUID adminId,
                                                    String adminUsername, String ipAddress) {
+        return assign(conversationId, adminId, adminUsername, ipAddress, true);
+    }
+
+    @Transactional
+    public AdminChatConversationRowResponse assign(UUID conversationId, UUID adminId,
+                                                   String adminUsername, String ipAddress,
+                                                   boolean includeHidden) {
         ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         boolean changed = conversation.assignTo(adminId);
         if (changed) {
@@ -276,9 +318,10 @@ public class AdminChatService {
                     "chat_conversation", conversationId.toString(),
                     Map.of("playerId", conversation.getUserId().toString()), ipAddress);
 
+            boolean hidden = isHiddenPlayer(conversation);
             eventPublisher.publishAfterCommit(ChatEventPayload.conversation(
                     conversationId.toString(), conversation.getUserId().toString(),
-                    conversation.getStatus().name()));
+                    conversation.getStatus().name(), hidden));
         }
         conversationRepository.save(conversation);
 
@@ -294,7 +337,15 @@ public class AdminChatService {
     @Transactional
     public AdminChatConversationRowResponse close(UUID conversationId, UUID adminId,
                                                   String adminUsername, String ipAddress) {
+        return close(conversationId, adminId, adminUsername, ipAddress, true);
+    }
+
+    @Transactional
+    public AdminChatConversationRowResponse close(UUID conversationId, UUID adminId,
+                                                  String adminUsername, String ipAddress,
+                                                  boolean includeHidden) {
         ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         boolean changed = conversation.close();
         if (changed) {
@@ -307,9 +358,10 @@ public class AdminChatService {
                     "chat_conversation", conversationId.toString(),
                     Map.of("playerId", conversation.getUserId().toString()), ipAddress);
 
+            boolean hidden = isHiddenPlayer(conversation);
             eventPublisher.publishAfterCommit(ChatEventPayload.conversation(
                     conversationId.toString(), conversation.getUserId().toString(),
-                    conversation.getStatus().name()));
+                    conversation.getStatus().name(), hidden));
         }
         conversationRepository.save(conversation);
 
@@ -319,7 +371,13 @@ public class AdminChatService {
     /** Nhân sự đã xem: đóng dấu mọi tin của người chơi trong luồng và xoá bộ đếm. */
     @Transactional
     public int markRead(UUID conversationId) {
+        return markRead(conversationId, true);
+    }
+
+    @Transactional
+    public int markRead(UUID conversationId, boolean includeHidden) {
         ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         int updated = messageRepository.markReadFrom(conversationId, ChatSenderType.PLAYER, now);
@@ -329,8 +387,9 @@ public class AdminChatService {
         if (updated > 0) {
             // Báo cho người chơi thấy dấu "đã xem": biết tin của mình đã được đọc là
             // thứ giảm hẳn số lần họ gửi lại cùng một câu hỏi.
+            boolean hidden = isHiddenPlayer(conversation);
             eventPublisher.publishAfterCommit(ChatEventPayload.read(
-                    conversationId.toString(), conversation.getUserId().toString()));
+                    conversationId.toString(), conversation.getUserId().toString(), hidden));
         }
         return updated;
     }
@@ -338,10 +397,15 @@ public class AdminChatService {
     /** Tổng chưa đọc toàn hệ thống, cho viên tròn đỏ trên sidebar quản trị. */
     @Transactional(readOnly = true)
     public ChatUnreadResponse unread() {
+        return unread(true);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatUnreadResponse unread(boolean includeHidden) {
         Instant minActiveAt = Instant.now().minus(chatProperties.autoDeleteAfter());
         return ChatUnreadResponse.of(
-                conversationRepository.totalUnreadForAdmin(minActiveAt),
-                conversationRepository.countConversationsAwaitingReply(minActiveAt));
+                conversationRepository.totalUnreadForAdmin(includeHidden, minActiveAt),
+                conversationRepository.countConversationsAwaitingReply(includeHidden, minActiveAt));
     }
 
     /**
@@ -365,8 +429,15 @@ public class AdminChatService {
     @Transactional
     public int deleteMessages(UUID conversationId, List<UUID> messageIds, String confirmPin,
                                UUID staffId, String staffUsername, String ip) {
+        return deleteMessages(conversationId, messageIds, confirmPin, staffId, staffUsername, ip, true);
+    }
+
+    @Transactional
+    public int deleteMessages(UUID conversationId, List<UUID> messageIds, String confirmPin,
+                               UUID staffId, String staffUsername, String ip, boolean includeHidden) {
         pinService.verify(staffId, confirmPin);
         ChatConversation conversation = requireConversation(conversationId);
+        assertVisibleToStaff(conversation, includeHidden);
 
         List<ChatMessage> toDelete = messageRepository.findByConversationIdAndIdIn(
                 conversationId, messageIds);
@@ -393,16 +464,17 @@ public class AdminChatService {
         // Phát sự kiện xóa để cả hai phía xóa bong bóng khỏi màn hình ngay.
         // publishAfterCommit đảm bảo gửi SAU khi transaction commit — tránh gửi
         // thông báo khi transaction có thể còn rollback. Publisher tự gửi đồng thời
-        // tới kênh admin (/topic/admin/chat) và unicast tới người chơi (qua Redis nếu
-        // người chơi đang nối vào app player).
+        // tới kênh admin (/topic/admin/chat hoặc /topic/admin/chat/master nếu khách bị ẩn)
+        // và unicast tới người chơi (qua Redis nếu người chơi đang nối vào app player).
         String[] deletedIds = toDelete.stream()
                 .map(m -> m.getId().toString())
                 .toArray(String[]::new);
         String convId = conversationId.toString();
         String targetUserId = conversation.getUserId().toString();
 
+        boolean hidden = isHiddenPlayer(conversation);
         eventPublisher.publishAfterCommit(
-                ChatEventPayload.messagesDeleted(convId, targetUserId, deletedIds));
+                ChatEventPayload.messagesDeleted(convId, targetUserId, deletedIds, hidden));
 
         auditTrailService.record(staffId, null, AuditTrailService.ADMIN_CHAT_MESSAGES_DELETED,
                 "CHAT_CONVERSATION", conversationId.toString(),
@@ -420,14 +492,30 @@ public class AdminChatService {
                         "error.not_found.chat_conversation"));
     }
 
+    private void assertVisibleToStaff(ChatConversation conversation, boolean includeHidden) {
+        if (!includeHidden) {
+            User user = userRepository.findById(conversation.getUserId()).orElse(null);
+            if (user != null && user.isHiddenFromSubAdmin()) {
+                throw new ApiException(ErrorCode.NOT_FOUND,
+                        ErrorCode.NOT_FOUND.defaultMessage(), null, "error.not_found.chat_conversation");
+            }
+        }
+    }
+
+    private boolean isHiddenPlayer(ChatConversation conversation) {
+        User user = userRepository.findById(conversation.getUserId()).orElse(null);
+        return user != null && user.isHiddenFromSubAdmin();
+    }
+
     /** Dựng một dòng hộp thư cho MỘT hội thoại (sau khi ghi). */
     private AdminChatConversationRowResponse toRow(ChatConversation conversation) {
-        Map<UUID, String> usernames = usernamesFor(List.of(conversation));
+        Map<UUID, User> users = usersFor(List.of(conversation));
+        User player = users.get(conversation.getUserId());
+        User assignedAdmin = conversation.getAssignedAdminId() == null ? null : users.get(conversation.getAssignedAdminId());
         return AdminChatConversationRowResponse.from(
                 conversation,
-                usernames.get(conversation.getUserId()),
-                conversation.getAssignedAdminId() == null
-                        ? null
-                        : usernames.get(conversation.getAssignedAdminId()));
+                player == null ? null : player.getUsername(),
+                assignedAdmin == null ? null : assignedAdmin.getUsername(),
+                player != null && player.isHiddenFromSubAdmin());
     }
 }

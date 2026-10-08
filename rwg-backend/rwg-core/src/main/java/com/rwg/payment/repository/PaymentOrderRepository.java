@@ -91,17 +91,28 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
      * withdrawal); status/userId OPTIONAL (null = bỏ qua filter). Khoảng thời gian
      * nửa mở [from, to) để không đếm trùng biên khi phân trang theo ngày.
      */
-    @Query("select o from PaymentOrder o where "
+    @Query("select o from PaymentOrder o join User u on u.id = o.userId where "
             + "o.type = :type and "
+            + "(:includeHidden = true or u.hiddenFromSubAdmin = false) and "
             + "(:status is null or o.status = :status) and "
             + "(:userId is null or o.userId = :userId) and "
             + "o.createdAt >= :from and o.createdAt < :to")
-    Page<PaymentOrder> searchForAdmin(@Param("type") PaymentType type,
+    Page<PaymentOrder> searchForAdmin(@Param("includeHidden") boolean includeHidden,
+                                      @Param("type") PaymentType type,
                                       @Param("status") PaymentStatus status,
                                       @Param("userId") UUID userId,
                                       @Param("from") Instant from,
                                       @Param("to") Instant to,
                                       Pageable pageable);
+
+    default Page<PaymentOrder> searchForAdmin(PaymentType type,
+                                              PaymentStatus status,
+                                              UUID userId,
+                                              Instant from,
+                                              Instant to,
+                                              Pageable pageable) {
+        return searchForAdmin(true, type, status, userId, from, to, pageable);
+    }
 
     /**
      * Như {@link #searchForAdmin} nhưng nhận NHIỀU trạng thái cùng lúc.
@@ -113,20 +124,40 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Paym
      * {@code statuses} PHẢI không rỗng. JPQL {@code in (:x)} với x null sinh SQL không hợp lệ,
      * nên nơi gọi truyền đủ mọi trạng thái khi không muốn lọc, thay vì truyền null.
      */
-    @Query("select o from PaymentOrder o where "
+    @Query("select o from PaymentOrder o join User u on u.id = o.userId where "
             + "o.type = :type and "
+            + "(:includeHidden = true or u.hiddenFromSubAdmin = false) and "
             + "o.status in :statuses and "
             + "(:userId is null or o.userId = :userId) and "
             + "o.createdAt >= :from and o.createdAt < :to")
-    Page<PaymentOrder> searchForAdminByStatuses(@Param("type") PaymentType type,
+    Page<PaymentOrder> searchForAdminByStatuses(@Param("includeHidden") boolean includeHidden,
+                                                @Param("type") PaymentType type,
                                                 @Param("statuses") Collection<PaymentStatus> statuses,
                                                 @Param("userId") UUID userId,
                                                 @Param("from") Instant from,
                                                 @Param("to") Instant to,
                                                 Pageable pageable);
 
+    default Page<PaymentOrder> searchForAdminByStatuses(PaymentType type,
+                                                        Collection<PaymentStatus> statuses,
+                                                        UUID userId,
+                                                        Instant from,
+                                                        Instant to,
+                                                        Pageable pageable) {
+        return searchForAdminByStatuses(true, type, statuses, userId, from, to, pageable);
+    }
+
     /** Đếm lệnh theo loại + trạng thái (badge "chờ duyệt" trên dashboard admin). */
-    long countByTypeAndStatus(PaymentType type, PaymentStatus status);
+    @Query("select count(o) from PaymentOrder o join User u on u.id = o.userId where "
+            + "o.type = :type and o.status = :status and "
+            + "(:includeHidden = true or u.hiddenFromSubAdmin = false)")
+    long countByTypeAndStatus(@Param("includeHidden") boolean includeHidden,
+                              @Param("type") PaymentType type,
+                              @Param("status") PaymentStatus status);
+
+    default long countByTypeAndStatus(PaymentType type, PaymentStatus status) {
+        return countByTypeAndStatus(true, type, status);
+    }
 
     /** Tổng tiền của MỘT user theo loại + trạng thái — dùng cho màn chi tiết user. */
     @Query("select coalesce(sum(o.amount), 0) from PaymentOrder o "

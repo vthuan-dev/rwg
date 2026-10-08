@@ -43,7 +43,8 @@ public record ChatEventPayload(
          * array cho cả hai chiều và JSON cũng gọn hơn khi đi qua Redis.
          */
         String[] deletedMessageIds,
-        Instant serverTime
+        Instant serverTime,
+        boolean hiddenFromSubAdmin
 ) {
 
     public static final String TYPE_MESSAGE = "MESSAGE";
@@ -53,8 +54,13 @@ public record ChatEventPayload(
 
     public static ChatEventPayload message(String conversationId, String targetUserId,
                                            ChatMessageResponse message) {
+        return message(conversationId, targetUserId, message, false);
+    }
+
+    public static ChatEventPayload message(String conversationId, String targetUserId,
+                                           ChatMessageResponse message, boolean hiddenFromSubAdmin) {
         return new ChatEventPayload(TYPE_MESSAGE, conversationId, targetUserId, message,
-                null, false, null, Instant.now());
+                null, false, null, Instant.now(), hiddenFromSubAdmin);
     }
 
     /**
@@ -66,19 +72,33 @@ public record ChatEventPayload(
      */
     public static ChatEventPayload staffOnlyMessage(String conversationId, String targetUserId,
                                                     ChatMessageResponse message) {
+        return staffOnlyMessage(conversationId, targetUserId, message, false);
+    }
+
+    public static ChatEventPayload staffOnlyMessage(String conversationId, String targetUserId,
+                                                    ChatMessageResponse message, boolean hiddenFromSubAdmin) {
         return new ChatEventPayload(TYPE_MESSAGE, conversationId, targetUserId, message,
-                null, true, null, Instant.now());
+                null, true, null, Instant.now(), hiddenFromSubAdmin);
     }
 
     public static ChatEventPayload read(String conversationId, String targetUserId) {
+        return read(conversationId, targetUserId, false);
+    }
+
+    public static ChatEventPayload read(String conversationId, String targetUserId, boolean hiddenFromSubAdmin) {
         return new ChatEventPayload(TYPE_READ, conversationId, targetUserId, null,
-                null, false, null, Instant.now());
+                null, false, null, Instant.now(), hiddenFromSubAdmin);
     }
 
     public static ChatEventPayload conversation(String conversationId, String targetUserId,
                                                String status) {
+        return conversation(conversationId, targetUserId, status, false);
+    }
+
+    public static ChatEventPayload conversation(String conversationId, String targetUserId,
+                                               String status, boolean hiddenFromSubAdmin) {
         return new ChatEventPayload(TYPE_CONVERSATION, conversationId, targetUserId, null,
-                status, false, null, Instant.now());
+                status, false, null, Instant.now(), hiddenFromSubAdmin);
     }
 
     /**
@@ -88,7 +108,12 @@ public record ChatEventPayload(
      */
     public static ChatEventPayload messagesDeleted(String conversationId, String targetUserId,
                                                    String[] deletedMessageIds) {
+        return messagesDeleted(conversationId, targetUserId, deletedMessageIds, false);
+    }
+
+    public static ChatEventPayload messagesDeleted(String conversationId, String targetUserId,
+                                                   String[] deletedMessageIds, boolean hiddenFromSubAdmin) {
         return new ChatEventPayload(TYPE_MESSAGES_DELETED, conversationId, targetUserId, null,
-                null, false, deletedMessageIds, Instant.now());
+                null, false, deletedMessageIds, Instant.now(), hiddenFromSubAdmin);
     }
 }

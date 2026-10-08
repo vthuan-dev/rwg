@@ -50,6 +50,7 @@ public record AdminUserListItemResponse(
         String currency,
         boolean online,
         Instant lastSeenAt,
-        boolean betLocked
+        boolean betLocked,
+        boolean hiddenFromSubAdmin
 ) {
 }

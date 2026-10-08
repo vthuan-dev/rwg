@@ -11,6 +11,7 @@ import {
   UserCheck,
   ChevronUp,
   Lock,
+  Eye,
   EyeOff,
   ImagePlus,
   Bell,
@@ -36,7 +37,7 @@ import {
   adminFetchBlobUrl,
   chatAttachmentEndpoint,
 } from "@/lib/adminApi";
-import { canChatReply, canAdjustWallet, canDeleteMessages, getAdminIdentity } from "@/lib/adminIdentity";
+import { canChatReply, canAdjustWallet, canDeleteMessages, getAdminIdentity, isMasterAdmin } from "@/lib/adminIdentity";
 import {
   isNotificationMuted,
   playNotificationChime,
@@ -71,6 +72,8 @@ interface ConversationRow {
   geoRegion: string | null;
   geoCity: string | null;
   geoIsp: string | null;
+  /** true nếu người chơi này đang bị Master Admin (Genting2004) ẩn khỏi Sub Admin. */
+  hiddenFromSubAdmin?: boolean;
 }
 
 /** Một tin nhắn, khớp `ChatMessageResponse` của backend. */
@@ -167,6 +170,9 @@ export default function AdminSupportPage() {
 
   const canReply = canChatReply();
   const myId = getAdminIdentity().userId;
+  const isMaster = isMasterAdmin();
+
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const [filter, setFilter] = useState<QueueFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -474,6 +480,11 @@ export default function AdminSupportPage() {
   /** Nhận gói realtime. */
   const handleEvent = useCallback(
     (event: AdminChatEvent) => {
+      // Nếu gói sự kiện thuộc về khách bị ẩn khỏi Sub Admin mà phiên này không phải Master Admin -> bỏ qua hoàn toàn
+      if (event.hiddenFromSubAdmin && !isMaster) {
+        return;
+      }
+
       const isActive = event.conversationId === activeIdRef.current;
 
       if (event.type === "MESSAGE" && event.message) {
@@ -526,6 +537,10 @@ export default function AdminSupportPage() {
           const updated: ConversationRow = {
             ...row,
             status: "OPEN",
+            hiddenFromSubAdmin:
+              event.hiddenFromSubAdmin !== undefined
+                ? event.hiddenFromSubAdmin
+                : row.hiddenFromSubAdmin,
             // Tin chỉ có ảnh không có chữ nào — dùng đúng khoá mà backend sẽ lưu vào
             // cột last_message_preview, để dòng hộp thư không bị trống rồi nhảy chữ khi
             // tải lại trang. `previewOf` sẽ dịch nó khi hiển thị.
@@ -572,7 +587,7 @@ export default function AdminSupportPage() {
         );
       }
     },
-    [reloadList, reloadThread, scrollToBottom]
+    [isMaster, reloadList, reloadThread, scrollToBottom]
   );
 
   useAdminChatSocket(handleEvent);
@@ -764,6 +779,29 @@ export default function AdminSupportPage() {
     }
   }, [activeRow]);
 
+  /** Master Admin (Genting2004) bật/tắt ẩn người chơi này khỏi Sub Admin. */
+  const toggleHideFromSubAdmin = async () => {
+    if (!activeRow || togglingVisibility) return;
+    setTogglingVisibility(true);
+    setThreadError("");
+    try {
+      const nextHidden = !activeRow.hiddenFromSubAdmin;
+      await adminFetch(`/admin/users/${activeRow.userId}/visibility`, {
+        method: "PATCH",
+        body: JSON.stringify({ hidden: nextHidden }),
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === activeRow.id ? { ...r, hiddenFromSubAdmin: nextHidden } : r
+        )
+      );
+    } catch (err) {
+      setThreadError((err as Error).message);
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
+
   /** Nhận phụ trách hoặc đóng luồng; cả hai đều trả về dòng đã cập nhật. */
   const runAction = async (action: "assign" | "close") => {
     if (!activeId || acting) return;
@@ -947,6 +985,15 @@ export default function AdminSupportPage() {
                               <span className="truncate text-xs font-extrabold text-slate-900">
                                 {row.username}
                               </span>
+                              {isMaster && row.hiddenFromSubAdmin && (
+                                <span
+                                  className="flex shrink-0 items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-800"
+                                  title="Khách này đang bị ẩn khỏi Admin 2"
+                                >
+                                  <EyeOff className="h-2.5 w-2.5 text-amber-600" />
+                                  Ẩn Admin 2
+                                </span>
+                              )}
                               {row.unreadCount > 0 && (
                                 <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-black text-white">
                                   {row.unreadCount}
@@ -1106,6 +1153,33 @@ export default function AdminSupportPage() {
                                   <WalletIcon className="h-3.5 w-3.5" />
                                 )}
                                 {t("admin.users.wallet.tab_adjust")}
+                              </button>
+                            )}
+                            {isMaster && (
+                              <button
+                                type="button"
+                                disabled={togglingVisibility}
+                                onClick={toggleHideFromSubAdmin}
+                                id="chat-toggle-subadmin-visibility"
+                                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-bold transition-colors ${
+                                  activeRow.hiddenFromSubAdmin
+                                    ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                                }`}
+                                title={
+                                  activeRow.hiddenFromSubAdmin
+                                    ? "Đang ẩn khỏi Admin 2 - Bấm để cho phép Admin 2 thấy"
+                                    : "Bấm để ẩn người chơi này khỏi Admin 2"
+                                }
+                              >
+                                {togglingVisibility ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : activeRow.hiddenFromSubAdmin ? (
+                                  <EyeOff className="h-3.5 w-3.5 text-amber-600" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5 text-slate-500" />
+                                )}
+                                {activeRow.hiddenFromSubAdmin ? "Ẩn Admin 2" : "Mở Admin 2"}
                               </button>
                             )}
                             {activeRow.status === "OPEN" && (

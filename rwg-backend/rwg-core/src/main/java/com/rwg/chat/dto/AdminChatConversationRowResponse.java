@@ -48,12 +48,21 @@ public record AdminChatConversationRowResponse(
         String geoRegion,
         String geoCity,
         /** Nhà mạng — dấu hiệu nhận ra VPN. */
-        String geoIsp
+        String geoIsp,
+        /** true nếu tài khoản người chơi này đang bị Master Admin (Genting2004) ẩn khỏi Sub Admin. */
+        boolean hiddenFromSubAdmin
 ) {
 
     public static AdminChatConversationRowResponse from(ChatConversation c,
                                                        String username,
                                                        String assignedAdminUsername) {
+        return from(c, username, assignedAdminUsername, false);
+    }
+
+    public static AdminChatConversationRowResponse from(ChatConversation c,
+                                                       String username,
+                                                       String assignedAdminUsername,
+                                                       boolean hiddenFromSubAdmin) {
         if (assignedAdminUsername != null && "genting2004".equalsIgnoreCase(assignedAdminUsername)) {
             assignedAdminUsername = "Admin";
         }
@@ -73,6 +82,7 @@ public record AdminChatConversationRowResponse(
                 c.getGeoCountryName(),
                 c.getGeoRegion(),
                 c.getGeoCity(),
-                c.getGeoIsp());
+                c.getGeoIsp(),
+                hiddenFromSubAdmin);
     }
 }

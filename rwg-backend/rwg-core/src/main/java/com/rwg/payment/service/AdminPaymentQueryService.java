@@ -76,13 +76,19 @@ public class AdminPaymentQueryService {
         this.auditLogRepository = auditLogRepository;
         this.objectMapper = objectMapper;
     }
-
-    /** Danh sách lệnh nạp tiền, filter theo trạng thái / user / khoảng ngày (UTC). */
     @Transactional(readOnly = true)
     public PageResponse<PaymentOrderResponse> searchDeposits(String status, UUID userId,
-                                                             String fromDate, String toDate,
-                                                             int page, int size) {
-        return search(PaymentType.DEPOSIT, status, userId, fromDate, toDate, page, size);
+                                                              String fromDate, String toDate,
+                                                              int page, int size) {
+        return searchDeposits(status, userId, fromDate, toDate, page, size, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PaymentOrderResponse> searchDeposits(String status, UUID userId,
+                                                              String fromDate, String toDate,
+                                                              int page, int size,
+                                                              boolean includeHidden) {
+        return search(PaymentType.DEPOSIT, status, userId, fromDate, toDate, page, size, includeHidden);
     }
 
     /**
@@ -101,10 +107,18 @@ public class AdminPaymentQueryService {
      */
     @Transactional(readOnly = true)
     public PageResponse<AdminWithdrawalRowResponse> searchWithdrawals(String status, UUID userId,
-                                                                     String fromDate, String toDate,
-                                                                     int page, int size) {
+                                                                      String fromDate, String toDate,
+                                                                      int page, int size) {
+        return searchWithdrawals(status, userId, fromDate, toDate, page, size, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminWithdrawalRowResponse> searchWithdrawals(String status, UUID userId,
+                                                                      String fromDate, String toDate,
+                                                                      int page, int size,
+                                                                      boolean includeHidden) {
         Page<PaymentOrder> orders = searchOrders(
-                PaymentType.WITHDRAWAL, status, userId, fromDate, toDate, page, size);
+                PaymentType.WITHDRAWAL, status, userId, fromDate, toDate, page, size, includeHidden);
 
         // Nạp THEO LÔ: một trang 20 dòng mà tra từng dòng là 60 lượt gọi DB thêm.
         Map<UUID, String> usernames = loadUsernames(orders.getContent());
@@ -128,12 +142,20 @@ public class AdminPaymentQueryService {
      */
     @Transactional(readOnly = true)
     public PageResponse<AdminWithdrawalRowResponse> searchWithdrawalHistory(String status, UUID userId,
-                                                                           String fromDate, String toDate,
-                                                                           int page, int size) {
+                                                                            String fromDate, String toDate,
+                                                                            int page, int size) {
+        return searchWithdrawalHistory(status, userId, fromDate, toDate, page, size, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminWithdrawalRowResponse> searchWithdrawalHistory(String status, UUID userId,
+                                                                            String fromDate, String toDate,
+                                                                            int page, int size,
+                                                                            boolean includeHidden) {
         Set<PaymentStatus> statuses = resolveHistoryStatuses(status);
 
         Page<PaymentOrder> orders = searchOrdersByStatuses(
-                PaymentType.WITHDRAWAL, statuses, userId, fromDate, toDate, page, size);
+                PaymentType.WITHDRAWAL, statuses, userId, fromDate, toDate, page, size, includeHidden);
 
         Map<UUID, String> usernames = loadUsernames(orders.getContent());
         Map<UUID, BankAccount> banks = loadBankAccounts(orders.getContent());
@@ -164,14 +186,20 @@ public class AdminPaymentQueryService {
     /** Số lệnh rút đang chờ duyệt — badge cảnh báo trên dashboard admin. */
     @Transactional(readOnly = true)
     public long countPendingWithdrawals() {
-        return orderRepository.countByTypeAndStatus(PaymentType.WITHDRAWAL, PaymentStatus.PENDING);
+        return countPendingWithdrawals(true);
+    }
+
+    @Transactional(readOnly = true)
+    public long countPendingWithdrawals(boolean includeHidden) {
+        return orderRepository.countByTypeAndStatus(includeHidden, PaymentType.WITHDRAWAL, PaymentStatus.PENDING);
     }
 
     private PageResponse<PaymentOrderResponse> search(PaymentType type, String status, UUID userId,
                                                       String fromDate, String toDate,
-                                                      int page, int size) {
+                                                      int page, int size,
+                                                      boolean includeHidden) {
         return PageResponse.from(
-                searchOrders(type, status, userId, fromDate, toDate, page, size),
+                searchOrders(type, status, userId, fromDate, toDate, page, size, includeHidden),
                 PaymentOrderResponse::from);
     }
 
@@ -183,19 +211,21 @@ public class AdminPaymentQueryService {
      */
     private Page<PaymentOrder> searchOrders(PaymentType type, String status, UUID userId,
                                             String fromDate, String toDate,
-                                            int page, int size) {
+                                            int page, int size,
+                                            boolean includeHidden) {
         PaymentStatus statusFilter = status == null || status.isBlank() ? null : parseStatus(status);
         Range range = resolveRange(fromDate, toDate);
-        return orderRepository.searchForAdmin(type, statusFilter, userId, range.from(), range.to(),
+        return orderRepository.searchForAdmin(includeHidden, type, statusFilter, userId, range.from(), range.to(),
                 pageableByNewest(page, size));
     }
 
     /** Như {@link #searchOrders} nhưng lọc theo một TẬP trạng thái — dùng cho trang lịch sử. */
     private Page<PaymentOrder> searchOrdersByStatuses(PaymentType type, Set<PaymentStatus> statuses,
                                                       UUID userId, String fromDate, String toDate,
-                                                      int page, int size) {
+                                                      int page, int size,
+                                                      boolean includeHidden) {
         Range range = resolveRange(fromDate, toDate);
-        return orderRepository.searchForAdminByStatuses(type, statuses, userId, range.from(), range.to(),
+        return orderRepository.searchForAdminByStatuses(includeHidden, type, statuses, userId, range.from(), range.to(),
                 pageableByNewest(page, size));
     }
 

@@ -159,7 +159,8 @@ public class ChatService {
 
         eventPublisher.publishAfterCommit(ChatEventPayload.message(
                 conversation.getId().toString(), userId.toString(),
-                ChatMessageResponse.from(saved)));
+                ChatMessageResponse.from(saved),
+                user.isHiddenFromSubAdmin()));
 
         return ChatMessageResponse.from(saved);
     }
@@ -208,8 +209,10 @@ public class ChatService {
         conversationRepository.save(conversation);
 
         if (updated > 0) {
+            User user = userRepository.findById(userId).orElse(null);
+            boolean hidden = user != null && user.isHiddenFromSubAdmin();
             eventPublisher.publishAfterCommit(ChatEventPayload.read(
-                    conversation.getId().toString(), userId.toString()));
+                    conversation.getId().toString(), userId.toString(), hidden));
         }
         return updated;
     }
@@ -252,9 +255,11 @@ public class ChatService {
                 ChatMessage.withdrawalCard(conversation.getId(), withdrawalOrderId),
                 ChatSenderType.SYSTEM);
 
+        User user = userRepository.findById(userId).orElse(null);
+        boolean hidden = user != null && user.isHiddenFromSubAdmin();
         eventPublisher.publishAfterCommit(ChatEventPayload.staffOnlyMessage(
                 conversation.getId().toString(), userId.toString(),
-                ChatMessageResponse.from(saved)));
+                ChatMessageResponse.from(saved), hidden));
     }
 
     // ===== dùng chung =====

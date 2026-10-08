@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import { getAdminToken } from "@/lib/adminApi";
+import { isMasterAdmin } from "@/lib/adminIdentity";
 import { ADMIN_WS_URL } from "@/lib/constants";
 
 /**
@@ -52,6 +53,8 @@ export interface AdminChatEvent {
   /** Danh sách id của tin bị xóa, chỉ có với type = MESSAGES_DELETED. */
   deletedMessageIds?: string[] | null;
   serverTime: string;
+  /** true nếu cuộc trò chuyện thuộc về khách bị ẩn khỏi Sub Admin */
+  hiddenFromSubAdmin?: boolean;
 }
 
 /**
@@ -98,7 +101,7 @@ export function useAdminChatSocket(onEvent: (event: AdminChatEvent) => void) {
     };
 
     client.onConnect = () => {
-      client.subscribe("/topic/admin/chat", (msg) => {
+      const handleMessage = (msg: { body: string }) => {
         try {
           handlerRef.current(JSON.parse(msg.body) as AdminChatEvent);
         } catch (err) {
@@ -106,7 +109,14 @@ export function useAdminChatSocket(onEvent: (event: AdminChatEvent) => void) {
           // tới được, nếu không thì hộp thư đứng im mà không ai biết vì sao.
           console.error("Lỗi xử lý gói chat từ WebSocket:", err);
         }
-      });
+      };
+
+      client.subscribe("/topic/admin/chat", handleMessage);
+
+      // Kênh riêng cô lập cho Master Admin (Genting2004) khi khách bị ẩn khỏi Sub Admin (admin)
+      if (isMasterAdmin()) {
+        client.subscribe("/topic/admin/chat/master", handleMessage);
+      }
     };
 
     client.onStompError = (frame) => {

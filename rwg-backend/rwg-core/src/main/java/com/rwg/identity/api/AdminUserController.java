@@ -62,14 +62,35 @@ public class AdminUserController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return adminUserService.search(status, keyword, page, Math.min(size, MAX_PAGE_SIZE));
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return adminUserService.search(status, keyword, page, Math.min(size, MAX_PAGE_SIZE), includeHidden);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Chi tiết user kèm số dư ví, tổng nạp/rút đã hoàn tất, số lệnh rút chờ duyệt")
-    public AdminUserDetailResponse detail(@PathVariable UUID id) {
-        return adminUserService.detail(id);
+    public AdminUserDetailResponse detail(@PathVariable UUID id,
+                                          @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return adminUserService.detail(id, includeHidden);
+    }
+
+    @PatchMapping("/{id}/visibility")
+    @Operation(summary = "Ẩn hoặc mở cho thấy người chơi đối với Admin 2 (chỉ Master Admin Genting2004)")
+    public Map<String, Object> toggleVisibility(@PathVariable UUID id,
+                                                @RequestBody com.rwg.identity.dto.ToggleUserVisibilityRequest request,
+                                                @AuthenticationPrincipal Jwt jwt,
+                                                HttpServletRequest httpRequest) {
+        String adminUsername = jwt != null ? jwt.getClaimAsString("username") : null;
+        if ((adminUsername == null || adminUsername.isBlank()) && jwt != null) {
+            adminUsername = jwt.getSubject();
+        }
+        boolean hidden = adminUserService.toggleVisibility(id, request.hidden(),
+                UUID.fromString(jwt.getSubject()),
+                adminUsername,
+                ClientAddresses.clientIp(httpRequest));
+        return Map.of("id", id, "hiddenFromSubAdmin", hidden);
     }
 
     /**

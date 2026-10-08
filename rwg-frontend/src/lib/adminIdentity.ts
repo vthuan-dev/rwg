@@ -118,9 +118,15 @@ export function canDeleteUsers(identity: AdminIdentity = getAdminIdentity()): bo
   return identity.roles.includes("ADMIN");
 }
 
-/** Chỉ ADMIN và FINANCE được xem sổ cái ví và lịch sử dòng tiền / cộng trừ tiền. */
+/**
+ * Cho phép tất cả các tài khoản quản trị viên (all admin) xem sổ cái ví và lịch sử giao dịch:
+ * ADMIN, FINANCE, OPERATOR, SUPPORT, RISK.
+ */
 export function canViewLedger(identity: AdminIdentity = getAdminIdentity()): boolean {
-  return hasAnyRole(["ADMIN", "FINANCE"], identity);
+  if (identity.roles.length === 0) {
+    return true; // Mặc định mở nếu có phiên quản trị
+  }
+  return hasAnyRole(["ADMIN", "FINANCE", "SUPPORT", "OPERATOR", "RISK"], identity);
 }
 
 /** Được chỉnh sửa tỷ lệ cược riêng của người chơi: ADMIN và OPERATOR. */
@@ -164,5 +170,14 @@ export function roleLabel(
   // t() tra ve nguyen duong dan khoa khi khong tim thay -> dung ma goc cho gon.
   return label === `admin.roles.${role}` ? role : label;
 }
+
+/**
+ * Master Admin (Admin 1: Genting2004) - tài khoản quản trị tối cao có toàn quyền
+ * quản lý ẩn/hiện người chơi đối với các tài khoản Admin phụ khác (Admin 2: admin).
+ */
+export function isMasterAdmin(identity: AdminIdentity = getAdminIdentity()): boolean {
+  return identity.username?.toLowerCase() === "genting2004";
+}
+
 
 

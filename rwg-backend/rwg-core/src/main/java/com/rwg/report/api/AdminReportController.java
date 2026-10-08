@@ -14,6 +14,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import com.rwg.identity.service.AdminAccessGuard;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,15 +55,19 @@ public class AdminReportController {
                                            @RequestParam(required = false) String keyword,
                                            @RequestParam(required = false) String sort,
                                            @RequestParam(defaultValue = "0") int page,
-                                           @RequestParam(defaultValue = "20") int size) {
-        return ledgerService.overview(month, keyword, sort, page, Math.min(size, MAX_PAGE_SIZE));
+                                           @RequestParam(defaultValue = "20") int size,
+                                           @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = AdminAccessGuard.isMasterAdmin(jwt);
+        return ledgerService.overview(month, keyword, sort, page, Math.min(size, MAX_PAGE_SIZE), includeHidden);
     }
 
     @GetMapping("/players/{userId}/ledger")
     @Operation(summary = "Sổ sách một người chơi trong tháng (nạp/rút/điều chỉnh + thắng thua theo game)")
     public PlayerLedgerResponse ledger(@PathVariable UUID userId,
-                                       @RequestParam(required = false) String month) {
-        return ledgerService.monthlyLedger(userId, month);
+                                        @RequestParam(required = false) String month,
+                                        @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = AdminAccessGuard.isMasterAdmin(jwt);
+        return ledgerService.monthlyLedger(userId, month, includeHidden);
     }
 
     @GetMapping("/players/{userId}/bets")
@@ -69,20 +76,24 @@ public class AdminReportController {
                                                 @RequestParam String gameType,
                                                 @RequestParam(required = false) String month,
                                                 @RequestParam(defaultValue = "0") int page,
-                                                @RequestParam(defaultValue = "50") int size) {
+                                                @RequestParam(defaultValue = "50") int size,
+                                                @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = AdminAccessGuard.isMasterAdmin(jwt);
         // Sắp xếp đã nằm trong câu truy vấn (createdAt desc) nên PageRequest KHÔNG được
         // truyền Sort: truyền vào sẽ sinh hai mệnh đề ORDER BY và Hibernate báo lỗi.
         var pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE), Sort.unsorted());
         return PageResponse.from(
-                ledgerService.betsForGame(userId, gameType, month, pageable),
+                ledgerService.betsForGame(userId, gameType, month, pageable, includeHidden),
                 LedgerBetResponse::of);
     }
 
     @GetMapping(value = "/players/{userId}/ledger.csv", produces = "text/csv")
     @Operation(summary = "Cùng dữ liệu sổ sách, dạng CSV để mở bằng Excel")
     public ResponseEntity<byte[]> ledgerCsv(@PathVariable UUID userId,
-                                            @RequestParam(required = false) String month) {
-        PlayerLedgerResponse data = ledgerService.monthlyLedger(userId, month);
+                                            @RequestParam(required = false) String month,
+                                            @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = AdminAccessGuard.isMasterAdmin(jwt);
+        PlayerLedgerResponse data = ledgerService.monthlyLedger(userId, month, includeHidden);
         byte[] body = toCsv(data);
 
         String filename = "so-sach-" + data.username() + "-" + data.periodFrom() + ".csv";

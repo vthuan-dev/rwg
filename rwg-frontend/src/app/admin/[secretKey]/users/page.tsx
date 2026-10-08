@@ -22,6 +22,8 @@ import {
   ChevronDown,
   Percent,
   History,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   adminFetch,
@@ -44,6 +46,9 @@ import {
   canManageUsers,
   canViewLedger,
   canDeleteUsers,
+  isMasterAdmin,
+  getAdminIdentity,
+  type AdminIdentity,
 } from "@/lib/adminIdentity";
 
 /**
@@ -84,6 +89,7 @@ interface UserItem {
   /** Mốc hoạt động cuối; null nghĩa là CHƯA RÕ, không phải "đã rời đi từ lâu". */
   lastSeenAt: string | null;
   betLocked: boolean;
+  hiddenFromSubAdmin?: boolean;
 }
 
 /** Một dòng của điểm cuối làm mới — khớp PresenceEntryResponse của backend. */
@@ -125,6 +131,7 @@ interface UserDetail {
   totalWithdrawn: string;
   pendingWithdrawals: number;
   betLocked: boolean;
+  hiddenFromSubAdmin?: boolean;
 }
 
 /** Khung phân trang backend trả về (com.rwg.common.PageResponse). */
@@ -212,12 +219,27 @@ const KYC_LEVELS = ["NONE", "LEVEL_1", "LEVEL_2", "LEVEL_3"];
 export default function AdminUsersPage() {
   const { t, locale } = useTranslation();
 
+  const [identity, setIdentity] = useState<AdminIdentity | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) setIdentity(getAdminIdentity());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Master Admin (Admin 1: Genting2004) có đặc quyền ẩn/hiện người chơi với Admin 2 (admin)
+  const isMaster = identity ? isMasterAdmin(identity) : false;
+
   // Quyen quyet dinh tab nao hien ra. An han tab khong co quyen thay vi de bam
   // roi nhan 403 khong hieu vi sao.
-  const canAdjust = canAdjustWallet();
-  const canManage = canManageUsers();
-  const canSeeLedger = canViewLedger();
-  const canDelete = canDeleteUsers();
+  const canAdjust = canAdjustWallet(identity ?? undefined);
+  const canManage = canManageUsers(identity ?? undefined);
+  const canSeeLedger = canViewLedger(identity ?? undefined);
+  const canDelete = canDeleteUsers(identity ?? undefined);
 
   /** Nhãn mức KYC tra trong file dịch; mức lạ hiện nguyên mã. */
   const kycLabel = (level: string): string => {
@@ -320,6 +342,31 @@ export default function AdminUsersPage() {
       alert((err as Error).message || "Không thể cập nhật trạng thái khóa cược");
     } finally {
       setBetLockLoading(false);
+    }
+  };
+
+  // Ẩn/hiện người chơi với Sub-admin (Admin 2) - Chỉ dành cho Master Admin (Admin 1: Genting2004)
+  const [visibilityLoading, setVisibilityLoading] = useState<string | null>(null);
+  const [visibilityFilter, setVisibilityFilter] = useState<"" | "HIDDEN" | "VISIBLE">("");
+
+  const handleToggleVisibility = async (userId: string, hidden: boolean) => {
+    setVisibilityLoading(userId);
+    try {
+      await adminFetch(`/admin/users/${userId}/visibility`, {
+        method: "PATCH",
+        body: JSON.stringify({ hidden }),
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, hiddenFromSubAdmin: hidden } : u))
+      );
+      setDetail((prev) => (prev && prev.id === userId ? { ...prev, hiddenFromSubAdmin: hidden } : prev));
+      if (selectedUser && selectedUser.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, hiddenFromSubAdmin: hidden } : prev));
+      }
+    } catch (err) {
+      alert((err as Error).message || "Không thể cập nhật quyền hiển thị người chơi");
+    } finally {
+      setVisibilityLoading(null);
     }
   };
 
@@ -583,7 +630,15 @@ export default function AdminUsersPage() {
    * 2. Nếu cùng online hoặc cùng offline: sắp xếp theo lastSeenAt mới nhất -> createdAt mới nhất.
    */
   const sortedUsers = React.useMemo(() => {
-    return [...users].sort((a, b) => {
+    let list = [...users];
+    if (isMaster) {
+      if (visibilityFilter === "HIDDEN") {
+        list = list.filter((u) => u.hiddenFromSubAdmin === true);
+      } else if (visibilityFilter === "VISIBLE") {
+        list = list.filter((u) => !u.hiddenFromSubAdmin);
+      }
+    }
+    return list.sort((a, b) => {
       const aOnline = presence[a.id]?.online ?? a.online;
       const bOnline = presence[b.id]?.online ?? b.online;
       if (aOnline && !bOnline) return -1;
@@ -602,7 +657,7 @@ export default function AdminUsersPage() {
 
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [users, presence]);
+  }, [users, presence, isMaster, visibilityFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -683,6 +738,22 @@ export default function AdminUsersPage() {
               </select>
             </div>
 
+            {/* Bộ lọc hiển thị dành riêng cho Master Admin (Admin 1) */}
+            {isMaster && (
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                <EyeOff className="w-3.5 h-3.5 text-amber-600" />
+                <select
+                  value={visibilityFilter}
+                  onChange={(e) => setVisibilityFilter(e.target.value as "" | "HIDDEN" | "VISIBLE")}
+                  className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+                >
+                  <option value="" className="bg-white text-slate-900">Tất cả quyền hiển thị</option>
+                  <option value="HIDDEN" className="bg-white text-slate-900">Đang ẩn với Admin 2</option>
+                  <option value="VISIBLE" className="bg-white text-slate-900">Hiện với Admin 2</option>
+                </select>
+              </div>
+            )}
+
             <button
               onClick={reload}
               className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition-colors shadow-xs"
@@ -756,6 +827,11 @@ export default function AdminUsersPage() {
                         {u.betLocked && (
                           <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1 w-fit" title="Tài khoản bị cấm cược ngầm">
                             <ShieldAlert className="w-2.5 h-2.5 text-purple-600" /> Khóa cược
+                          </span>
+                        )}
+                        {isMaster && u.hiddenFromSubAdmin && (
+                          <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1 w-fit" title="Đang ẩn đối với Admin 2 (admin)">
+                            <EyeOff className="w-2.5 h-2.5 text-amber-600" /> Ẩn Admin 2
                           </span>
                         )}
                       </div>
@@ -838,6 +914,34 @@ export default function AdminUsersPage() {
                         >
                           {u.betLocked ? "Mở cược" : "Khóa cược"}
                         </button>
+                        {isMaster && (
+                          <button
+                            onClick={() => void handleToggleVisibility(u.id, !u.hiddenFromSubAdmin)}
+                            disabled={visibilityLoading === u.id}
+                            className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors flex items-center gap-1 ${
+                              u.hiddenFromSubAdmin
+                                ? "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800"
+                                : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
+                            }`}
+                            title={
+                              u.hiddenFromSubAdmin
+                                ? "Đang ẩn với Admin 2. Bấm để Cho phép Admin 2 thấy"
+                                : "Đang hiện với Admin 2. Bấm để Ẩn khỏi Admin 2"
+                            }
+                          >
+                            {visibilityLoading === u.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                            ) : u.hiddenFromSubAdmin ? (
+                              <>
+                                <Eye className="w-3 h-3 text-amber-600" /> Mở Admin 2
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-3 h-3 text-slate-500" /> Ẩn Admin 2
+                              </>
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setStatusModalUser(u);
@@ -1034,17 +1138,16 @@ export default function AdminUsersPage() {
                   </ModalSection>
                 )}
 
-                {canSeeLedger && (
-                  <ModalSection
-                    id="ledger"
-                    label={t("admin.users.ledger.title")}
-                    icon={ScrollText}
-                    open={openSection === "ledger"}
-                    onToggle={toggleSection}
-                  >
-                    <WalletLedgerPanel userId={detail.id} />
-                  </ModalSection>
-                )}
+                {/* Lịch sử giao dịch ví (Ledger) - Mở cho tất cả admin đều thấy */}
+                <ModalSection
+                  id="ledger"
+                  label={t("admin.users.ledger.title")}
+                  icon={ScrollText}
+                  open={openSection === "ledger"}
+                  onToggle={toggleSection}
+                >
+                  <WalletLedgerPanel userId={detail.id} />
+                </ModalSection>
               </div>
             )}
 
@@ -1165,6 +1268,52 @@ export default function AdminUsersPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Quyền hiển thị với Admin 2 (Chỉ Master Admin Genting2004) */}
+                {isMaster && (
+                  <div className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl">
+                    <div className="flex flex-col gap-0.5 pr-4">
+                      <div className="flex items-center gap-1.5">
+                        {detail.hiddenFromSubAdmin ? (
+                          <EyeOff className="w-4 h-4 text-amber-600" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-slate-600" />
+                        )}
+                        <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-wide">
+                          Quyền hiển thị với Admin 2 (admin)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {detail.hiddenFromSubAdmin
+                          ? "Tài khoản người chơi này đang BỊ ẨN hoàn toàn đối với Admin 2 (ẩn khỏi danh sách, duyệt rút, chat, sổ cái)."
+                          : "Tài khoản người chơi này đang HIỆN bình thường với Admin 2."}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={visibilityLoading === detail.id}
+                      onClick={() => void handleToggleVisibility(detail.id, !detail.hiddenFromSubAdmin)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 ${
+                        detail.hiddenFromSubAdmin
+                          ? "bg-amber-600 hover:bg-amber-700 text-white"
+                          : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {visibilityLoading === detail.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : detail.hiddenFromSubAdmin ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5" /> Mở cho Admin 2 thấy
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5" /> Ẩn khỏi Admin 2
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {/* Block 1: Admin Đổi Mật khẩu Đăng nhập (Cấp 1) */}
                 <div className="flex flex-col gap-2 p-3.5 bg-white border border-slate-200 rounded-xl">

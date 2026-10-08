@@ -53,6 +53,8 @@ public class ChatEventPublisher {
      * SimpleBroker tự nó cho mọi client đã xác thực subscribe mọi topic.
      */
     public static final String TOPIC_ADMIN_CHAT = "/topic/admin/chat";
+    /** Kênh STOMP cô lập dành riêng cho Master Admin (Genting2004) khi khách bị ẩn khỏi Sub Admin. */
+    public static final String TOPIC_MASTER_ADMIN_CHAT = "/topic/admin/chat/master";
 
     /**
      * Id của tiến trình đang chạy, sinh mới mỗi lần khởi động.
@@ -123,7 +125,12 @@ public class ChatEventPublisher {
             if (payload.targetUserId() != null && !payload.staffOnly()) {
                 messaging.convertAndSendToUser(payload.targetUserId(), USER_QUEUE_CHAT, payload);
             }
-            messaging.convertAndSend(TOPIC_ADMIN_CHAT, payload);
+            if (payload.hiddenFromSubAdmin()) {
+                // Khách bị ẩn: chỉ đẩy vào kênh riêng của Master Admin (Genting2004)
+                messaging.convertAndSend(TOPIC_MASTER_ADMIN_CHAT, payload);
+            } else {
+                messaging.convertAndSend(TOPIC_ADMIN_CHAT, payload);
+            }
         } catch (RuntimeException sendFailed) {
             // Transaction đã commit, tin đã nằm trong DB. Ném tiếp một lỗi mạng
             // WebSocket ở đây không cứu được gì mà chỉ làm bẩn log của luồng nghiệp

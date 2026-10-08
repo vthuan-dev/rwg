@@ -7,6 +7,8 @@ import com.rwg.payment.service.AdminPaymentQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,8 +45,10 @@ public class AdminPaymentController {
                                                        @RequestParam(required = false) String fromDate,
                                                        @RequestParam(required = false) String toDate,
                                                        @RequestParam(defaultValue = "0") int page,
-                                                       @RequestParam(defaultValue = "20") int size) {
-        return queryService.searchDeposits(status, userId, fromDate, toDate, page, Math.min(size, MAX_PAGE_SIZE));
+                                                       @RequestParam(defaultValue = "20") int size,
+                                                       @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return queryService.searchDeposits(status, userId, fromDate, toDate, page, Math.min(size, MAX_PAGE_SIZE), includeHidden);
     }
 
     /**
@@ -62,8 +66,10 @@ public class AdminPaymentController {
                                                                 @RequestParam(required = false) String fromDate,
                                                                 @RequestParam(required = false) String toDate,
                                                                 @RequestParam(defaultValue = "0") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return queryService.searchWithdrawals(status, userId, fromDate, toDate, page, Math.min(size, MAX_PAGE_SIZE));
+                                                                @RequestParam(defaultValue = "20") int size,
+                                                                @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return queryService.searchWithdrawals(status, userId, fromDate, toDate, page, Math.min(size, MAX_PAGE_SIZE), includeHidden);
     }
 
     /**
@@ -83,14 +89,17 @@ public class AdminPaymentController {
                                                                       @RequestParam(required = false) String fromDate,
                                                                       @RequestParam(required = false) String toDate,
                                                                       @RequestParam(defaultValue = "0") int page,
-                                                                      @RequestParam(defaultValue = "20") int size) {
+                                                                      @RequestParam(defaultValue = "20") int size,
+                                                                      @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
         return queryService.searchWithdrawalHistory(status, userId, fromDate, toDate,
-                page, Math.min(size, MAX_PAGE_SIZE));
+                page, Math.min(size, MAX_PAGE_SIZE), includeHidden);
     }
 
     @GetMapping("/withdrawals/pending-count")
     @Operation(summary = "Số lệnh rút đang chờ duyệt (badge dashboard)")
-    public Map<String, Long> pendingWithdrawalCount() {
-        return Map.of("pendingWithdrawals", queryService.countPendingWithdrawals());
+    public Map<String, Long> pendingWithdrawalCount(@AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return Map.of("pendingWithdrawals", queryService.countPendingWithdrawals(includeHidden));
     }
 }

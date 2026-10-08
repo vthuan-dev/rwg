@@ -76,8 +76,9 @@ public class AdminChatController {
         // nhận id từ ngoài thì một nhân sự xem được hàng đợi riêng của người khác, và
         // đó là thông tin về hiệu suất làm việc của đồng nghiệp họ.
         UUID assignedTo = mine ? UUID.fromString(jwt.getSubject()) : null;
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
 
-        return service.inbox(status, assignedTo, unassigned, q, page, size);
+        return service.inbox(status, assignedTo, unassigned, q, page, size, includeHidden);
     }
 
     /**
@@ -90,9 +91,11 @@ public class AdminChatController {
     public List<ChatMessageResponse> messages(
             @PathVariable UUID id,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant before) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant before,
+            @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
 
-        return service.messages(id, before);
+        return service.messages(id, before, includeHidden);
     }
 
     @PostMapping("/conversations/{id}/messages")
@@ -100,9 +103,11 @@ public class AdminChatController {
     public ChatMessageResponse reply(@PathVariable UUID id,
                                      @Valid @RequestBody SendChatMessageRequest request,
                                      @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
         return service.replyAsStaff(id, UUID.fromString(jwt.getSubject()),
                 username(jwt), request.body(), request.clientMsgId(),
-                request.attachmentUrl(), request.attachmentName(), request.attachmentSize());
+                request.attachmentUrl(), request.attachmentName(), request.attachmentSize(),
+                includeHidden);
     }
 
     /**
@@ -123,8 +128,9 @@ public class AdminChatController {
     public AdminChatConversationRowResponse assign(@PathVariable UUID id,
                                                    @AuthenticationPrincipal Jwt jwt,
                                                    HttpServletRequest httpRequest) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
         return service.assign(id, UUID.fromString(jwt.getSubject()), username(jwt),
-                ClientAddresses.clientIp(httpRequest));
+                ClientAddresses.clientIp(httpRequest), includeHidden);
     }
 
     @PostMapping("/conversations/{id}/close")
@@ -132,20 +138,24 @@ public class AdminChatController {
     public AdminChatConversationRowResponse close(@PathVariable UUID id,
                                                   @AuthenticationPrincipal Jwt jwt,
                                                   HttpServletRequest httpRequest) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
         return service.close(id, UUID.fromString(jwt.getSubject()), username(jwt),
-                ClientAddresses.clientIp(httpRequest));
+                ClientAddresses.clientIp(httpRequest), includeHidden);
     }
 
     @PostMapping("/conversations/{id}/read")
     @Operation(summary = "Đánh dấu đã đọc mọi tin của người chơi trong luồng")
-    public Map<String, Integer> markRead(@PathVariable UUID id) {
-        return Map.of("updated", service.markRead(id));
+    public Map<String, Integer> markRead(@PathVariable UUID id,
+                                         @AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return Map.of("updated", service.markRead(id, includeHidden));
     }
 
     @GetMapping("/unread-count")
     @Operation(summary = "Tổng số tin chưa đọc và số luồng đang chờ trả lời")
-    public ChatUnreadResponse unreadCount() {
-        return service.unread();
+    public ChatUnreadResponse unreadCount(@AuthenticationPrincipal Jwt jwt) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
+        return service.unread(includeHidden);
     }
 
     /**
@@ -161,9 +171,10 @@ public class AdminChatController {
                                                @Valid @RequestBody DeleteChatMessagesRequest request,
                                                @AuthenticationPrincipal Jwt jwt,
                                                HttpServletRequest httpRequest) {
+        boolean includeHidden = com.rwg.identity.service.AdminAccessGuard.isMasterAdmin(jwt);
         int deleted = service.deleteMessages(id, request.getMessageIds(), request.getConfirmPin(),
                 UUID.fromString(jwt.getSubject()), username(jwt),
-                ClientAddresses.clientIp(httpRequest));
+                ClientAddresses.clientIp(httpRequest), includeHidden);
         return Map.of("deleted", deleted);
     }
 

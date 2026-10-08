@@ -89,8 +89,13 @@ public class PlayerLedgerService {
      */
     @Transactional(readOnly = true)
     public PlayerLedgerResponse monthlyLedger(UUID userId, String month) {
+        return monthlyLedger(userId, month, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PlayerLedgerResponse monthlyLedger(UUID userId, String month, boolean includeHidden) {
         YearMonth ym = parseMonth(month, properties.zone());
-        return ledger(userId, ym.atDay(1), ym.atEndOfMonth());
+        return ledger(userId, ym.atDay(1), ym.atEndOfMonth(), includeHidden);
     }
 
     /**
@@ -101,12 +106,23 @@ public class PlayerLedgerService {
      */
     @Transactional(readOnly = true)
     public PlayerLedgerResponse ledger(UUID userId, LocalDate from, LocalDate to) {
+        return ledger(userId, from, to, true);
+    }
+
+    @Transactional(readOnly = true)
+    public PlayerLedgerResponse ledger(UUID userId, LocalDate from, LocalDate to, boolean includeHidden) {
         validateRange(from, to);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
                         ErrorCode.NOT_FOUND.defaultMessage(),
                         Map.of("resource", "user"), "error.user.not_found"));
+
+        if (!includeHidden && user.isHiddenFromSubAdmin()) {
+            throw new ApiException(ErrorCode.NOT_FOUND,
+                    ErrorCode.NOT_FOUND.defaultMessage(),
+                    Map.of("resource", "user"), "error.user.not_found");
+        }
 
         ZoneId zone = properties.zone();
         Instant fromInstant = from.atStartOfDay(zone).toInstant();
@@ -152,20 +168,16 @@ public class PlayerLedgerService {
      *
      * PHÂN TRANG CŨNG Ở TẦNG ỨNG DỤNG vì lý do trên: không biết tập người chơi
      * cuối cùng gồm những ai cho đến khi đã hợp nhất xong cả bốn nguồn.
-     *
-     * ĐÁNH ĐỔI ĐƯỢC GHI NHẬN: cách này nạp toàn bộ dòng tổng hợp của kỳ vào bộ
-     * nhớ trước khi cắt trang. Số dòng bằng số người hoạt động trong kỳ (không phải
-     * số giao dịch), nên với một tháng thì đây là con số chấp nhận được. Nếu sau này
-     * sàn lớn tới mức hàng trăm nghìn người hoạt động mỗi tháng, phải chuyển sang
-     * một bảng tổng hợp được cập nhật dần thay vì tính lại mỗi lần mở trang.
-     *
-     * @param sort {@code net} lãi/lỗ tăng dần (người lỗ nặng nhất lên đầu),
-     *     {@code stake} tiền cược giảm dần, {@code deposit} tiền vào giảm dần.
-     *     Mặc định {@code stake}.
      */
     @Transactional(readOnly = true)
     public LedgerOverviewResponse overview(String month, String keyword, String sort,
                                            int page, int size) {
+        return overview(month, keyword, sort, page, size, true);
+    }
+
+    @Transactional(readOnly = true)
+    public LedgerOverviewResponse overview(String month, String keyword, String sort,
+                                           int page, int size, boolean includeHidden) {
         ZoneId zone = properties.zone();
         YearMonth ym = parseMonth(month, zone);
         LocalDate from = ym.atDay(1);
@@ -208,8 +220,21 @@ public class PlayerLedgerService {
             acc.adminDebit = zeroIfNull(row.getTotalDebit());
         }
 
-        // TỔNG CỦA TOÀN KỲ, tính TRƯỚC khi lọc và cắt trang: admin làm sổ cần con số
-        // của cả kỳ, không phải tổng của 20 dòng đang xem.
+        List<UUID> ids = List.copyOf(byUser.keySet());
+        Map<UUID, User> userById = new HashMap<>();
+        for (User u : userRepository.findAllById(ids)) {
+            userById.put(u.getId(), u);
+        }
+
+        // Lọc bỏ người chơi đã bị Admin 1 ẩn nếu người gọi là Admin 2 (Sub Admin)
+        if (!includeHidden) {
+            byUser.entrySet().removeIf(e -> {
+                User u = userById.get(e.getKey());
+                return u != null && u.isHiddenFromSubAdmin();
+            });
+        }
+
+        // TỔNG CỦA TOÀN KỲ, tính TRƯỚC khi lọc từ khóa và cắt trang
         Totals totals = new Totals();
         for (Accumulator acc : byUser.values()) {
             totals.deposit = totals.deposit.add(acc.deposit);
@@ -227,18 +252,10 @@ public class PlayerLedgerService {
                     plain(totals.withdrawal), plain(totals.net));
         }
 
-        // MỘT truy vấn cho toàn bộ tên người dùng và MỘT cho toàn bộ ví, không phải
-        // mỗi dòng một lượt — cách kia thành 2N+1 truy vấn cho một lần vẽ bảng.
-        List<UUID> ids = List.copyOf(byUser.keySet());
-        Map<UUID, User> userById = new HashMap<>();
-        for (User u : userRepository.findAllById(ids)) {
-            userById.put(u.getId(), u);
-        }
         Map<UUID, Wallet> walletByUser = new HashMap<>();
-        for (Wallet w : walletRepository.findByUserIdIn(ids)) {
+        for (Wallet w : walletRepository.findByUserIdIn(List.copyOf(byUser.keySet()))) {
             walletByUser.put(w.getUserId(), w);
         }
-
         String needle = keyword == null ? "" : keyword.trim().toLowerCase();
         List<LedgerPlayerRowResponse> all = new ArrayList<>();
         for (Map.Entry<UUID, Accumulator> e : byUser.entrySet()) {
@@ -456,6 +473,19 @@ public class PlayerLedgerService {
     /** Chi tiết từng ván của một người chơi tại một loại game trong kỳ (mức 2). */
     @Transactional(readOnly = true)
     public Page<Bet> betsForGame(UUID userId, String gameType, String month, Pageable pageable) {
+        return betsForGame(userId, gameType, month, pageable, true);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Bet> betsForGame(UUID userId, String gameType, String month, Pageable pageable, boolean includeHidden) {
+        if (!includeHidden) {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null && user.isHiddenFromSubAdmin()) {
+                throw new ApiException(ErrorCode.NOT_FOUND,
+                        ErrorCode.NOT_FOUND.defaultMessage(),
+                        Map.of("resource", "user"), "error.user.not_found");
+            }
+        }
         ZoneId zone = properties.zone();
         YearMonth ym = parseMonth(month, zone);
         Instant from = ym.atDay(1).atStartOfDay(zone).toInstant();

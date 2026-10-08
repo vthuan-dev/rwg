@@ -29,6 +29,9 @@ REQUIRED = [
     "db/migration/V20260917_02__cap_nhat_exchange_rate_26008.sql",
     "db/migration/V20260925_01__them_hidden_cho_wallet_transactions.sql",
     "com/rwg/wallet/dto/ConfirmPinRequest.class",
+    "db/migration/V20261008_01__them_hidden_from_sub_admin_cho_users.sql",
+    "com/rwg/identity/dto/ToggleUserVisibilityRequest.class",
+    "com/rwg/identity/service/AdminAccessGuard.class",
 ]
 
 NESTED_CORE = "BOOT-INF/lib/rwg-core-0.1.0-SNAPSHOT.jar"
